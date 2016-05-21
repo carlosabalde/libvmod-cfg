@@ -14,7 +14,7 @@ before_script:
   - make -j1
 
 script:
-  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib make check -j1
+  - make check -j1
 
 compiler:
   - clang
