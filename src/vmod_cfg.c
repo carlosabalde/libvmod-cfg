@@ -202,6 +202,8 @@ ini_file_load(VRT_CTX, struct vmod_cfg_file *file)
             ctx, SLT_Error,
             "Failed to parse configuration file (location=%s, format=ini)",
             file->location);
+    } else {
+        file->version = version;
     }
 }
 
