@@ -1,0 +1,83 @@
+#
+# Copyright (c) 2016 Carlos Abalde <carlos.abalde@gmail.com>
+#
+# You're free to use and distribute this under terms in the
+# LICENSE file.
+#
+
+$Module cfg 3 CFG VMOD
+
+DESCRIPTION
+===========
+
+VMOD useful to access to contents of environment variables and configuration files from VCL.
+
+$Event event_function
+
+$Object env()
+
+Description
+    Extracts existing environment variables and creates a new instance.
+
+    Beware environment variables are internally cached. This cache is populated
+    when creating a new instance and it's never refreshed.
+
+$Method BOOL .is_set(STRING name)
+
+Arguments
+    name: name of the environment variable.
+Description
+    Checks if an environment variable is set.
+
+$Method STRING .get(STRING name)
+
+Arguments
+    name: name of the environment variable.
+Description
+    Gets the value of an environment variable.
+
+    Beware during certain VCL phases like ``vcl_init`` copying values is not
+    possible because a workspace is not available. In those cases a pointer to
+    a string allocated in the heap is returned when the variable exists. You
+    must use these pointers carefully.
+
+$Object file(
+    STRING location,
+    ENUM { ini } format="ini",
+    STRING name_delimiter=":",
+    STRING value_delimiter=";")
+
+Arguments
+    location: absolute path of the configuration file.
+
+    format: format of the configuration file.
+
+    name_delimiter: delimiter to be used if flattening the parameters namespace
+    is required.
+
+    value_delimiter: delimiter to be used if flattening a list of values is
+    required.
+Description
+    Parses the configuration file and creates a new instance.
+
+    Beware contents of the configuration file are internally cached. This cache
+    is refreshed on every VCL WARM event received by the VMOD.
+
+$Method BOOL .is_set(STRING name)
+
+Arguments
+    name: name of the -eventually flattened- configuration parameter.
+Description
+    Checks if a configuration parameter is set.
+
+$Method STRING .get(STRING name)
+
+Arguments
+    name: name of the -eventually flattened- configuration parameter.
+Description
+    Gets the value of a configuration parameter.
+
+    Beware during certain VCL phases like ``vcl_init`` copying values is not
+    possible because a workspace is not available. In those cases a pointer to
+    a string allocated in the heap is returned when the parameter exists. You
+    must use these pointers carefully.

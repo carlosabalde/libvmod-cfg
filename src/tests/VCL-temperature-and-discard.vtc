@@ -1,0 +1,40 @@
+varnishtest "Test VCL temperature and discard"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.ini" <<'EOF'
+[section1]
+field1: value1
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new env = cfg.env();
+
+        new file = cfg.file(
+            "${tmp}/test.ini",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+} -start
+
+varnish v1 -vcl+backend {
+}
+
+varnish v1 -cliok "vcl.state vcl1 cold"
+
+varnish v1 -cliok "vcl.use vcl1"
+
+varnish v1 -cliok "vcl.use vcl2"
+
+varnish v1 -cliok "vcl.discard vcl1"
+
+varnish v1 -expect MGT.child_panic == 0

@@ -1,0 +1,24 @@
+language: c
+
+before_install:
+  - sudo apt-get update -q
+  - sudo apt-get install -qq apt-transport-https python-docutils
+  - git clone https://github.com/varnishcache/varnish-cache.git ./varnish
+  - cd varnish
+  - ./autogen.sh
+  - ./configure
+  - make
+  - sudo make PREFIX="/usr/local" install
+  - cd ..
+
+before_script:
+  - ./autogen.sh
+  - ./configure --prefix=/usr
+  - make -j1
+
+script:
+  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib make check -j1
+
+compiler:
+  - clang
+  - gcc
