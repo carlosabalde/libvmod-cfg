@@ -28,6 +28,73 @@ import cfg;
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name)
 
+EXAMPLE
+=======
+
+Environment variables
+---------------------
+
+::
+    export VCL_SETTINGS=/etc/varnish/vcl.ini
+
+/etc/varnish/vcl.ini
+--------------------
+
+::
+    server: ACME
+
+    [joke]
+    start: 1459468800
+    stop: 1459555200
+
+/etc/varnish/default.vcl
+------------------------
+
+::
+    vcl 4.0;
+
+    import cfg;
+    import std;
+
+    backend default {
+        .host = "127.0.0.1";
+        .port = "8080";
+    }
+
+    sub vcl_init {
+        new env = cfg.env();
+
+        if (env.is_set("VCL_SETTINGS")) {
+            new settings = cfg.file(env.get("VCL_SETTINGS"));
+        } else {
+            return (fail);
+        }
+    }
+
+    sub vcl_recv {
+        if (std.time(settings.get("joke:start"), now) < now &&
+            std.time(settings.get("joke:stop"), now) > now) {
+           return (synth(418, "I'm a teapot (RFC 2324)"));
+        }
+    }
+
+    sub vcl_deliver {
+        call set_server;
+    }
+
+    sub vcl_synth {
+        call set_server;
+        if (resp.status == 418) {
+            return (deliver);
+        }
+    }
+
+    sub set_server {
+        if (settings.is_set("server")) {
+            set resp.http.Server = settings.get("server");
+        }
+    }
+
 INSTALLATION
 ============
 
