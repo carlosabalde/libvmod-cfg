@@ -35,12 +35,14 @@ Environment variables
 ---------------------
 
 ::
+
     export VCL_SETTINGS=/etc/varnish/vcl.ini
 
 /etc/varnish/vcl.ini
 --------------------
 
 ::
+
     server: ACME
 
     [joke]
@@ -51,6 +53,7 @@ Environment variables
 ------------------------
 
 ::
+
     vcl 4.0;
 
     import cfg;
