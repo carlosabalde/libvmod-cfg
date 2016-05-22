@@ -164,16 +164,14 @@ ini_file_handler(void *user, const char *section, const char *name, const char *
     struct vmod_cfg_file *file;
     CAST_OBJ_NOTNULL(file, user, VMOD_CFG_FILE);
 
-    unsigned len = strlen(name);
-    if ((section != NULL) && (strlen(section) > 0)) {
-        len += strlen(section) + strlen(file->name_delimiter);
-    }
-    char buffer[len + 1];
-    if ((section != NULL) && (strlen(section) > 0)) {
-        snprintf(buffer, len + 1, "%s%s%s", section, file->name_delimiter, name);
-    } else {
-        strcpy(buffer, name);
-    }
+    char *buffer;
+    unsigned flatten = (section != NULL) && (strlen(section) > 0);
+    AN(asprintf(
+        &buffer,
+        "%s%s%s",
+            flatten ? section : "",
+            flatten ? file->name_delimiter : "",
+            name));
 
     variable_t *variable = find_variable(&file->list, buffer);
     if (variable == NULL) {
@@ -189,6 +187,8 @@ ini_file_handler(void *user, const char *section, const char *name, const char *
         }
         strcat(variable->value, value);
     }
+
+    free(buffer);
 
     return 1;
 }
