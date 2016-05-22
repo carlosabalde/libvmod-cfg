@@ -42,7 +42,6 @@ static variable_t *new_variable(const char *name, size_t len, const char *value)
 static void free_variable(variable_t *variable);
 
 static variable_t *find_variable(variables_t *variables, const char *name);
-static const char *copy_variable(VRT_CTX, variables_t *variables, const char *name);
 static void flush_variables(variables_t *variables);
 
 static unsigned version = 0;
@@ -62,6 +61,40 @@ event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
     }
 
     return 0;
+}
+
+/******************************************************************************
+ * HELPERS.
+ *****************************************************************************/
+
+static unsigned
+cfg_is_set(VRT_CTX, variables_t *variables, const char *name)
+{
+    if (name != NULL) {
+        return find_variable(variables, name) != NULL;
+    }
+    return 0;
+}
+
+static const char *
+cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
+{
+    const char *result = fallback;
+
+    if (name != NULL) {
+        variable_t *variable = find_variable(variables, name);
+        if (variable != NULL) {
+            CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
+            result = variable->value;
+        }
+    }
+
+    if ((result != NULL) && (ctx->ws != NULL)) {
+        result = WS_Copy(ctx->ws, result, -1);
+        AN(result);
+    }
+
+    return result;
 }
 
 /******************************************************************************
@@ -125,19 +158,13 @@ vmod_env__fini(struct vmod_cfg_env **env)
 VCL_BOOL
 vmod_env_is_set(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name)
 {
-    if (name != NULL) {
-        return find_variable(&env->list, name) != NULL;
-    }
-    return 0;
+    return cfg_is_set(ctx, &env->list, name);
 }
 
 VCL_STRING
-vmod_env_get(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name)
+vmod_env_get(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name, VCL_STRING fallback)
 {
-    if (name != NULL) {
-        return copy_variable(ctx, &env->list, name);
-    }
-    return NULL;
+    return cfg_get(ctx, &env->list, name, fallback);
 }
 
 /******************************************************************************
@@ -155,8 +182,6 @@ struct vmod_cfg_file {
     variables_t list;
     void (*load)(VRT_CTX, struct vmod_cfg_file *);
 };
-
-#include <syslog.h>
 
 static int
 ini_file_handler(void *user, const char *section, const char *name, const char *value)
@@ -281,27 +306,21 @@ vmod_file__fini(struct vmod_cfg_file **file)
 VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {
-    if (name != NULL) {
-        CHECK_VERSION();
-        AZ(pthread_rwlock_rdlock(&file->rwlock));
-        unsigned result = find_variable(&file->list, name) != NULL;
-        AZ(pthread_rwlock_unlock(&file->rwlock));
-        return result;
-    }
-    return 0;
+    CHECK_VERSION();
+    AZ(pthread_rwlock_rdlock(&file->rwlock));
+    unsigned result = cfg_is_set(ctx, &file->list, name);
+    AZ(pthread_rwlock_unlock(&file->rwlock));
+    return result;
 }
 
 VCL_STRING
-vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
+vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING fallback)
 {
-    if (name != NULL) {
-        CHECK_VERSION();
-        AZ(pthread_rwlock_rdlock(&file->rwlock));
-        const char *result = copy_variable(ctx, &file->list, name);
-        AZ(pthread_rwlock_unlock(&file->rwlock));
-        return result;
-    }
-    return NULL;
+    CHECK_VERSION();
+    AZ(pthread_rwlock_rdlock(&file->rwlock));
+    const char *result = cfg_get(ctx, &file->list, name, fallback);
+    AZ(pthread_rwlock_unlock(&file->rwlock));
+    return result;
 }
 
 #undef CHECK_VERSION
@@ -344,25 +363,6 @@ find_variable(variables_t *variables, const char *name)
     variable_t variable;
     variable.name = name;
     return VRB_FIND(variables, variables, &variable);
-}
-
-static const char *
-copy_variable(VRT_CTX, variables_t *variables, const char *name)
-{
-    const char *result = NULL;
-
-    variable_t *variable = find_variable(variables, name);
-    if (variable != NULL) {
-        CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
-        if (ctx->ws != NULL) {
-            result = WS_Copy(ctx->ws, variable->value, -1);
-            AN(result);
-        } else {
-            result = variable->value;
-        }
-    }
-
-    return result;
 }
 
 static void

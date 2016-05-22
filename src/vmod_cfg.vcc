@@ -29,17 +29,20 @@ Arguments
 Description
     Checks if an environment variable is set.
 
-$Method STRING .get(STRING name)
+$Method STRING .get(STRING name, STRING fallback="")
 
 Arguments
     name: name of the environment variable.
+
+    fallback: value to be returned if the environment variable does not exist.
 Description
     Gets the value of an environment variable.
 
     Beware during certain VCL phases like ``vcl_init`` copying values is not
     possible because a workspace is not available. In those cases a pointer to
-    a string allocated in the heap is returned when the variable exists. You
-    must use these pointers carefully.
+    a string allocated in the heap is returned when the variable exists;
+    otherwise a pointer to the input ``fallback`` value is returned. You must
+    use these pointers carefully.
 
 $Object file(
     STRING location,
@@ -70,14 +73,17 @@ Arguments
 Description
     Checks if a configuration parameter is set.
 
-$Method STRING .get(STRING name)
+$Method STRING .get(STRING name, STRING fallback="")
 
 Arguments
     name: name of the -eventually flattened- configuration parameter.
+
+    fallback: value to be returned if the configuration parameter does not exist.
 Description
     Gets the value of a configuration parameter.
 
     Beware during certain VCL phases like ``vcl_init`` copying values is not
     possible because a workspace is not available. In those cases a pointer to
-    a string allocated in the heap is returned when the parameter exists. You
-    must use these pointers carefully.
+    a string allocated in the heap is returned when the variable exists;
+    otherwise a pointer to the input ``fallback`` value is returned. You must
+    use these pointers carefully.
