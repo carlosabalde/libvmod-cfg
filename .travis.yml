@@ -2,7 +2,7 @@ language: c
 
 before_install:
   - sudo apt-get update -q
-  - sudo apt-get install -qq apt-transport-https python-docutils
+  - sudo apt-get install -qq apt-transport-https python-docutils libcurl4-openssl-dev
   - git clone https://github.com/varnishcache/varnish-cache.git ./varnish
   - cd varnish
   - ./autogen.sh
