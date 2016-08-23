@@ -23,7 +23,8 @@ varnish v1 -vcl+backend {
 
     sub vcl_init {
         new file = cfg.file(
-            "${tmp}/test.ini",
+            "file://${tmp}/test.ini",
+            period=0,
             format=ini,
             name_delimiter=":",
             value_delimiter=";");
@@ -44,7 +45,6 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-
     expect resp.http.result1 == "-"
     expect resp.http.result2 == "value1"
     expect resp.http.result3 == "-"

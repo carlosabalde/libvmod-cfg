@@ -3,7 +3,7 @@
    :alt: Travis CI badge
    :target: https://travis-ci.org/carlosabalde/libvmod-cfg/
 
-VMOD useful to access to contents of environment variables and configuration files from VCL.
+VMOD useful to access to contents of environment variables and local or remote configuration files from VCL.
 
 Currently only Python's ConfigParser .INI-like configuration files are supported.
 
@@ -22,9 +22,18 @@ import cfg;
 
     Object file(
         STRING location,
+        INT period=60,
+        INT curl_connection_timeout=0,
+        INT curl_transfer_timeout=0,
+        BOOL curl_ssl_verify_peer=0,
+        BOOL curl_ssl_verify_host=0,
+        STRING curl_ssl_cafile="",
+        STRING curl_ssl_capath="",
+        STRING curl_proxy="",
         ENUM { ini } format="ini",
         STRING name_delimiter=":",
         STRING value_delimiter=";")
+    Method VOID .reload()
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
 
@@ -36,7 +45,7 @@ Environment variables
 
 ::
 
-    export VCL_SETTINGS=/etc/varnish/vcl.ini
+    export VCL_SETTINGS=file:///etc/varnish/vcl.ini
 
 /etc/varnish/vcl.ini
 --------------------
@@ -102,6 +111,10 @@ INSTALLATION
 ============
 
 The source tree is based on autotools to configure the building, and does also have the necessary bits in place to do functional unit tests using the varnishtest tool.
+
+Dependencies:
+
+* `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
 
 COPYRIGHT
 =========

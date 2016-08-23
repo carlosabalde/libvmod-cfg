@@ -6,7 +6,7 @@ $script = <<SCRIPT
   apt-get update -q
   apt-get install -qq unzip apt-transport-https \
     autotools-dev automake libtool python-docutils pkg-config libpcre3-dev \
-    libeditline-dev libedit-dev make dpkg-dev
+    libeditline-dev libedit-dev make dpkg-dev libcurl4-openssl-dev
 
   # Varnish Cache.
   curl https://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -

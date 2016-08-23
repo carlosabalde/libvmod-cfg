@@ -1,0 +1,77 @@
+varnishtest "Test .reload() for files"
+
+server s_origin1 {
+    rxreq
+    txresp
+} -repeat 1 -start
+
+server s_origin2 {
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: foo"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: foo"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: bar"
+} -repeat 1 -start
+
+varnish v_origin2 -vcl {
+    backend default {
+        .host = "${s_origin2_addr}";
+        .port = "${s_origin2_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
+varnish v1 -vcl {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${v_origin2_addr}:${v_origin2_port}/test.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+
+    sub vcl_deliver {
+        if (req.http.reload == "1") {
+            file.reload();
+        }
+        set resp.http.result = file.get("field", "-");
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result == "foo"
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.result == "bar"
+} -run
+
+varnish v1 -expect client_req == 2
+
+varnish v1 -expect MGT.child_panic == 0
