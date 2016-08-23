@@ -1,0 +1,69 @@
+varnishtest "Test remote files"
+
+server s_origin1 {
+    rxreq
+    txresp
+} -repeat 1 -start
+
+server s_origin2 {
+    rxreq
+    expect req.url == "/test.ini"
+    send "HTTP/1.0 200 OK\r\n"
+    send "Connection: close\r\n"
+    send "Content-Length: 89\r\n"
+    send "\r\n"
+    send "field1: value1\n"
+    send "\n"
+    send "[section1]\n"
+    send "field1: value1\n"
+    send "field2:\n"
+    send "    value2.1\n"
+    send "    value2.2\n"
+    send "    value2.3\n"
+} -repeat 2 -start
+
+varnish v1 -vcl {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${s_origin2_addr}:${s_origin2_port}/test.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+
+        if (file.get("field1") == "") {
+        }
+    }
+
+    sub vcl_deliver {
+        set resp.http.result1 = file.get("field1", "-");
+        set resp.http.result2 = file.get("section1:field1", "-");
+        set resp.http.result3 = file.get("section1:field2", "-");
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result1 == "value1"
+    expect resp.http.result2 == "value1"
+    expect resp.http.result3 == "value2.1;value2.2;value2.3"
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0

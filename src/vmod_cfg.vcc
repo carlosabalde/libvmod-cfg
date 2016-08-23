@@ -46,12 +46,43 @@ Description
 
 $Object file(
     STRING location,
+    INT period=60,
+    INT curl_connection_timeout=0,
+    INT curl_transfer_timeout=0,
+    BOOL curl_ssl_verify_peer=0,
+    BOOL curl_ssl_verify_host=0,
+    STRING curl_ssl_cafile="",
+    STRING curl_ssl_capath="",
+    STRING curl_proxy="",
     ENUM { ini } format="ini",
     STRING name_delimiter=":",
     STRING value_delimiter=";")
 
 Arguments
-    location: absolute path of the configuration file.
+    location: path of the configuration file. The following schemes are
+    supported: ``file://``, ``http://`` and ``https://``. If not specified
+    ``file://`` is assumed.
+
+    period: how frequently (seconds) contents of the configuration file are
+    reloaded (0 means disabling periodical reloads).
+
+    curl_connection_timeout: connection timeout (milliseconds; 0 means no
+    timeout).
+
+    curl_transfer_timeout: transfer timeout (milliseconds; 0 means no timeout).
+
+    curl_ssl_verify_peer: if enabled the peer's SSL certificate will be
+    verified.
+
+    curl_ssl_verify_host: if enabled the certificate's name will be verified
+    against host.
+
+    curl_ssl_cainfo: path to CA bundle (empty string means no CA bundle).
+
+    curl_ssl_capath: directory holding CA certificates (empty string means no
+    CA path).
+
+    curl_proxy: HTTP proxy to be used (empty string means no proxy).
 
     format: format of the configuration file.
 
@@ -64,7 +95,13 @@ Description
     Parses the configuration file and creates a new instance.
 
     Beware contents of the configuration file are internally cached. This cache
-    is refreshed on every VCL WARM event received by the VMOD.
+    is refreshed on every VCL WARM event received by the VMOD and every ``period``
+    seconds (if ``period`` > 0).
+
+$Method VOID .reload()
+
+Description
+    Reloads contents of the configuration file.
 
 $Method BOOL .is_set(STRING name)
 

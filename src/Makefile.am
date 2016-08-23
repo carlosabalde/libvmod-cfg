@@ -11,7 +11,8 @@ AM_CPPFLAGS = @VMOD_INCLUDES@ -Wall -Werror \
 vmoddir = @VMOD_DIR@
 vmod_LTLIBRARIES = libvmod_cfg.la
 
-libvmod_cfg_la_LDFLAGS = -module -export-dynamic -avoid-version
+libvmod_cfg_la_CFLAGS = $(VMOD_INCLUDES) $(CURL_CFLAGS)
+libvmod_cfg_la_LDFLAGS = -module -export-dynamic -avoid-version -shared $(CURL_LIBS)
 libvmod_cfg_la_LIBADD =
 
 libvmod_cfg_la_SOURCES = \

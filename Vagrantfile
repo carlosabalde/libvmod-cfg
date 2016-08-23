@@ -7,7 +7,7 @@ $script = <<SCRIPT
   apt-get install -qq unzip apt-transport-https \
     autotools-dev automake libtool python-docutils pkg-config libpcre3-dev \
     libeditline-dev libedit-dev make dpkg-dev git libjemalloc-dev \
-    libncurses-dev python-sphinx graphviz
+    libncurses-dev python-sphinx graphviz libcurl4-openssl-dev
 
   # Varnish Cache.
   sudo -u vagrant bash -c '\
