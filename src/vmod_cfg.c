@@ -266,7 +266,7 @@ file_read_url_body(void *block, size_t size, size_t nmemb, void *f)
     struct vmod_cfg_file *file;
     CAST_OBJ_NOTNULL(file, f, VMOD_CFG_FILE);
 
-    size_t current_size = (file->buffer == NULL) ? 0 : strlen(file->buffer);
+    size_t current_size = strlen(file->buffer);
     size_t block_size = size * nmemb;
     file->buffer = realloc(file->buffer, current_size + block_size + 1);
     AN(file->buffer);
@@ -389,7 +389,7 @@ struct file_init_stream_ctx {
 static char *
 file_ini_stream_reader(char *str, int size, void *stream)
 {
-    struct file_init_stream_ctx* ctx = (struct file_init_stream_ctx*)stream;
+    struct file_init_stream_ctx* ctx = (struct file_init_stream_ctx*) stream;
     int idx = 0;
     char newline = 0;
 
@@ -503,6 +503,8 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 
         if (winner) {
             if (file_read(ctx, file)) {
+                AN(file->buffer);
+
                 AZ(pthread_rwlock_wrlock(&file->rwlock));
                 flush_variables(&file->list);
                 if ((*file->parse)(ctx, file)) {
@@ -513,6 +515,8 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 
                 free((void *) file->buffer);
                 file->buffer = NULL;
+            } else {
+                AZ(file->buffer);
             }
 
             AZ(pthread_mutex_lock(&file->mutex));
@@ -522,21 +526,25 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
     }
 }
 
-#define SET_LOCATION(low, high, offset) \
+#define SET_STRING(value, field) \
     do { \
-        instance->location.type = FILE_LOCATION_ ## high ## _TYPE; \
-        instance->location.parsed.low = strdup(location + offset); \
-        AN(instance->location.parsed.low); \
+        instance->field = strdup(value); \
+        AN(instance->field); \
     } while (0)
 
 #define SET_OPTINAL_STRING(value, field) \
     do { \
         if ((value != NULL) && (strlen(value) > 0)) { \
-            instance->field = strdup(value); \
-            AN(instance->field); \
+            SET_STRING(value, field); \
         } else { \
             instance->field = NULL; \
         } \
+    } while (0)
+
+#define SET_LOCATION(low, high, offset) \
+    do { \
+        instance->location.type = FILE_LOCATION_ ## high ## _TYPE; \
+        SET_STRING(location + offset, location.parsed.low); \
     } while (0)
 
 VCL_VOID
@@ -564,8 +572,7 @@ vmod_file__init(
         ALLOC_OBJ(instance, VMOD_CFG_FILE);
         AN(instance);
 
-        instance->location.raw = strdup(location);
-        AN(instance->location.raw);
+        SET_STRING(location, location.raw);
         if (strncmp(location, "file://", 7) == 0) {
             SET_LOCATION(path, PATH, 7);
         } else if (strncmp(location, "http://", 7) == 0) {
@@ -583,10 +590,8 @@ vmod_file__init(
         SET_OPTINAL_STRING(curl_ssl_cafile, curl.ssl_cafile);
         SET_OPTINAL_STRING(curl_ssl_capath, curl.ssl_capath);
         SET_OPTINAL_STRING(curl_proxy, curl.proxy);
-        instance->name_delimiter = strdup(name_delimiter);
-        AN(instance->name_delimiter);
-        instance->value_delimiter = strdup(value_delimiter);
-        AN(instance->value_delimiter);
+        SET_STRING(name_delimiter, name_delimiter);
+        SET_STRING(value_delimiter, value_delimiter);
         AZ(pthread_mutex_init(&instance->mutex, NULL));
         instance->reloading = 0;
         instance->buffer = NULL;
@@ -606,14 +611,20 @@ vmod_file__init(
     *file = instance;
 }
 
-#undef SET_LOCATION
+#undef SET_STRING
 #undef SET_OPTINAL_STRING
+#undef SET_LOCATION
+
+#define FREE_STRING(field) \
+    do { \
+        free((void *) instance->field); \
+        instance->field = NULL; \
+    } while (0)
 
 #define FREE_OPTINAL_STRING(field) \
     do { \
         if (instance->field != NULL) { \
-            free((void *) instance->field); \
-            instance->field = NULL; \
+            FREE_STRING(field); \
         } \
     } while (0)
 
@@ -629,11 +640,9 @@ vmod_file__fini(struct vmod_cfg_file **file)
     free((void *) instance->location.raw);
     instance->location.raw = NULL;
     if (instance->location.type == FILE_LOCATION_PATH_TYPE) {
-        free((void *) instance->location.parsed.path);
-        instance->location.parsed.path = NULL;
+        FREE_STRING(location.parsed.path);
     } else if (instance->location.type == FILE_LOCATION_URL_TYPE) {
-        free((void *) instance->location.parsed.url);
-        instance->location.parsed.url = NULL;
+        FREE_STRING(location.parsed.url);
     }
     instance->location.type = 0;
     instance->period = 0;
@@ -644,10 +653,8 @@ vmod_file__fini(struct vmod_cfg_file **file)
     FREE_OPTINAL_STRING(curl.ssl_cafile);
     FREE_OPTINAL_STRING(curl.ssl_capath);
     FREE_OPTINAL_STRING(curl.proxy);
-    free((void *) instance->name_delimiter);
-    instance->name_delimiter = NULL;
-    free((void *) instance->value_delimiter);
-    instance->value_delimiter = NULL;
+    FREE_STRING(name_delimiter);
+    FREE_STRING(value_delimiter);
     AZ(pthread_mutex_destroy(&instance->mutex));
     instance->reloading = 0;
     FREE_OPTINAL_STRING(buffer);
@@ -660,6 +667,7 @@ vmod_file__fini(struct vmod_cfg_file **file)
     *file = NULL;
 }
 
+#undef FREE_STRING
 #undef FREE_OPTINAL_STRING
 
 VCL_VOID
