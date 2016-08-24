@@ -56,7 +56,8 @@ varnish v1 -vcl {
             name_delimiter=":",
             value_delimiter=";");
 
-        if (file.get("field1") == "") {
+        if (file.get("field1") != "value1") {
+            return (fail);
         }
     }
 
