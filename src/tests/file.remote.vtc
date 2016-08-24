@@ -22,6 +22,17 @@ server s_origin2 {
     send "    value2.3\n"
 } -repeat 2 -start
 
+varnish v_origin2 -vcl {
+    backend default {
+        .host = "${s_origin2_addr}";
+        .port = "${s_origin2_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
 varnish v1 -vcl {
     import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
@@ -32,7 +43,7 @@ varnish v1 -vcl {
 
     sub vcl_init {
         new file = cfg.file(
-            "http://${s_origin2_addr}:${s_origin2_port}/test.ini",
+            "http://${v_origin2_addr}:${v_origin2_port}/test.ini",
             period=0,
             curl_connection_timeout=2000,
             curl_transfer_timeout=2000,
