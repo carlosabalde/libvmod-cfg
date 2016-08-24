@@ -5,7 +5,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote configuration files from VCL.
 
-Currently only Python's ConfigParser .INI-like configuration files are supported.
+Currently only Python's ConfigParser .INI-like configuration files are supported. Remote files can be accessed via HTTP or HTTPS.
 
 Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premium partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
@@ -86,7 +86,7 @@ Environment variables
     sub vcl_recv {
         if (std.time(settings.get("joke:start"), now) < now &&
             std.time(settings.get("joke:stop"), now) > now) {
-           return (synth(418, "I'm a teapot (RFC 2324)"));
+            return (synth(418, "I'm a teapot (RFC 2324)"));
         }
     }
 
