@@ -168,6 +168,8 @@ vmod_env__fini(struct vmod_cfg_env **env)
 
     flush_variables(&instance->list);
 
+    FREE_OBJ(instance);
+
     *env = NULL;
 }
 
@@ -664,17 +666,13 @@ vmod_file__fini(struct vmod_cfg_file **file)
     AZ(pthread_rwlock_destroy(&instance->rwlock));
     flush_variables(&instance->list);
 
+    FREE_OBJ(instance);
+
     *file = NULL;
 }
 
 #undef FREE_STRING
 #undef FREE_OPTINAL_STRING
-
-VCL_VOID
-vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
-{
-    file_check(ctx, file, 1);
-}
 
 VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
@@ -694,6 +692,12 @@ vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING f
     const char *result = cfg_get(ctx, &file->list, name, fallback);
     AZ(pthread_rwlock_unlock(&file->rwlock));
     return result;
+}
+
+VCL_VOID
+vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
+{
+    file_check(ctx, file, 1);
 }
 
 /******************************************************************************
