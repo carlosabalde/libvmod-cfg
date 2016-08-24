@@ -20,6 +20,7 @@ varnish v1 -vcl+backend {
 
         new file = cfg.file(
             "${tmp}/test.ini",
+            period=1,
             format=ini,
             name_delimiter=":",
             value_delimiter=";");
