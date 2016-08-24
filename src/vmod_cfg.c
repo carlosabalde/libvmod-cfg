@@ -225,7 +225,7 @@ struct vmod_cfg_file {
     unsigned version;
     time_t tst;
     pthread_rwlock_t rwlock;
-    variables_t list;
+    variables_t *list;
 };
 
 static unsigned
@@ -437,10 +437,10 @@ file_parse_ini_handler(void *user, const char *section, const char *name, const 
             flatten ? file->name_delimiter : "",
             name));
 
-    variable_t *variable = find_variable(&file->list, buffer);
+    variable_t *variable = find_variable(file->list, buffer);
     if (variable == NULL) {
         variable = new_variable(buffer, strlen(buffer), value);
-        AZ(VRB_INSERT(variables, &file->list, variable));
+        AZ(VRB_INSERT(variables, file->list, variable));
     } else {
         variable->value = realloc(
             variable->value,
@@ -469,7 +469,7 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file)
 
     if (ini_parse_stream(
             (ini_reader) file_ini_stream_reader, &file_init_stream_ctx,
-            file_parse_ini_handler, file) >= 0) {
+            file_parse_ini_handler, file) == 0) {
         LOG(ctx, LOG_INFO,
             "Configuration file successfully parsed (location=%s, format=ini)",
             file->location.raw);
@@ -503,11 +503,25 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
                 AN(file->buffer);
 
                 AZ(pthread_rwlock_wrlock(&file->rwlock));
-                flush_variables(&file->list);
+
+                variables_t *old = file->list;
+                file->list = malloc(sizeof(variables_t));
+                AN(file->list);
+                VRB_INIT(file->list);
+
                 if ((*file->parse)(ctx, file)) {
+                    flush_variables(old);
+                    free((void *) old);
+
                     file->version = version;
                     file->tst = now;
+                } else {
+                    flush_variables(file->list);
+                    free((void *) file->list);
+
+                    file->list = old;
                 }
+
                 AZ(pthread_rwlock_unlock(&file->rwlock));
 
                 free((void *) file->buffer);
@@ -600,7 +614,9 @@ vmod_file__init(
         instance->version = version;
         instance->tst = 0;
         AZ(pthread_rwlock_init(&instance->rwlock, NULL));
-        VRB_INIT(&instance->list);
+        instance->list = malloc(sizeof(variables_t));
+        AN(instance->list);
+        VRB_INIT(instance->list);
 
         file_check(ctx, instance, 1);
     }
@@ -659,7 +675,9 @@ vmod_file__fini(struct vmod_cfg_file **file)
     instance->version = 0;
     instance->tst = 0;
     AZ(pthread_rwlock_destroy(&instance->rwlock));
-    flush_variables(&instance->list);
+    flush_variables(instance->list);
+    free((void *) instance->list);
+    instance->list = NULL;
 
     FREE_OBJ(instance);
 
@@ -674,7 +692,7 @@ vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {
     file_check(ctx, file, 0);
     AZ(pthread_rwlock_rdlock(&file->rwlock));
-    unsigned result = cfg_is_set(ctx, &file->list, name);
+    unsigned result = cfg_is_set(ctx, file->list, name);
     AZ(pthread_rwlock_unlock(&file->rwlock));
     return result;
 }
@@ -684,7 +702,7 @@ vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING f
 {
     file_check(ctx, file, 0);
     AZ(pthread_rwlock_rdlock(&file->rwlock));
-    const char *result = cfg_get(ctx, &file->list, name, fallback);
+    const char *result = cfg_get(ctx, file->list, name, fallback);
     AZ(pthread_rwlock_unlock(&file->rwlock));
     return result;
 }
