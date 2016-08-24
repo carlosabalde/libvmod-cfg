@@ -330,7 +330,7 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
 
     unsigned result = 0;
     CURLcode cr = curl_easy_perform(ch);
-    if (cr == 0) {
+    if (cr == CURLE_OK) {
         long status;
         curl_easy_getinfo(ch, CURLINFO_RESPONSE_CODE, &status);
         if (status == 200) {
