@@ -331,14 +331,14 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
     unsigned result = 0;
     CURLcode cr = curl_easy_perform(ch);
     if (cr == 0) {
-        unsigned status;
+        long status;
         curl_easy_getinfo(ch, CURLINFO_RESPONSE_CODE, &status);
         if (status == 200) {
             result = 1;
         } else {
             LOG(
                 ctx, LOG_ERR,
-                "Failed to fetch configuration file (location=%s, status=%d)",
+                "Failed to fetch configuration file (location=%s, status=%ld)",
                 file->location.raw, status);
         }
     } else {
