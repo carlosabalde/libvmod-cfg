@@ -22,10 +22,11 @@
         } else { \
             slt = SLT_VCL_Log; \
         } \
-        if ((ctx)->vsl != NULL) \
+        if ((ctx)->vsl != NULL) { \
             VSLb((ctx)->vsl, slt, "[CFG][%s] " fmt, __func__, __VA_ARGS__); \
-        else \
+        } else { \
             VSL(slt, 0, "[CFG][%s] " fmt, __func__, __VA_ARGS__); \
+        } \
     } while (0)
 
 typedef struct variable {
