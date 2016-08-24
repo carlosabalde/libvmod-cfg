@@ -247,15 +247,13 @@ file_read_path(VRT_CTX, struct vmod_cfg_file *file)
         if (nitems == fsize) {
             return 1;
         } else {
-            LOG(
-                ctx, LOG_ERR,
+            LOG(ctx, LOG_ERR,
                 "Failed to read configuration file (location=%s)",
                 file->location.raw);
             return 0;
         }
     } else {
-        LOG(
-            ctx, LOG_ERR,
+        LOG(ctx, LOG_ERR,
             "Failed to open configuration file (location=%s)",
             file->location.raw);
         return 0;
@@ -338,14 +336,12 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
         if (status == 200) {
             result = 1;
         } else {
-            LOG(
-                ctx, LOG_ERR,
+            LOG(ctx, LOG_ERR,
                 "Failed to fetch configuration file (location=%s, status=%ld)",
                 file->location.raw, status);
         }
     } else {
-        LOG(
-            ctx, LOG_ERR,
+        LOG(ctx, LOG_ERR,
             "Failed to fetch configuration file (location=%s): %s",
             file->location.raw, curl_easy_strerror(cr));
     }
@@ -473,14 +469,12 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file)
     if (ini_parse_stream(
             (ini_reader) file_ini_stream_reader, &file_init_stream_ctx,
             file_parse_ini_handler, file) >= 0) {
-        LOG(
-            ctx, LOG_INFO,
+        LOG(ctx, LOG_INFO,
             "Configuration file successfully parsed (location=%s, format=ini)",
             file->location.raw);
         return 1;
     } else {
-        LOG(
-            ctx, LOG_ERR,
+        LOG(ctx, LOG_ERR,
             "Failed to parse configuration file (location=%s, format=ini)",
             file->location.raw);
         return 0;
