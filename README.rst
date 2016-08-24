@@ -33,9 +33,9 @@ import cfg;
         ENUM { ini } format="ini",
         STRING name_delimiter=":",
         STRING value_delimiter=";")
-    Method VOID .reload()
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
+    Method VOID .reload()
 
 EXAMPLE
 =======

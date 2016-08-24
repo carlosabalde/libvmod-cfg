@@ -99,11 +99,6 @@ Description
     is refreshed on every VCL WARM event received by the VMOD and every ``period``
     seconds (if ``period`` > 0).
 
-$Method VOID .reload()
-
-Description
-    Reloads contents of the configuration file.
-
 $Method BOOL .is_set(STRING name)
 
 Arguments
@@ -125,3 +120,8 @@ Description
     a string allocated in the heap is returned when the variable exists;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
+
+$Method VOID .reload()
+
+Description
+    Reloads contents of the configuration file.
