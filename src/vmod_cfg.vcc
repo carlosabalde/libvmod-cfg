@@ -10,7 +10,8 @@ $Module cfg 3 CFG VMOD
 DESCRIPTION
 ===========
 
-VMOD useful to access to contents of environment variables and configuration files from VCL.
+VMOD useful to access to contents of environment variables and  local or remote
+configuration files from VCL.
 
 $Event event_function
 
