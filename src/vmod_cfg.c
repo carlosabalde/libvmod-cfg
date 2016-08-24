@@ -218,15 +218,15 @@ struct vmod_cfg_file {
     pthread_mutex_t mutex;
     unsigned reloading;
     char *buffer;
+    unsigned (*parse)(VRT_CTX, struct vmod_cfg_file *);
     unsigned version;
     time_t tst;
     pthread_rwlock_t rwlock;
     variables_t list;
-    unsigned (*load)(VRT_CTX, struct vmod_cfg_file *);
 };
 
 static unsigned
-file_load_path(VRT_CTX, struct vmod_cfg_file *file)
+file_read_path(VRT_CTX, struct vmod_cfg_file *file)
 {
     assert(file->location.type == FILE_LOCATION_PATH_TYPE);
     AZ(file->buffer);
@@ -261,7 +261,7 @@ file_load_path(VRT_CTX, struct vmod_cfg_file *file)
 }
 
 static size_t
-file_load_url_body(void *block, size_t size, size_t nmemb, void *f)
+file_read_url_body(void *block, size_t size, size_t nmemb, void *f)
 {
     struct vmod_cfg_file *file;
     CAST_OBJ_NOTNULL(file, f, VMOD_CFG_FILE);
@@ -278,7 +278,7 @@ file_load_url_body(void *block, size_t size, size_t nmemb, void *f)
 }
 
 static unsigned
-file_load_url(VRT_CTX, struct vmod_cfg_file *file)
+file_read_url(VRT_CTX, struct vmod_cfg_file *file)
 {
     assert(file->location.type == FILE_LOCATION_URL_TYPE);
     AZ(file->buffer);
@@ -292,7 +292,7 @@ file_load_url(VRT_CTX, struct vmod_cfg_file *file)
     curl_easy_setopt(ch, CURLOPT_URL, file->location.parsed.url);
     curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(ch, CURLOPT_NOPROGRESS, 1L);
-    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, file_load_url_body);
+    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, file_read_url_body);
     curl_easy_setopt(ch, CURLOPT_WRITEDATA, file);
     if (file->curl.connection_timeout > 0) {
 #ifdef HAVE_CURLOPT_CONNECTTIMEOUT_MS
@@ -353,7 +353,7 @@ file_load_url(VRT_CTX, struct vmod_cfg_file *file)
 }
 
 static unsigned
-file_load(VRT_CTX, struct vmod_cfg_file *file)
+file_read(VRT_CTX, struct vmod_cfg_file *file)
 {
     unsigned result = 0;
 
@@ -364,10 +364,10 @@ file_load(VRT_CTX, struct vmod_cfg_file *file)
 
     switch (file->location.type) {
         case FILE_LOCATION_PATH_TYPE:
-            result = file_load_path(ctx, file);
+            result = file_read_path(ctx, file);
             break;
         case FILE_LOCATION_URL_TYPE:
-            result = file_load_url(ctx, file);
+            result = file_read_url(ctx, file);
             break;
         default:
             result = 0;
@@ -381,15 +381,15 @@ file_load(VRT_CTX, struct vmod_cfg_file *file)
     return result;
 }
 
-struct ini_file_stream_ctx {
+struct file_init_stream_ctx {
     char *ptr;
     int left;
 };
 
 static char *
-ini_file_stream_reader(char *str, int size, void *stream)
+file_ini_stream_reader(char *str, int size, void *stream)
 {
-    struct ini_file_stream_ctx* ctx = (struct ini_file_stream_ctx*)stream;
+    struct file_init_stream_ctx* ctx = (struct file_init_stream_ctx*)stream;
     int idx = 0;
     char newline = 0;
 
@@ -424,7 +424,7 @@ ini_file_stream_reader(char *str, int size, void *stream)
 }
 
 static int
-ini_file_handler(void *user, const char *section, const char *name, const char *value)
+file_parse_ini_handler(void *user, const char *section, const char *name, const char *value)
 {
     struct vmod_cfg_file *file;
     CAST_OBJ_NOTNULL(file, user, VMOD_CFG_FILE);
@@ -459,21 +459,21 @@ ini_file_handler(void *user, const char *section, const char *name, const char *
 }
 
 static unsigned
-ini_file_load(VRT_CTX, struct vmod_cfg_file *file)
+file_parse_ini(VRT_CTX, struct vmod_cfg_file *file)
 {
     AN(file->buffer);
 
-    struct ini_file_stream_ctx ini_file_stream_ctx = {
+    struct file_init_stream_ctx file_init_stream_ctx = {
         .ptr = file->buffer,
         .left = strlen(file->buffer)
     };
 
     if (ini_parse_stream(
-            (ini_reader) ini_file_stream_reader, &ini_file_stream_ctx,
-            ini_file_handler, file) >= 0) {
+            (ini_reader) file_ini_stream_reader, &file_init_stream_ctx,
+            file_parse_ini_handler, file) >= 0) {
         LOG(
             ctx, LOG_INFO,
-            "Configuration successfully loaded from file (location=%s, format=ini)",
+            "Configuration file successfully parsed (location=%s, format=ini)",
             file->location.raw);
         return 1;
     } else {
@@ -493,25 +493,25 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
         (force ||
          (file->version != version) ||
          ((file->period > 0) && (now - file->tst > file->period)))) {
-        unsigned load = 0;
+        unsigned winner = 0;
         AZ(pthread_mutex_lock(&file->mutex));
         if (!file->reloading) {
             file->reloading = 1;
-            load = 1;
+            winner = 1;
         }
         AZ(pthread_mutex_unlock(&file->mutex));
 
-        if (load) {
-            if (file_load(ctx, file)) {
+        if (winner) {
+            if (file_read(ctx, file)) {
                 AZ(pthread_rwlock_wrlock(&file->rwlock));
                 flush_variables(&file->list);
-                if ((*file->load)(ctx, file)) {
+                if ((*file->parse)(ctx, file)) {
                     file->version = version;
                     file->tst = now;
                 }
                 AZ(pthread_rwlock_unlock(&file->rwlock));
 
-                free((void *) file->buffer);;
+                free((void *) file->buffer);
                 file->buffer = NULL;
             }
 
@@ -590,15 +590,15 @@ vmod_file__init(
         AZ(pthread_mutex_init(&instance->mutex, NULL));
         instance->reloading = 0;
         instance->buffer = NULL;
+        if (strcmp(format, "ini") == 0) {
+            instance->parse = &file_parse_ini;
+        } else {
+            WRONG("Illegal format value.");
+        }
         instance->version = version;
         instance->tst = 0;
         AZ(pthread_rwlock_init(&instance->rwlock, NULL));
         VRB_INIT(&instance->list);
-        if (strcmp(format, "ini") == 0) {
-            instance->load = &ini_file_load;
-        } else {
-            WRONG("Illegal format value.");
-        }
 
         file_check(ctx, instance, 1);
     }
@@ -651,11 +651,11 @@ vmod_file__fini(struct vmod_cfg_file **file)
     AZ(pthread_mutex_destroy(&instance->mutex));
     instance->reloading = 0;
     FREE_OPTINAL_STRING(buffer);
+    instance->parse = NULL;
     instance->version = 0;
     instance->tst = 0;
     AZ(pthread_rwlock_destroy(&instance->rwlock));
     flush_variables(&instance->list);
-    instance->load = NULL;
 
     *file = NULL;
 }
