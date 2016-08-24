@@ -17,6 +17,14 @@ server s_origin2 {
     rxreq
     expect req.url == "/test.ini"
     txresp -body "field: bar"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: baz"
 } -repeat 1 -start
 
 varnish v_origin2 -vcl {
@@ -70,8 +78,16 @@ client c1 {
     txreq -hdr "reload: 1"
     rxresp
     expect resp.http.result == "bar"
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.result == "bar"
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.result == "baz"
 } -run
 
-varnish v1 -expect client_req == 2
+varnish v1 -expect client_req == 4
 
 varnish v1 -expect MGT.child_panic == 0
