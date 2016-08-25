@@ -67,6 +67,7 @@ varnish v1 -vcl {
             file.reload();
         }
         set resp.http.result = file.get("field", "-");
+        set resp.http.dump = file.dump();
     }
 } -start
 
@@ -74,18 +75,22 @@ client c1 {
     txreq
     rxresp
     expect resp.http.result == "foo"
+    expect resp.http.dump == {{"field":"foo"}}
 
     txreq -hdr "reload: 1"
     rxresp
     expect resp.http.result == "bar"
+    expect resp.http.dump == {{"field":"bar"}}
 
     txreq -hdr "reload: 1"
     rxresp
     expect resp.http.result == "bar"
+    expect resp.http.dump == {{"field":"bar"}}
 
     txreq -hdr "reload: 1"
     rxresp
     expect resp.http.result == "baz"
+    expect resp.http.dump == {{"field":"baz"}}
 } -run
 
 varnish v1 -expect client_req == 4

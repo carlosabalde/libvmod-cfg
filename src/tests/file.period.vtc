@@ -56,6 +56,7 @@ varnish v1 -vcl {
 
     sub vcl_deliver {
         set resp.http.result = file.get("field", "-");
+        set resp.http.dump = file.dump();
     }
 } -start
 
@@ -63,12 +64,14 @@ client c1 {
     txreq
     rxresp
     expect resp.http.result == "foo"
+    expect resp.http.dump == {{"field":"foo"}}
 
     delay 3.0
 
     txreq
     rxresp
     expect resp.http.result == "bar"
+    expect resp.http.dump == {{"field":"bar"}}
 } -run
 
 varnish v1 -expect client_req == 2

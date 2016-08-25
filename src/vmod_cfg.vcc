@@ -45,6 +45,11 @@ Description
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
 
+$Method STRING .dump()
+
+Description
+    Returns a string representation of a JSON object containing all variables.
+
 $Object file(
     STRING location,
     INT period=60,
@@ -120,6 +125,11 @@ Description
     a string allocated in the heap is returned when the variable exists;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
+
+$Method STRING .dump()
+
+Description
+    Returns a string representation of a JSON object containing all variables.
 
 $Method VOID .reload()
 
