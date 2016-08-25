@@ -530,43 +530,57 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
     return result;
 }
 
-static void
+static unsigned
 file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 {
+    unsigned result = 0;
+
+    unsigned winner = 0;
     time_t now = time(NULL);
-    if (!file->state.reloading &&
-        (force ||
-         (file->state.version != version) ||
-         ((file->period > 0) && (now - file->state.tst > file->period)))) {
-        unsigned winner = 0;
+
+    if (!force &&
+        (!file->state.reloading &&
+         ((file->state.version != version) ||
+         ((file->period > 0) && (now - file->state.tst > file->period))))) {
         AZ(pthread_mutex_lock(&file->state.mutex));
         if (!file->state.reloading) {
             file->state.reloading = 1;
             winner = 1;
         }
         AZ(pthread_mutex_unlock(&file->state.mutex));
+    }
 
-        if (winner) {
-            const char *contents = (*file->read)(ctx, file);
-            if (contents != NULL) {
-                variables_t *variables = (*file->parse)(ctx, file, contents);
-                if (variables != NULL) {
-                    AZ(pthread_rwlock_wrlock(&file->state.rwlock));
-                    flush_variables(file->state.variables);
-                    free((void *) file->state.variables);
-                    file->state.variables = variables;
-                    file->state.version = version;
-                    file->state.tst = now;
-                    AZ(pthread_rwlock_unlock(&file->state.rwlock));
-                }
-                free((void *) contents);
+    if (force || winner) {
+        const char *contents = (*file->read)(ctx, file);
+        if (contents != NULL) {
+            variables_t *variables = (*file->parse)(ctx, file, contents);
+            if (variables != NULL) {
+                variables_t *old = file->state.variables;
+
+                AZ(pthread_rwlock_wrlock(&file->state.rwlock));
+                file->state.variables = variables;
+                file->state.version = version;
+                file->state.tst = now;
+                AZ(pthread_rwlock_unlock(&file->state.rwlock));
+
+                flush_variables(old);
+                free((void *) old);
+
+                result = 1;
             }
+            free((void *) contents);
+        }
 
+        if (!force) {
             AZ(pthread_mutex_lock(&file->state.mutex));
             file->state.reloading = 0;
             AZ(pthread_mutex_unlock(&file->state.mutex));
         }
+    } else {
+        result = 1;
     }
+
+    return result;
 }
 
 #define SET_STRING(value, field) \
@@ -742,10 +756,10 @@ vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file)
     return result;
 }
 
-VCL_VOID
+VCL_BOOL
 vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
 {
-    file_check(ctx, file, 1);
+    return file_check(ctx, file, 1);
 }
 
 /******************************************************************************

@@ -131,7 +131,8 @@ $Method STRING .dump()
 Description
     Returns a string representation of a JSON object containing all variables.
 
-$Method VOID .reload()
+$Method BOOL .reload()
 
 Description
-    Reloads contents of the configuration file.
+    Reloads contents of the configuration file. A ``False`` value is returned
+    on failure.
