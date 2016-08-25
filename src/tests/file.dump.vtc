@@ -8,6 +8,7 @@ server s1 {
 shell {
     cat > "${tmp}/test.ini" <<'EOF'
 field1:
+field2: ""
 EOF
 }
 
@@ -31,7 +32,7 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-    expect resp.http.result == {{"field1":""}}
+    expect resp.http.result == {{"field1":"","field2":"\"\""}}
 } -run
 
 varnish v1 -expect client_req == 1
