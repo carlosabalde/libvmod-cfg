@@ -1,0 +1,41 @@
+varnishtest "Test .dump() for files"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.ini" <<'EOF'
+field1:
+field2: ""
+field3: Hello "\o/"!
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new file = cfg.file(
+            "file://${tmp}/test.ini",
+            period=0,
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+
+    sub vcl_deliver {
+        set resp.http.result = file.dump();
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o\/\"!"}}
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
