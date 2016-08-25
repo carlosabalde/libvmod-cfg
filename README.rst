@@ -141,7 +141,7 @@ Access to variables
 
 ::
 
-    $ curl http://127.0.0.1/settings/reload/ |  python -m json.tool
+    $ curl http://127.0.0.1/settings/dump/ |  python -m json.tool
     {
         "joke:start": "1459468800",
         "joke:stop": "1459555200",
