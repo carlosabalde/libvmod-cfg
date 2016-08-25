@@ -114,6 +114,59 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
     return result;
 }
 
+#define DUMP_CHAR(value) \
+    do { \
+        *end = value; \
+        assert(free_ws > 0); end++; free_ws--; \
+    } while (0)
+
+#define DUMP_STRING(value) \
+    do { \
+        DUMP_CHAR('"'); \
+        for (int i = 0; value[i]; i++) { \
+            if (value[i] == '"'  || value[i] == '\\' || value[i] == '/'  || \
+                value[i] == '\b' || value[i] == '\f' || value[i] == '\n' || \
+                value[i] == '\r' || value[i] == '\t') { \
+                DUMP_CHAR('\\'); \
+            } \
+            DUMP_CHAR(value[i]); \
+        } \
+        DUMP_CHAR('"'); \
+    } while (0)
+
+static const char *
+cfg_dump(VRT_CTX, variables_t *variables)
+{
+    AN(ctx->ws);
+    char *result, *end;
+    variable_t *variable;
+    unsigned free_ws = WS_Reserve(ctx->ws, 0);
+    assert(free_ws > 0);
+    result = end = ctx->ws->f;
+
+    DUMP_CHAR('{');
+    VRB_FOREACH(variable, variables, variables) {
+        CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
+        DUMP_STRING(variable->name);
+        DUMP_CHAR(':');
+        DUMP_STRING(variable->value);
+        DUMP_CHAR(',');
+    }
+    if (*(end - 1) == ',') {
+        *(end - 1) = '}';
+    } else {
+        DUMP_CHAR('}');
+    }
+    *end = '\0';
+
+    WS_Release(ctx->ws, end - result + 1);
+
+    return result;
+}
+
+#undef DUMP_CHAR
+#undef DUMP_STRING
+
 /******************************************************************************
  * ENV OBJECT.
  *****************************************************************************/
@@ -184,6 +237,12 @@ VCL_STRING
 vmod_env_get(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name, VCL_STRING fallback)
 {
     return cfg_get(ctx, &env->list, name, fallback);
+}
+
+VCL_STRING
+vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env)
+{
+    return cfg_dump(ctx, &env->list);
 }
 
 /******************************************************************************
@@ -703,6 +762,16 @@ vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING f
     file_check(ctx, file, 0);
     AZ(pthread_rwlock_rdlock(&file->rwlock));
     const char *result = cfg_get(ctx, file->list, name, fallback);
+    AZ(pthread_rwlock_unlock(&file->rwlock));
+    return result;
+}
+
+VCL_STRING
+vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file)
+{
+    file_check(ctx, file, 0);
+    AZ(pthread_rwlock_rdlock(&file->rwlock));
+    const char *result = cfg_dump(ctx, file->list);
     AZ(pthread_rwlock_unlock(&file->rwlock));
     return result;
 }

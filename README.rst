@@ -19,6 +19,7 @@ import cfg;
     Object env()
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
+    Method STRING .dump()
 
     Object file(
         STRING location,
@@ -35,6 +36,7 @@ import cfg;
         STRING value_delimiter=";")
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
+    Method STRING .dump()
     Method VOID .reload()
 
 EXAMPLE

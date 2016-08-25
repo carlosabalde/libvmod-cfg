@@ -65,6 +65,7 @@ varnish v1 -vcl {
         set resp.http.result1 = file.get("field1", "-");
         set resp.http.result2 = file.get("section1:field1", "-");
         set resp.http.result3 = file.get("section1:field2", "-");
+        set resp.http.dump = file.dump();
     }
 } -start
 
@@ -74,6 +75,7 @@ client c1 {
     expect resp.http.result1 == "value1"
     expect resp.http.result2 == "value1"
     expect resp.http.result3 == "value2.1;value2.2;value2.3"
+    expect resp.http.dump == {{"field1":"value1","section1:field1":"value1","section1:field2":"value2.1;value2.2;value2.3"}}
 } -run
 
 varnish v1 -expect client_req == 1
