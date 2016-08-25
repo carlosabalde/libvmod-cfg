@@ -176,19 +176,18 @@ extern char **environ;
 struct vmod_cfg_env {
     unsigned magic;
     #define VMOD_CFG_ENV 0x44baed10
-    variables_t list;
+    variables_t variables;
 };
-
 
 static void
 env_load(VRT_CTX, struct vmod_cfg_env *env)
 {
-    flush_variables(&env->list);
+    flush_variables(&env->variables);
     for (int i = 0; environ[i]; i++) {
         char *ptr = strchr(environ[i], '=');
         if (ptr != NULL) {
             variable_t *variable = new_variable(environ[i], ptr - environ[i], ptr + 1);
-            AZ(VRB_INSERT(variables, &env->list, variable));
+            AZ(VRB_INSERT(variables, &env->variables, variable));
         }
     }
 }
@@ -204,7 +203,7 @@ vmod_env__init(VRT_CTX, struct vmod_cfg_env **env, const char *vcl_name)
     ALLOC_OBJ(instance, VMOD_CFG_ENV);
     AN(instance);
 
-    VRB_INIT(&instance->list);
+    VRB_INIT(&instance->variables);
 
     env_load(ctx, instance);
 
@@ -220,7 +219,7 @@ vmod_env__fini(struct vmod_cfg_env **env)
     struct vmod_cfg_env *instance = *env;
     CHECK_OBJ_NOTNULL(instance, VMOD_CFG_ENV);
 
-    flush_variables(&instance->list);
+    flush_variables(&instance->variables);
 
     FREE_OBJ(instance);
 
@@ -230,40 +229,31 @@ vmod_env__fini(struct vmod_cfg_env **env)
 VCL_BOOL
 vmod_env_is_set(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name)
 {
-    return cfg_is_set(ctx, &env->list, name);
+    return cfg_is_set(ctx, &env->variables, name);
 }
 
 VCL_STRING
 vmod_env_get(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name, VCL_STRING fallback)
 {
-    return cfg_get(ctx, &env->list, name, fallback);
+    return cfg_get(ctx, &env->variables, name, fallback);
 }
 
 VCL_STRING
 vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env)
 {
-    return cfg_dump(ctx, &env->list);
+    return cfg_dump(ctx, &env->variables);
 }
 
 /******************************************************************************
  * FILE OBJECT.
  *****************************************************************************/
 
-enum FILE_LOCATION_TYPE {
-    FILE_LOCATION_PATH_TYPE,
-    FILE_LOCATION_URL_TYPE
-};
-
 struct vmod_cfg_file {
     unsigned magic;
     #define VMOD_CFG_FILE 0x9774a43f
     struct {
         const char *raw;
-        enum FILE_LOCATION_TYPE type;
-        union {
-            const char *url;
-            const char *path;
-        } parsed;
+        const char *parsed;
     } location;
     unsigned period;
     struct {
@@ -277,83 +267,90 @@ struct vmod_cfg_file {
     } curl;
     const char *name_delimiter;
     const char *value_delimiter;
-    pthread_mutex_t mutex;
-    unsigned reloading;
-    char *buffer;
-    unsigned (*parse)(VRT_CTX, struct vmod_cfg_file *);
-    unsigned version;
-    time_t tst;
-    pthread_rwlock_t rwlock;
-    variables_t *list;
+    const char *(*read)(VRT_CTX, struct vmod_cfg_file *);
+    variables_t *(*parse)(VRT_CTX, struct vmod_cfg_file *, const char *);
+    struct {
+        pthread_mutex_t mutex;
+        unsigned reloading;
+
+        pthread_rwlock_t rwlock;
+        unsigned version;
+        time_t tst;
+        variables_t *variables;
+    } state;
 };
 
-static unsigned
+static const char *
 file_read_path(VRT_CTX, struct vmod_cfg_file *file)
 {
-    assert(file->location.type == FILE_LOCATION_PATH_TYPE);
-    AZ(file->buffer);
+    char *result = NULL;
 
-    FILE *fp = fopen(file->location.parsed.path, "r");
+    FILE *fp = fopen(file->location.parsed, "r");
     if (fp != NULL) {
         fseek(fp, 0, SEEK_END);
         unsigned long fsize = ftell(fp);
         fseek(fp, 0, SEEK_SET);
 
-        file->buffer = malloc(fsize);
-        AN(file->buffer);
-        size_t nitems = fread(file->buffer, 1, fsize, fp);
+        result = malloc(fsize);
+        AN(result);
+        size_t nitems = fread(result, 1, fsize, fp);
         fclose(fp);
 
-        if (nitems == fsize) {
-            return 1;
-        } else {
+        if (nitems != fsize) {
+            free((void *) result);
+            result = NULL;
+
             LOG(ctx, LOG_ERR,
                 "Failed to read configuration file (location=%s)",
                 file->location.raw);
-            return 0;
         }
     } else {
         LOG(ctx, LOG_ERR,
             "Failed to open configuration file (location=%s)",
             file->location.raw);
-        return 0;
     }
+
+    return result;
 }
 
+struct file_read_url_ctx {
+    char *body;
+    size_t bodylen;
+};
+
 static size_t
-file_read_url_body(void *block, size_t size, size_t nmemb, void *f)
+file_read_url_body(void *block, size_t size, size_t nmemb, void *c)
 {
-    struct vmod_cfg_file *file;
-    CAST_OBJ_NOTNULL(file, f, VMOD_CFG_FILE);
+    struct file_read_url_ctx *ctx = (struct file_read_url_ctx *) c;
 
-    size_t current_size = strlen(file->buffer);
     size_t block_size = size * nmemb;
-    file->buffer = realloc(file->buffer, current_size + block_size + 1);
-    AN(file->buffer);
+    ctx->body = realloc(ctx->body, ctx->bodylen + block_size + 1);
+    AN(ctx->body);
 
-    memcpy(&(file->buffer[current_size]), block, block_size);
-    file->buffer[current_size + block_size] = 0;
+    memcpy(&(ctx->body[ctx->bodylen]), block, block_size);
+    ctx->bodylen += block_size;
+    ctx->body[ctx->bodylen] = '\0';
 
     return block_size;
 }
 
-static unsigned
+static const char *
 file_read_url(VRT_CTX, struct vmod_cfg_file *file)
 {
-    assert(file->location.type == FILE_LOCATION_URL_TYPE);
-    AZ(file->buffer);
-
-    file->buffer = strdup("");
-    AN(file->buffer);
+    struct file_read_url_ctx file_read_url_ctx = {
+        .body = strdup(""),
+        .bodylen = 0
+    };
+    AN(file_read_url_ctx.body);
 
     CURL *ch = curl_easy_init();
     AN(ch);
     curl_easy_setopt(ch, CURLOPT_HTTPGET, 1L);
-    curl_easy_setopt(ch, CURLOPT_URL, file->location.parsed.url);
+    curl_easy_setopt(ch, CURLOPT_URL, file->location.parsed);
     curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(ch, CURLOPT_NOPROGRESS, 1L);
     curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, file_read_url_body);
-    curl_easy_setopt(ch, CURLOPT_WRITEDATA, file);
+    curl_easy_setopt(ch, CURLOPT_WRITEDATA, &file_read_url_ctx);
     if (file->curl.connection_timeout > 0) {
 #ifdef HAVE_CURLOPT_CONNECTTIMEOUT_MS
         curl_easy_setopt(ch, CURLOPT_CONNECTTIMEOUT_MS, file->curl.connection_timeout);
@@ -388,13 +385,13 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
         curl_easy_setopt(ch, CURLOPT_PROXY, file->curl.proxy);
     }
 
-    unsigned result = 0;
+    char *result = NULL;
     CURLcode cr = curl_easy_perform(ch);
     if (cr == CURLE_OK) {
         long status;
         curl_easy_getinfo(ch, CURLINFO_RESPONSE_CODE, &status);
         if (status == 200) {
-            result = 1;
+            result = file_read_url_ctx.body;
         } else {
             LOG(ctx, LOG_ERR,
                 "Failed to fetch configuration file (location=%s, status=%ld)",
@@ -406,54 +403,30 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
             file->location.raw, curl_easy_strerror(cr));
     }
 
+    if (result == NULL) {
+        free((void *) file_read_url_ctx.body);
+    }
+
     curl_easy_cleanup(ch);
     return result;
 }
 
-static unsigned
-file_read(VRT_CTX, struct vmod_cfg_file *file)
-{
-    unsigned result = 0;
-
-    if (file->buffer != NULL) {
-        free((void *) file->buffer);
-        file->buffer = NULL;
-    }
-
-    switch (file->location.type) {
-        case FILE_LOCATION_PATH_TYPE:
-            result = file_read_path(ctx, file);
-            break;
-        case FILE_LOCATION_URL_TYPE:
-            result = file_read_url(ctx, file);
-            break;
-        default:
-            result = 0;
-    }
-
-    if (!result && (file->buffer != NULL)) {
-        free((void *) file->buffer);
-        file->buffer = NULL;
-    }
-
-    return result;
-}
-
-struct file_init_stream_ctx {
-    char *ptr;
+struct file_ini_stream_ctx {
+    const char *ptr;
     int left;
 };
 
 static char *
 file_ini_stream_reader(char *str, int size, void *stream)
 {
-    struct file_init_stream_ctx* ctx = (struct file_init_stream_ctx*) stream;
-    int idx = 0;
-    char newline = 0;
+    struct file_ini_stream_ctx* ctx = (struct file_ini_stream_ctx*) stream;
 
     if (ctx->left <= 0) {
         return NULL;
     }
+
+    int idx = 0;
+    char newline = '\0';
 
     for (idx = 0; idx < size - 1; ++idx) {
         if (idx == ctx->left) {
@@ -469,7 +442,7 @@ file_ini_stream_reader(char *str, int size, void *stream)
         }
     }
     memcpy(str, ctx->ptr, idx);
-    str[idx] = 0;
+    str[idx] = '\0';
 
     ctx->ptr += idx + 1;
     ctx->left -= idx + 1;
@@ -481,11 +454,15 @@ file_ini_stream_reader(char *str, int size, void *stream)
     return str;
 }
 
-static int
-file_parse_ini_handler(void *user, const char *section, const char *name, const char *value)
-{
+struct file_parse_ctx {
     struct vmod_cfg_file *file;
-    CAST_OBJ_NOTNULL(file, user, VMOD_CFG_FILE);
+    variables_t *variables;
+};
+
+static int
+file_parse_ini_handler(void *c, const char *section, const char *name, const char *value)
+{
+    struct file_parse_ctx *ctx = (struct file_parse_ctx *) c;
 
     char *buffer;
     unsigned flatten = (section != NULL) && (strlen(section) > 0);
@@ -493,20 +470,20 @@ file_parse_ini_handler(void *user, const char *section, const char *name, const 
         &buffer,
         "%s%s%s",
             flatten ? section : "",
-            flatten ? file->name_delimiter : "",
+            flatten ? ctx->file->name_delimiter : "",
             name));
 
-    variable_t *variable = find_variable(file->list, buffer);
+    variable_t *variable = find_variable(ctx->variables, buffer);
     if (variable == NULL) {
         variable = new_variable(buffer, strlen(buffer), value);
-        AZ(VRB_INSERT(variables, file->list, variable));
+        AZ(VRB_INSERT(variables, ctx->variables, variable));
     } else {
         variable->value = realloc(
             variable->value,
-            strlen(variable->value) + strlen(file->value_delimiter) + strlen(value) + 1);
+            strlen(variable->value) + strlen(ctx->file->value_delimiter) + strlen(value) + 1);
         AN(variable->value);
         if (strlen(variable->value) > 0) {
-            strcat(variable->value, file->value_delimiter);
+            strcat(variable->value, ctx->file->value_delimiter);
         }
         strcat(variable->value, value);
     }
@@ -516,82 +493,78 @@ file_parse_ini_handler(void *user, const char *section, const char *name, const 
     return 1;
 }
 
-static unsigned
-file_parse_ini(VRT_CTX, struct vmod_cfg_file *file)
+static variables_t *
+file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
 {
-    AN(file->buffer);
+    variables_t *result = NULL;
 
-    struct file_init_stream_ctx file_init_stream_ctx = {
-        .ptr = file->buffer,
-        .left = strlen(file->buffer)
+    struct file_ini_stream_ctx file_ini_stream_ctx = {
+        .ptr = contents,
+        .left = strlen(contents)
     };
 
+    struct file_parse_ctx file_parse_ctx = {
+        .file = file,
+        .variables = malloc(sizeof(variables_t))
+    };
+    AN(file_parse_ctx.variables);
+    VRB_INIT(file_parse_ctx.variables);
+
     if (ini_parse_stream(
-            (ini_reader) file_ini_stream_reader, &file_init_stream_ctx,
-            file_parse_ini_handler, file) == 0) {
+            (ini_reader) file_ini_stream_reader, &file_ini_stream_ctx,
+            file_parse_ini_handler, &file_parse_ctx) == 0) {
+        result = file_parse_ctx.variables;
+
         LOG(ctx, LOG_INFO,
             "Configuration file successfully parsed (location=%s, format=ini)",
             file->location.raw);
-        return 1;
     } else {
+        flush_variables(file_parse_ctx.variables);
+        free((void *) file_parse_ctx.variables);
+
         LOG(ctx, LOG_ERR,
             "Failed to parse configuration file (location=%s, format=ini)",
             file->location.raw);
-        return 0;
     }
+
+    return result;
 }
 
 static void
 file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 {
     time_t now = time(NULL);
-    if (!file->reloading &&
+    if (!file->state.reloading &&
         (force ||
-         (file->version != version) ||
-         ((file->period > 0) && (now - file->tst > file->period)))) {
+         (file->state.version != version) ||
+         ((file->period > 0) && (now - file->state.tst > file->period)))) {
         unsigned winner = 0;
-        AZ(pthread_mutex_lock(&file->mutex));
-        if (!file->reloading) {
-            file->reloading = 1;
+        AZ(pthread_mutex_lock(&file->state.mutex));
+        if (!file->state.reloading) {
+            file->state.reloading = 1;
             winner = 1;
         }
-        AZ(pthread_mutex_unlock(&file->mutex));
+        AZ(pthread_mutex_unlock(&file->state.mutex));
 
         if (winner) {
-            if (file_read(ctx, file)) {
-                AN(file->buffer);
-
-                AZ(pthread_rwlock_wrlock(&file->rwlock));
-
-                variables_t *old = file->list;
-                file->list = malloc(sizeof(variables_t));
-                AN(file->list);
-                VRB_INIT(file->list);
-
-                if ((*file->parse)(ctx, file)) {
-                    flush_variables(old);
-                    free((void *) old);
-
-                    file->version = version;
-                    file->tst = now;
-                } else {
-                    flush_variables(file->list);
-                    free((void *) file->list);
-
-                    file->list = old;
+            const char *contents = (*file->read)(ctx, file);
+            if (contents != NULL) {
+                variables_t *variables = (*file->parse)(ctx, file, contents);
+                if (variables != NULL) {
+                    AZ(pthread_rwlock_wrlock(&file->state.rwlock));
+                    flush_variables(file->state.variables);
+                    free((void *) file->state.variables);
+                    file->state.variables = variables;
+                    file->state.version = version;
+                    file->state.tst = now;
+                    AZ(pthread_rwlock_unlock(&file->state.rwlock));
                 }
-
-                AZ(pthread_rwlock_unlock(&file->rwlock));
-
-                free((void *) file->buffer);
-                file->buffer = NULL;
-            } else {
-                AZ(file->buffer);
+                free((void *) contents);
             }
 
-            AZ(pthread_mutex_lock(&file->mutex));
-            file->reloading = 0;
-            AZ(pthread_mutex_unlock(&file->mutex));
+            AZ(pthread_mutex_lock(&file->state.mutex));
+            file->state.reloading = 0;
+            AZ(pthread_mutex_unlock(&file->state.mutex));
         }
     }
 }
@@ -611,10 +584,10 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
         } \
     } while (0)
 
-#define SET_LOCATION(low, high, offset) \
+#define SET_LOCATION(type, offset) \
     do { \
-        instance->location.type = FILE_LOCATION_ ## high ## _TYPE; \
-        SET_STRING(location + offset, location.parsed.low); \
+        SET_STRING(location + offset, location.parsed); \
+        instance->read = &file_read_ ## type; \
     } while (0)
 
 VCL_VOID
@@ -644,13 +617,13 @@ vmod_file__init(
 
         SET_STRING(location, location.raw);
         if (strncmp(location, "file://", 7) == 0) {
-            SET_LOCATION(path, PATH, 7);
+            SET_LOCATION(path, 7);
         } else if (strncmp(location, "http://", 7) == 0) {
-            SET_LOCATION(url, URL, 7);
+            SET_LOCATION(url, 7);
         } else if (strncmp(location, "https://", 8) == 0) {
-            SET_LOCATION(url, URL, 8);
+            SET_LOCATION(url, 8);
         } else {
-            SET_LOCATION(path, PATH, 0);
+            SET_LOCATION(path, 0);
         }
         instance->period = period;
         instance->curl.connection_timeout = curl_connection_timeout;
@@ -662,20 +635,19 @@ vmod_file__init(
         SET_OPTINAL_STRING(curl_proxy, curl.proxy);
         SET_STRING(name_delimiter, name_delimiter);
         SET_STRING(value_delimiter, value_delimiter);
-        AZ(pthread_mutex_init(&instance->mutex, NULL));
-        instance->reloading = 0;
-        instance->buffer = NULL;
         if (strcmp(format, "ini") == 0) {
             instance->parse = &file_parse_ini;
         } else {
             WRONG("Illegal format value.");
         }
-        instance->version = version;
-        instance->tst = 0;
-        AZ(pthread_rwlock_init(&instance->rwlock, NULL));
-        instance->list = malloc(sizeof(variables_t));
-        AN(instance->list);
-        VRB_INIT(instance->list);
+        AZ(pthread_mutex_init(&instance->state.mutex, NULL));
+        instance->state.reloading = 0;
+        AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));
+        instance->state.version = version;
+        instance->state.tst = 0;
+        instance->state.variables = malloc(sizeof(variables_t));
+        AN(instance->state.variables);
+        VRB_INIT(instance->state.variables);
 
         file_check(ctx, instance, 1);
     }
@@ -709,14 +681,8 @@ vmod_file__fini(struct vmod_cfg_file **file)
     struct vmod_cfg_file *instance = *file;
     CHECK_OBJ_NOTNULL(instance, VMOD_CFG_FILE);
 
-    free((void *) instance->location.raw);
-    instance->location.raw = NULL;
-    if (instance->location.type == FILE_LOCATION_PATH_TYPE) {
-        FREE_STRING(location.parsed.path);
-    } else if (instance->location.type == FILE_LOCATION_URL_TYPE) {
-        FREE_STRING(location.parsed.url);
-    }
-    instance->location.type = 0;
+    FREE_STRING(location.raw);
+    FREE_STRING(location.parsed);
     instance->period = 0;
     instance->curl.connection_timeout = 0;
     instance->curl.transfer_timeout = 0;
@@ -727,16 +693,16 @@ vmod_file__fini(struct vmod_cfg_file **file)
     FREE_OPTINAL_STRING(curl.proxy);
     FREE_STRING(name_delimiter);
     FREE_STRING(value_delimiter);
-    AZ(pthread_mutex_destroy(&instance->mutex));
-    instance->reloading = 0;
-    FREE_OPTINAL_STRING(buffer);
+    instance->read = NULL;
     instance->parse = NULL;
-    instance->version = 0;
-    instance->tst = 0;
-    AZ(pthread_rwlock_destroy(&instance->rwlock));
-    flush_variables(instance->list);
-    free((void *) instance->list);
-    instance->list = NULL;
+    AZ(pthread_mutex_destroy(&instance->state.mutex));
+    instance->state.reloading = 0;
+    AZ(pthread_rwlock_destroy(&instance->state.rwlock));
+    instance->state.version = 0;
+    instance->state.tst = 0;
+    flush_variables(instance->state.variables);
+    free((void *) instance->state.variables);
+    instance->state.variables = NULL;
 
     FREE_OBJ(instance);
 
@@ -750,9 +716,9 @@ VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {
     file_check(ctx, file, 0);
-    AZ(pthread_rwlock_rdlock(&file->rwlock));
-    unsigned result = cfg_is_set(ctx, file->list, name);
-    AZ(pthread_rwlock_unlock(&file->rwlock));
+    AZ(pthread_rwlock_rdlock(&file->state.rwlock));
+    unsigned result = cfg_is_set(ctx, file->state.variables, name);
+    AZ(pthread_rwlock_unlock(&file->state.rwlock));
     return result;
 }
 
@@ -760,9 +726,9 @@ VCL_STRING
 vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING fallback)
 {
     file_check(ctx, file, 0);
-    AZ(pthread_rwlock_rdlock(&file->rwlock));
-    const char *result = cfg_get(ctx, file->list, name, fallback);
-    AZ(pthread_rwlock_unlock(&file->rwlock));
+    AZ(pthread_rwlock_rdlock(&file->state.rwlock));
+    const char *result = cfg_get(ctx, file->state.variables, name, fallback);
+    AZ(pthread_rwlock_unlock(&file->state.rwlock));
     return result;
 }
 
@@ -770,9 +736,9 @@ VCL_STRING
 vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file)
 {
     file_check(ctx, file, 0);
-    AZ(pthread_rwlock_rdlock(&file->rwlock));
-    const char *result = cfg_dump(ctx, file->list);
-    AZ(pthread_rwlock_unlock(&file->rwlock));
+    AZ(pthread_rwlock_rdlock(&file->state.rwlock));
+    const char *result = cfg_dump(ctx, file->state.variables);
+    AZ(pthread_rwlock_unlock(&file->state.rwlock));
     return result;
 }
 
