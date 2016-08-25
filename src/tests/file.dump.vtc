@@ -9,7 +9,7 @@ shell {
     cat > "${tmp}/test.ini" <<'EOF'
 field1:
 field2: ""
-field3: Hello "\o/"!
+field3: Hello "\o/"
 EOF
 }
 
@@ -33,7 +33,7 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o\/\"!"}}
+    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o\/\""}}
 } -run
 
 varnish v1 -expect client_req == 1
