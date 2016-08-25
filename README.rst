@@ -75,6 +75,10 @@ Environment variables
         .port = "8080";
     }
 
+    acl internal {
+        "localhost";
+    }
+
     sub vcl_init {
         new env = cfg.env();
 
@@ -86,6 +90,24 @@ Environment variables
     }
 
     sub vcl_recv {
+        if (req.url ~ "^/settings/(reload|dump)/$") {
+            if (client.ip ~ internal) {
+                if (req.url == "/settings/reload/") {
+                    if (settings.reload()) {
+                        return (synth(200, "Settings reloaded."));
+                    } else {
+                        return (synth(500, "Failed to reload settings."));
+                    }
+                } elsif (req.url == "/settings/dump/") {
+                    return (synth(700, "OK"));
+                } else {
+                    return (synth(404, "Not found."));
+                }
+            } else {
+                return (synth(405, "Not allowed."));
+            }
+        }
+
         if (std.time(settings.get("joke:start"), now) < now &&
             std.time(settings.get("joke:stop"), now) > now) {
             return (synth(418, "I'm a teapot (RFC 2324)"));
@@ -100,6 +122,11 @@ Environment variables
         call set_server;
         if (resp.status == 418) {
             return (deliver);
+        } elsif (resp.status == 700) {
+            set resp.status = 200;
+            set resp.http.Content-Type = "application/json";
+            synthetic(settings.dump());
+            return (deliver);
         }
     }
 
@@ -107,6 +134,18 @@ Environment variables
         if (settings.is_set("server")) {
             set resp.http.Server = settings.get("server");
         }
+    }
+
+Access to variables
+-------------------
+
+::
+
+    $ curl http://127.0.0.1/settings/reload/ |  python -m json.tool
+    {
+        "joke:start": "1459468800",
+        "joke:stop": "1459555200",
+        "server": "ACME"
     }
 
 INSTALLATION
