@@ -64,7 +64,7 @@ varnish v1 -vcl {
 
     sub vcl_deliver {
         if (req.http.reload == "1") {
-            file.reload();
+            set resp.http.reload = file.reload();
         }
         set resp.http.result = file.get("field", "-");
         set resp.http.dump = file.dump();
@@ -74,21 +74,25 @@ varnish v1 -vcl {
 client c1 {
     txreq
     rxresp
+    expect resp.http.reload == <undef>
     expect resp.http.result == "foo"
     expect resp.http.dump == {{"field":"foo"}}
 
     txreq -hdr "reload: 1"
     rxresp
+    expect resp.http.reload == "true"
     expect resp.http.result == "bar"
     expect resp.http.dump == {{"field":"bar"}}
 
     txreq -hdr "reload: 1"
     rxresp
+    expect resp.http.reload == "false"
     expect resp.http.result == "bar"
     expect resp.http.dump == {{"field":"bar"}}
 
     txreq -hdr "reload: 1"
     rxresp
+    expect resp.http.reload == "true"
     expect resp.http.result == "baz"
     expect resp.http.dump == {{"field":"baz"}}
 } -run
