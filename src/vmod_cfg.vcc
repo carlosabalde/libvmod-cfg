@@ -39,12 +39,6 @@ Arguments
 Description
     Gets the value of an environment variable.
 
-    Beware during certain VCL phases like ``vcl_init`` copying values is not
-    possible because a workspace is not available. In those cases a pointer to
-    a string allocated in the heap is returned when the variable exists;
-    otherwise a pointer to the input ``fallback`` value is returned. You must
-    use these pointers carefully.
-
 $Method STRING .dump()
 
 Description
@@ -119,12 +113,6 @@ Arguments
     fallback: value to be returned if the configuration parameter does not exist.
 Description
     Gets the value of a configuration parameter.
-
-    Beware during certain VCL phases like ``vcl_init`` copying values is not
-    possible because a workspace is not available. In those cases a pointer to
-    a string allocated in the heap is returned when the variable exists;
-    otherwise a pointer to the input ``fallback`` value is returned. You must
-    use these pointers carefully.
 
 $Method STRING .dump()
 

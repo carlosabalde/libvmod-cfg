@@ -87,6 +87,7 @@ event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
 static unsigned
 cfg_is_set(VRT_CTX, variables_t *variables, const char *name)
 {
+    AN(ctx->ws);
     if (name != NULL) {
         return find_variable(variables, name) != NULL;
     }
@@ -96,6 +97,7 @@ cfg_is_set(VRT_CTX, variables_t *variables, const char *name)
 static const char *
 cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
 {
+    AN(ctx->ws);
     const char *result = fallback;
 
     if (name != NULL) {
@@ -106,7 +108,7 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
         }
     }
 
-    if ((result != NULL) && (ctx->ws != NULL)) {
+    if (result != NULL) {
         result = WS_Copy(ctx->ws, result, -1);
         AN(result);
     }
