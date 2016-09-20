@@ -1,4 +1,4 @@
-libvmod-redis (1.2-1) unstable; urgency=low
+libvmod-cfg (1.2-1) stable; urgency=low
 
   * Initial version
 
