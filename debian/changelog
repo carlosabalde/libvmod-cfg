@@ -1,0 +1,5 @@
+libvmod-redis (1.2-1) unstable; urgency=low
+
+  * Initial version
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 16 Sep 2016 16:00:00 +0200
