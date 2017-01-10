@@ -14,7 +14,7 @@ EOF
 }
 
 varnish v1 -vcl+backend {
-    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+    import ${vmod_cfg};
 
     sub vcl_init {
         new file = cfg.file(

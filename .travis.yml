@@ -1,23 +1,33 @@
+---
+sudo: required
+dist: trusty
+
 language: c
 
+addons:
+  apt:
+    packages:
+    - libcurl3
+    - libcurl4-gnutls-dev
+    - python-docutils
+
 before_install:
-  - sudo apt-get update -q
-  - sudo apt-get install -qq apt-transport-https python-docutils
+  - set -e
   - git clone https://github.com/varnishcache/varnish-cache.git ./varnish
-  - cd varnish
+  - pushd varnish
   - ./autogen.sh
   - ./configure
-  - make
+  - make -sj32
   - sudo make PREFIX="/usr/local" install
-  - cd ..
+  - popd
 
 before_script:
   - ./autogen.sh
   - ./configure --prefix=/usr
-  - make -j1
+  - make -j4
 
 script:
-  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib make check -j1
+  - make check -j1
 
 compiler:
   - clang

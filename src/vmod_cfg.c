@@ -8,7 +8,7 @@
 #include "vcl.h"
 #include "vrt.h"
 #include "cache/cache.h"
-#include "vcc_if.h"
+#include "vcc_cfg_if.h"
 
 #include "ini.h"
 #include "vtree.h"

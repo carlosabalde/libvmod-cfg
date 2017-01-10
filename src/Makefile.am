@@ -1,4 +1,4 @@
-AM_CPPFLAGS = @VMOD_INCLUDES@ $(CURL_CFLAGS) -Wall -Werror \
+AM_CFLAGS = $(VARNISHAPI_CFLAGS) -Wall -Werror \
 	-D_GNU_SOURCE=1 \
 	-DINI_ALLOW_MULTILINE=1 \
 	-DINI_ALLOW_BOM=1 \
@@ -7,43 +7,32 @@ AM_CPPFLAGS = @VMOD_INCLUDES@ $(CURL_CFLAGS) -Wall -Werror \
 	-DINI_USE_STACK=1 \
 	-DINI_STOP_ON_FIRST_ERROR=1 \
 	-DINI_MAX_LINE=2048
+AM_LDFLAGS = $(VARNISHAPI_LIBS) $(VMOD_LDFLAGS) $(CODE_COVERAGE_LDFLAGS)
 
-vmoddir = @VMOD_DIR@
 vmod_LTLIBRARIES = libvmod_cfg.la
 
-libvmod_cfg_la_LDFLAGS = -module -export-dynamic -avoid-version
-libvmod_cfg_la_LIBADD = $(CURL_LIBS)
-
 libvmod_cfg_la_SOURCES = \
-    ini.c ini.h \
-    vmod_cfg.c \
-    vtree.h
+	ini.c ini.h \
+	vmod_cfg.c \
+	vtree.h
 
 nodist_libvmod_cfg_la_SOURCES = \
-	vcc_if.c \
-	vcc_if.h
+	vcc_cfg_if.c \
+	vcc_cfg_if.h
 
-vmod_cfg.lo: vcc_if.c vcc_if.h
+dist_man_MANS = vmod_cfg.3
 
-vcc_if.c: vcc_if.h
+@BUILD_VMOD_CFG@
 
-vcc_if.h: @VMODTOOL@ $(top_srcdir)/src/vmod_cfg.vcc
-	@VMODTOOL@ $(top_srcdir)/src/vmod_cfg.vcc
+AM_TESTS_ENVIRONMENT = \
+	PATH="$(VMOD_TEST_PATH)" \
+	LD_LIBRARY_PATH="$(VARNISH_LIBRARY_PATH)"
+TEST_EXTENSIONS = .vtc
+VTC_LOG_COMPILER = tests/runner.sh varnishtest -v
+AM_VTC_LOG_FLAGS = -Dvmod_cfg="$(VMOD_CFG)"
 
-VMOD_TESTS = $(top_srcdir)/src/tests/*.vtc
-.PHONY: $(VMOD_TESTS)
-
-$(top_srcdir)/src/tests/*.vtc: libvmod_cfg.la
-	tests/runner.sh @VARNISHTEST@ $@ -Dvarnishd=@VARNISHD@ -Dvmod_topbuild=$(abs_top_builddir)
-
-check: $(VMOD_TESTS)
+TESTS = @VMOD_TESTS@
 
 EXTRA_DIST = \
-	vmod_cfg.vcc \
+	vmod_example.vcc \
 	$(VMOD_TESTS)
-
-CLEANFILES = \
-	$(builddir)/vcc_if.c \
-	$(builddir)/vcc_if.h \
-	$(builddir)/vmod_cfg.rst \
-	$(builddir)/vmod_cfg.man.rst
