@@ -153,6 +153,8 @@ INSTALLATION
 
 The source tree is based on autotools to configure the building, and does also have the necessary bits in place to do functional unit tests using the varnishtest tool.
 
+**Beware this project contains multiples branches (master, 4.1, etc.). Please, select the branch to be used depending on your Varnish Cache version (Varnish trunk → master, Varnish 4.1.x → 4.1, etc.).**
+
 Dependencies:
 
 * `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
