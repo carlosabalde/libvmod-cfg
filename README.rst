@@ -2,6 +2,9 @@
 .. image:: https://travis-ci.org/carlosabalde/libvmod-cfg.svg?branch=master
    :alt: Travis CI badge
    :target: https://travis-ci.org/carlosabalde/libvmod-cfg/
+.. image:: https://codecov.io/gh/carlosabalde/libvmod-cfg/branch/master/graph/badge.svg
+   :alt: Codecov badge
+   :target: https://codecov.io/gh/carlosabalde/libvmod-cfg
 
 VMOD useful to access to contents of environment variables and local or remote configuration files from VCL.
 
