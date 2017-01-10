@@ -20,8 +20,8 @@ before_install:
   - ./configure
   - make -sj32
   - sudo make PREFIX="/usr/local" install
-  - popd
   - sudo ldconfig
+  - popd
 
 before_script:
   - ./autogen.sh
