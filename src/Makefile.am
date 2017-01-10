@@ -34,5 +34,5 @@ AM_VTC_LOG_FLAGS = -Dvmod_cfg="$(VMOD_CFG)"
 TESTS = @VMOD_TESTS@
 
 EXTRA_DIST = \
-	vmod_example.vcc \
+	vmod_cfg.vcc \
 	$(VMOD_TESTS)
