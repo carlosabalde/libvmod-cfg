@@ -16,7 +16,8 @@ $script = <<SCRIPT
     ./autogen.sh; \
     ./configure; \
     make; \
-    sudo make PREFIX="/usr/local" install'
+    sudo make PREFIX="/usr/local" install; \
+    sudo ldconfig'
 
   # VMOD.
   sudo -u vagrant bash -c '\
