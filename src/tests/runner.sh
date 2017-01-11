@@ -13,6 +13,4 @@ export LIBVMOD_CFG_VALUE="hello world!"
 
 trap "cleanup $TMP" EXIT
 
-VARNISHTEST="$1"
-shift
-"$VARNISHTEST" "$@" -Dtmp=$TMP
+"$@" -Dtmp=$TMP
