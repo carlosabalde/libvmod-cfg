@@ -96,6 +96,12 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
     }
 #endif
 
+#if INI_HANDLER_LINENO
+#define HANDLER(u, s, n, v) handler(u, s, n, v, lineno)
+#else
+#define HANDLER(u, s, n, v) handler(u, s, n, v)
+#endif
+
     /* Scan through stream line by line */
     while (reader(line, INI_MAX_LINE, stream) != NULL) {
         lineno++;
@@ -118,7 +124,7 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
         else if (*prev_name && *start && start > line) {
             /* Non-blank line with leading whitespace, treat as continuation
                of previous name's value (as per Python configparser). */
-            if (!handler(user, section, prev_name, start) && !error)
+            if (!HANDLER(user, section, prev_name, start) && !error)
                 error = lineno;
         }
 #endif
@@ -141,17 +147,18 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
             if (*end == '=' || *end == ':') {
                 *end = '\0';
                 name = rstrip(start);
-                value = lskip(end + 1);
+                value = end + 1;
 #if INI_ALLOW_INLINE_COMMENTS
                 end = find_chars_or_comment(value, NULL);
                 if (*end)
                     *end = '\0';
 #endif
+                value = lskip(value);
                 rstrip(value);
 
                 /* Valid name[=:]value pair found, call handler */
                 strncpy0(prev_name, name, sizeof(prev_name));
-                if (!handler(user, section, name, value) && !error)
+                if (!HANDLER(user, section, name, value) && !error)
                     error = lineno;
             }
             else if (!error) {
