@@ -285,16 +285,17 @@ file_read_path(VRT_CTX, struct vmod_cfg_file *file)
 {
     char *result = NULL;
 
-    FILE *fp = fopen(file->location.parsed, "r");
+    FILE *fp = fopen(file->location.parsed, "rb");
     if (fp != NULL) {
         fseek(fp, 0, SEEK_END);
         unsigned long fsize = ftell(fp);
         fseek(fp, 0, SEEK_SET);
 
-        result = malloc(fsize);
+        result = malloc(fsize + 1);
         AN(result);
         size_t nitems = fread(result, 1, fsize, fp);
         fclose(fp);
+        result[fsize] = '\0';
 
         if (nitems != fsize) {
             free((void *) result);
