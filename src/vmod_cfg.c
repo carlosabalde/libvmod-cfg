@@ -510,9 +510,11 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
     AN(file_parse_ctx.variables);
     VRB_INIT(file_parse_ctx.variables);
 
-    if (ini_parse_stream(
-            (ini_reader) file_ini_stream_reader, &file_ini_stream_ctx,
-            file_parse_ini_handler, &file_parse_ctx) == 0) {
+    int rc = ini_parse_stream(
+        (ini_reader) file_ini_stream_reader, &file_ini_stream_ctx,
+        file_parse_ini_handler, &file_parse_ctx);
+
+    if (rc == 0) {
         result = file_parse_ctx.variables;
 
         LOG(ctx, LOG_INFO,
@@ -523,8 +525,8 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
-            "Failed to parse configuration file (location=%s, format=ini)",
-            file->location.raw);
+            "Failed to parse configuration file (location=%s, format=ini, error=%d)",
+            file->location.raw, rc);
     }
 
     return result;
