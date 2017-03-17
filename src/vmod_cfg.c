@@ -144,7 +144,7 @@ cfg_dump(VRT_CTX, variables_t *variables)
     variable_t *variable;
     unsigned free_ws = WS_Reserve(ctx->ws, 0);
     assert(free_ws > 0);
-    result = end = ctx->ws->f;
+    result = end = WS_Front(ctx->ws);
 
     DUMP_CHAR('{');
     VRB_FOREACH(variable, variables, variables) {
