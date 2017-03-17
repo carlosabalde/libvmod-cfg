@@ -1,14 +1,14 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 2.0
+Version: 3.0
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
 Group: System Environment/Daemons
 Source0: libvmod-cfg.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires: varnish >= 5.0.0, libcurl
-BuildRequires: make, python-docutils, varnish >= 5.0.0, libcurl-devel
+Requires: varnish >= 5.1.0, libcurl
+BuildRequires: make, python-docutils, varnish >= 5.1.0, libcurl-devel
 
 %description
 Config VMOD for Varnish
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Fri Mar 17 2017 Carlos Abalde <carlos.abalde@gmail.com> - 3.0-1.20170317
+- Migrated to Varnish Cache 5.1.x.
 * Fri Mar 17 2017 Carlos Abalde <carlos.abalde@gmail.com> - 2.0-1.20170317
 - Migrated to Varnish Cache 5.0.x.
 * Thu Feb 02 2017 Carlos Abalde <carlos.abalde@gmail.com> - 1.3-1.20170202
