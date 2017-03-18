@@ -15,9 +15,10 @@ libvmod_cfg_la_LDFLAGS = -module -export-dynamic -avoid-version
 libvmod_cfg_la_LIBADD = $(CURL_LIBS)
 
 libvmod_cfg_la_SOURCES = \
-    ini.c ini.h \
-    vmod_cfg.c \
-    vtree.h
+	ini.c ini.h \
+	cJSON.c cJSON.h \
+	vmod_cfg.c \
+	vtree.h
 
 nodist_libvmod_cfg_la_SOURCES = \
 	vcc_if.c \

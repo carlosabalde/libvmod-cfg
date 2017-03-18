@@ -5,7 +5,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote configuration files from VCL.
 
-Currently only Python's ConfigParser .INI-like configuration files are supported. Remote files can be accessed via HTTP or HTTPS.
+Currently JSON and Python's ConfigParser .INI-like configuration files are supported. Remote files can be accessed via HTTP or HTTPS.
 
 Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premium partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
@@ -31,7 +31,7 @@ import cfg;
         STRING curl_ssl_cafile="",
         STRING curl_ssl_capath="",
         STRING curl_proxy="",
-        ENUM { ini } format="ini",
+        ENUM { ini, json } format="ini",
         STRING name_delimiter=":",
         STRING value_delimiter=";")
     Method BOOL .is_set(STRING name)
@@ -168,6 +168,11 @@ BSD's implementation of the .INI file parser by Ben Hoyt has been borrowed from 
 
 * https://github.com/benhoyt/inih/blob/master/ini.c
 * https://github.com/benhoyt/inih/blob/master/ini.h
+
+MIT's implementation of the JSON parser by Max Bruckner has been borrowed from the `cJSON project <https://github.com/DaveGamble/cJSON/>`_:
+
+* https://github.com/DaveGamble/cJSON/blob/master/cJSON.c
+* https://github.com/DaveGamble/cJSON/blob/master/cJSON.h
 
 BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnishcache/varnish-cache>`_:
 

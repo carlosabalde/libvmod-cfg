@@ -60,7 +60,7 @@ $Object file(
     STRING curl_ssl_cafile="",
     STRING curl_ssl_capath="",
     STRING curl_proxy="",
-    ENUM { ini } format="ini",
+    ENUM { ini, json } format="ini",
     STRING name_delimiter=":",
     STRING value_delimiter=";")
 
@@ -96,7 +96,7 @@ Arguments
     is required.
 
     value_delimiter: delimiter to be used if flattening a list of values is
-    required.
+    required. Beware the VMOD ignores JSON arrays.
 Description
     Parses the configuration file and creates a new instance.
 
