@@ -3,6 +3,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <syslog.h>
+#include <math.h>
 #include <curl/curl.h>
 
 #include "vcl.h"
@@ -10,6 +11,7 @@
 #include "cache/cache.h"
 #include "vcc_cfg_if.h"
 
+#include "cJSON.h"
 #include "ini.h"
 #include "vtree.h"
 
@@ -414,6 +416,11 @@ file_read_url(VRT_CTX, struct vmod_cfg_file *file)
     return result;
 }
 
+struct file_parse_ctx {
+    struct vmod_cfg_file *file;
+    variables_t *variables;
+};
+
 struct file_ini_stream_ctx {
     const char *ptr;
     int left;
@@ -457,11 +464,6 @@ file_ini_stream_reader(char *str, int size, void *stream)
     return str;
 }
 
-struct file_parse_ctx {
-    struct vmod_cfg_file *file;
-    variables_t *variables;
-};
-
 static int
 file_parse_ini_handler(void *c, const char *section, const char *name, const char *value)
 {
@@ -469,12 +471,12 @@ file_parse_ini_handler(void *c, const char *section, const char *name, const cha
 
     char *buffer;
     unsigned flatten = (section != NULL) && (strlen(section) > 0);
-    AN(asprintf(
+    assert(asprintf(
         &buffer,
         "%s%s%s",
             flatten ? section : "",
             flatten ? ctx->file->name_delimiter : "",
-            name));
+            name) > 0);
 
     variable_t *variable = find_variable(ctx->variables, buffer);
     if (variable == NULL) {
@@ -530,6 +532,115 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         LOG(ctx, LOG_ERR,
             "Failed to parse configuration file (location=%s, format=ini, error=%d)",
             file->location.raw, rc);
+    }
+
+    return result;
+}
+
+static void
+file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
+{
+    char *value = NULL;
+    double intpart;
+
+    switch (item->type) {
+        case cJSON_False:
+            value = "false";
+            break;
+
+        case cJSON_True:
+            value = "true";
+            break;
+
+        case cJSON_Number:
+            if (modf(item->valuedouble, &intpart) == 0) {
+                assert(asprintf(&value, "%d", item->valueint) > 0);
+            } else {
+                assert(asprintf(&value, "%.3f", item->valuedouble) > 0);
+            }
+            break;
+
+        case cJSON_Raw:
+        case cJSON_String:
+            value = item->valuestring;
+            break;
+    }
+
+    if (value != NULL) {
+        variable_t *variable = new_variable(name, strlen(name), value);
+        AZ(VRB_INSERT(variables, ctx->variables, variable));
+        if (item->type == cJSON_Number) {
+            free((void *) value);
+        }
+    }
+}
+
+static void
+file_parse_json_walk(
+    struct file_parse_ctx *ctx, cJSON *item, const char *prefix, unsigned delimit)
+{
+    char *buffer;
+
+    while (item) {
+        if (item->type != cJSON_Array) {
+            assert(asprintf(
+                &buffer, "%s%s%s",
+                prefix,
+                (delimit && item->string != NULL) ? ctx->file->name_delimiter: "",
+                (item->string != NULL) ? item->string : "") >= 0);
+
+            if (item->type != cJSON_Object) {
+                file_parse_json_emit(ctx, buffer, item);
+            } else if (item->child) {
+                file_parse_json_walk(ctx, item->child, buffer, item->string != NULL);
+            }
+
+            free((void *) buffer);
+        }
+
+        item = item->next;
+    }
+}
+
+static variables_t *
+file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
+{
+    variables_t *result = NULL;
+
+    struct file_parse_ctx file_parse_ctx = {
+        .file = file,
+        .variables = malloc(sizeof(variables_t))
+    };
+    AN(file_parse_ctx.variables);
+    VRB_INIT(file_parse_ctx.variables);
+
+    const char *error;
+    cJSON *root = cJSON_ParseWithOpts(contents, &error, 0);
+
+    if (root != NULL) {
+        if (root->type == cJSON_Object) {
+            file_parse_json_walk(&file_parse_ctx, root, "", 0);
+
+            result = file_parse_ctx.variables;
+
+            LOG(ctx, LOG_INFO,
+                "Configuration file successfully parsed (location=%s, format=json)",
+                file->location.raw);
+        } else {
+            free((void *) file_parse_ctx.variables);
+
+            LOG(ctx, LOG_ERR,
+                "Unexpected JSON type (location=%s, format=json, type=%d)",
+                file->location.raw, root->type);
+        }
+
+        cJSON_Delete(root);
+    } else {
+        free((void *) file_parse_ctx.variables);
+
+        LOG(ctx, LOG_ERR,
+            "Failed to parse configuration file (location=%s, format=json)",
+            file->location.raw);
     }
 
     return result;
@@ -656,6 +767,8 @@ vmod_file__init(
         SET_STRING(value_delimiter, value_delimiter);
         if (strcmp(format, "ini") == 0) {
             instance->parse = &file_parse_ini;
+        } else if (strcmp(format, "json") == 0) {
+            instance->parse = &file_parse_json;
         } else {
             WRONG("Illegal format value.");
         }

@@ -13,6 +13,7 @@ vmod_LTLIBRARIES = libvmod_cfg.la
 
 libvmod_cfg_la_SOURCES = \
 	ini.c ini.h \
+	cJSON.c cJSON.h \
 	vmod_cfg.c \
 	vtree.h
 
