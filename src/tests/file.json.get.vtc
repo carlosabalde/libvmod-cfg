@@ -1,0 +1,71 @@
+varnishtest "Test .get() for JSON files"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.json" <<'EOF'
+{
+    "bool": true,
+    "int": 42,
+    "real": 42.5,
+    "string": "hello world!",
+    "other": {
+        "null": null,
+        "real": 42.5e-5,
+        "array": [1, 2, 3],
+        "escaped": "Hello \"\\o\/\"!"
+    }
+}
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new file = cfg.file(
+            "file://${tmp}/test.json",
+            period=0,
+            format=json,
+            name_delimiter=":");
+
+        if (file.get("bool") != "true") {
+            return (fail);
+        }
+    }
+
+    sub vcl_deliver {
+        set resp.http.result1 = file.get("BOOL", "-");
+        set resp.http.result2 = file.get("bool", "-");
+        set resp.http.result3 = file.get("int", "-");
+        set resp.http.result4 = file.get("real", "-");
+        set resp.http.result5 = file.get("string", "-");
+        set resp.http.result6 = file.get("other:null", "-");
+        set resp.http.result7 = file.get("other:real", "-");
+        set resp.http.result8 = file.get("other:array", "-");
+        set resp.http.result9 = file.get("other:escaped", "-");
+        set resp.http.dump = file.dump();
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result1 == "-"
+    expect resp.http.result2 == "true"
+    expect resp.http.result3 == "42"
+    expect resp.http.result4 == "42.500"
+    expect resp.http.result5 == "hello world!"
+    expect resp.http.result6 == "-"
+    expect resp.http.result7 == "0.000"
+    expect resp.http.result8 == "-"
+    expect resp.http.result9 == {Hello "\o/"!}
+    expect resp.http.dump == {{"bool":"true","int":"42","other:escaped":"Hello \"\\o\/\"!","other:real":"0.000","real":"42.500","string":"hello world!"}}
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
