@@ -1,6 +1,6 @@
 AC_PREREQ(2.59)
 AC_COPYRIGHT([Copyright (c) 2016-2017 Carlos Abalde <carlos.abalde@gmail.com>])
-AC_INIT([libvmod-cfg], [1.3])
+AC_INIT([libvmod-cfg], [1.4])
 AC_CONFIG_MACRO_DIR([m4])
 m4_ifndef([VARNISH_VMOD_INCLUDES], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
 AC_CONFIG_SRCDIR(src/vmod_cfg.vcc)
