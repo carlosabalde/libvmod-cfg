@@ -59,6 +59,8 @@ static void flush_variables(variables_t *variables);
 static unsigned version = 0;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static const char *json_hex_chars = "0123456789abcdef";
+
 /******************************************************************************
  * VMOD EVENTS.
  *****************************************************************************/
@@ -128,12 +130,41 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
     do { \
         DUMP_CHAR('"'); \
         for (int i = 0; value[i]; i++) { \
-            if (value[i] == '"'  || value[i] == '\\' || value[i] == '/'  || \
-                value[i] == '\b' || value[i] == '\f' || value[i] == '\n' || \
-                value[i] == '\r' || value[i] == '\t') { \
+            if (value[i] > 31 && value[i] != '\"' && value[i] != '\\') { \
+                DUMP_CHAR(value[i]); \
+            } else { \
                 DUMP_CHAR('\\'); \
+                switch (value[i]) { \
+                    case '\\': \
+                        DUMP_CHAR('\\'); \
+                        break; \
+                    case '"': \
+                        DUMP_CHAR('"'); \
+                        break; \
+                    case '\b': \
+                        DUMP_CHAR('b'); \
+                        break; \
+                    case '\f': \
+                        DUMP_CHAR('f'); \
+                        break; \
+                    case '\n': \
+                        DUMP_CHAR('n'); \
+                        break; \
+                    case '\r': \
+                        DUMP_CHAR('r'); \
+                        break; \
+                    case '\t': \
+                        DUMP_CHAR('t'); \
+                        break; \
+                    default: \
+                        DUMP_CHAR('u'); \
+                        DUMP_CHAR('0'); \
+                        DUMP_CHAR('0'); \
+                        DUMP_CHAR(json_hex_chars[(value[i] >> 4) & 0xf]); \
+                        DUMP_CHAR(json_hex_chars[value[i] & 0xf]); \
+                        break; \
+                } \
             } \
-            DUMP_CHAR(value[i]); \
         } \
         DUMP_CHAR('"'); \
     } while (0)
