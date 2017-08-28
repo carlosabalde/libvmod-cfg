@@ -16,7 +16,7 @@ shell {
         "null": null,
         "real": 42.5e-5,
         "array": [1, 2, 3],
-        "escaped": "Hello \"\\o/\"! \u00e1\\n"
+        "escaped": "Hello \"\\o/\"! \u00e1"
     }
 }
 EOF
@@ -62,8 +62,8 @@ client c1 {
     expect resp.http.result6 == "-"
     expect resp.http.result7 == "0.000"
     expect resp.http.result8 == "-"
-    expect resp.http.result9 == {Hello "\o/"! á\n}
-    expect resp.http.dump == {{"bool":"true","int":"42","other:escaped":"Hello \"\\o/\"! \u00c3\u00a1\\n","other:real":"0.000","real":"42.500","string":"hello world!"}}
+    expect resp.http.result9 == {Hello "\o/"! á}
+    expect resp.http.dump == {{"bool":"true","int":"42","other:escaped":"Hello \"\\o/\"! \u00c3\u00a1","other:real":"0.000","real":"42.500","string":"hello world!"}}
 } -run
 
 varnish v1 -expect client_req == 1
