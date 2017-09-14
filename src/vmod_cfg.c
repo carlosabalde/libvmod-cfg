@@ -17,7 +17,7 @@
 
 #define LOG(ctx, level, fmt, ...) \
     do { \
-        syslog(level, "[CFG][%s] " fmt, __func__, __VA_ARGS__); \
+        syslog(level, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
         unsigned slt; \
         if (level <= LOG_ERR) { \
             slt = SLT_VCL_Error; \
@@ -25,16 +25,16 @@
             slt = SLT_VCL_Log; \
         } \
         if ((ctx)->vsl != NULL) { \
-            VSLb((ctx)->vsl, slt, "[CFG][%s] " fmt, __func__, __VA_ARGS__); \
+            VSLb((ctx)->vsl, slt, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
         } else { \
-            VSL(slt, 0, "[CFG][%s] " fmt, __func__, __VA_ARGS__); \
+            VSL(slt, 0, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
         } \
     } while (0)
 
 #define FAIL_WS(ctx, result) \
     do { \
-        syslog(LOG_ALERT, "[CFG][%s] Workspace overflow (line=%d)", __func__, __LINE__); \
-        VRT_fail(ctx, "[CFG][%s] Workspace overflow (line=%d)", __func__, __LINE__); \
+        syslog(LOG_ALERT, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
+        VRT_fail(ctx, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
         return result; \
     } while (0)
 
