@@ -31,6 +31,12 @@
         } \
     } while (0)
 
+#define FAIL_WS(ctx, result) \
+    do { \
+        VRT_fail(ctx, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
+        return result; \
+    } while (0)
+
 typedef struct variable {
     unsigned magic;
     #define VARIABLE_MAGIC 0xcb181fe6
@@ -114,7 +120,9 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
 
     if (result != NULL) {
         result = WS_Copy(ctx->ws, result, -1);
-        AN(result);
+        if (result == NULL) {
+            FAIL_WS(ctx, NULL);
+        }
     }
 
     return result;
@@ -123,7 +131,12 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
 #define DUMP_CHAR(value) \
     do { \
         *end = value; \
-        assert(free_ws > 0); end++; free_ws--; \
+        if (free_ws <= 0) { \
+            WS_Release(ctx->ws, 0); \
+            FAIL_WS(ctx, NULL); \
+        } \
+        end++; \
+        free_ws--; \
     } while (0)
 
 #define DUMP_STRING(value) \
@@ -176,7 +189,10 @@ cfg_dump(VRT_CTX, variables_t *variables)
     char *result, *end;
     variable_t *variable;
     unsigned free_ws = WS_Reserve(ctx->ws, 0);
-    assert(free_ws > 0);
+    if (free_ws <= 0) {
+        WS_Release(ctx->ws, 0);
+        FAIL_WS(ctx, NULL);
+    }
     result = end = WS_Front(ctx->ws);
 
     DUMP_CHAR('{');
