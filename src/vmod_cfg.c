@@ -78,11 +78,13 @@ event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
         case VCL_EVENT_LOAD:
             curl_global_init(CURL_GLOBAL_ALL);
             break;
+
         case VCL_EVENT_WARM:
             AZ(pthread_mutex_lock(&mutex));
             version++;
             AZ(pthread_mutex_unlock(&mutex));
             break;
+
         default:
             break;
     }
@@ -151,24 +153,31 @@ cfg_get(VRT_CTX, variables_t *variables, const char *name, const char *fallback)
                     case '\\': \
                         DUMP_CHAR('\\'); \
                         break; \
+                    \
                     case '"': \
                         DUMP_CHAR('"'); \
                         break; \
+                    \
                     case '\b': \
                         DUMP_CHAR('b'); \
                         break; \
+                    \
                     case '\f': \
                         DUMP_CHAR('f'); \
                         break; \
+                    \
                     case '\n': \
                         DUMP_CHAR('n'); \
                         break; \
+                    \
                     case '\r': \
                         DUMP_CHAR('r'); \
                         break; \
+                    \
                     case '\t': \
                         DUMP_CHAR('t'); \
                         break; \
+                    \
                     default: \
                         DUMP_CHAR('u'); \
                         DUMP_CHAR('0'); \
