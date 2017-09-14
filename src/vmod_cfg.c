@@ -33,7 +33,8 @@
 
 #define FAIL_WS(ctx, result) \
     do { \
-        VRT_fail(ctx, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
+        syslog(LOG_ALERT, "[CFG][%s] Workspace overflow (line=%d)", __func__, __LINE__); \
+        VRT_fail(ctx, "[CFG][%s] Workspace overflow (line=%d)", __func__, __LINE__); \
         return result; \
     } while (0)
 
