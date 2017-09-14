@@ -31,12 +31,15 @@
         } \
     } while (0)
 
-#define FAIL_WS(ctx, result) \
+#define FAIL(ctx, result, fmt, ...) \
     do { \
-        syslog(LOG_ALERT, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
-        VRT_fail(ctx, "[CFG][%s:%d] Workspace overflow", __func__, __LINE__); \
+        syslog(LOG_ALERT, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
+        VRT_fail(ctx, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
         return result; \
     } while (0)
+
+#define FAIL_WS(ctx, result) \
+    FAIL(ctx, result, "Workspace overflow")
 
 typedef struct variable {
     unsigned magic;
