@@ -12,8 +12,8 @@ $script = <<SCRIPT
   # Varnish Cache.
   sudo -u vagrant bash -c '\
     wget --no-check-certificate https://varnish-cache.org/_downloads/varnish-5.2.0-rc2.tgz; \
-    tar zxvf varnish-*.tar.gz; \
-    rm -f varnish-*.tar.gz; \
+    tar zxvf varnish-*.tgz; \
+    rm -f varnish-*.tgz; \
     cd varnish-*; \
     ./autogen.sh; \
     ./configure; \
