@@ -6,6 +6,7 @@
 #
 
 $Module cfg 3 CFG VMOD
+$ABI strict
 
 DESCRIPTION
 ===========
