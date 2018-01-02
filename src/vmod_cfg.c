@@ -6,8 +6,6 @@
 #include <math.h>
 #include <curl/curl.h>
 
-#include "vcl.h"
-#include "vrt.h"
 #include "cache/cache.h"
 #include "vcc_cfg_if.h"
 
