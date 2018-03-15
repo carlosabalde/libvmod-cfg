@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-AC_INIT([libvmod-cfg], [trunk], [], [vmod-cfg])
+AC_INIT([libvmod-cfg], [5.0], [], [vmod-cfg])
 AC_COPYRIGHT([Copyright (c) 2016-2018 Carlos Abalde <carlos.abalde@gmail.com>])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/vmod_cfg.vcc)
@@ -34,7 +34,7 @@ PKG_CHECK_MODULES([CURL], [libcurl])
 
 m4_ifndef([VARNISH_PREREQ], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
 
-#VARNISH_PREREQ([5.0], [5.1])
+VARNISH_PREREQ([6.0], [6.1])
 VARNISH_VMODS([cfg])
 
 VMOD_TESTS="$(cd $srcdir/src && echo tests/*.vtc)"
