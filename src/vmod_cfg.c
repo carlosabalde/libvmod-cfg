@@ -823,9 +823,9 @@ vmod_file__init(
         SET_OPTINAL_STRING(curl_proxy, curl.proxy);
         SET_STRING(name_delimiter, name_delimiter);
         SET_STRING(value_delimiter, value_delimiter);
-        if (strcmp(format, "ini") == 0) {
+        if (format == vmod_enum_ini) {
             instance->parse = &file_parse_ini;
-        } else if (strcmp(format, "json") == 0) {
+        } else if (format == vmod_enum_json) {
             instance->parse = &file_parse_json;
         } else {
             WRONG("Illegal format value.");
