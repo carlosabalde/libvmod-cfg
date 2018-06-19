@@ -65,12 +65,12 @@ $Object file(
     STRING value_delimiter=";")
 
 Arguments
-    location: path of the configuration file. The following schemes are
-    supported: ``file://``, ``http://`` and ``https://``. If not specified
-    ``file://`` is assumed.
+    location: path of the file. The following schemes are supported:
+    ``file://``, ``http://`` and ``https://``. If not specified ``file://``
+    is assumed.
 
-    period: how frequently (seconds) contents of the configuration file are
-    reloaded (0 means disabling periodical reloads).
+    period: how frequently (seconds) contents of the file are reloaded (0 means
+    disabling periodical reloads).
 
     curl_connection_timeout: connection timeout (milliseconds; 0 means no
     timeout).
@@ -90,39 +90,39 @@ Arguments
 
     curl_proxy: HTTP proxy to be used (empty string means no proxy).
 
-    format: format of the configuration file.
+    format: format of the file.
 
-    name_delimiter: delimiter to be used if flattening the parameters namespace
+    name_delimiter: delimiter to be used if flattening the keys namespace
     is required.
 
     value_delimiter: delimiter to be used if flattening a list of values is
     required. Beware the VMOD ignores JSON arrays.
 Description
-    Parses the configuration file and creates a new instance.
+    Parses the file and creates a new instance.
 
-    Beware contents of the configuration file are internally cached. This cache
-    is refreshed on every VCL WARM event received by the VMOD and every ``period``
-    seconds (if ``period`` > 0).
+    Beware contents of the file are internally cached. This cache is refreshed
+    on every VCL WARM event received by the VMOD and every ``period`` seconds
+    (if ``period`` > 0).
 
 $Method BOOL .is_set(STRING name)
 
 Arguments
-    name: name of the -eventually flattened- configuration parameter.
+    name: name of the -eventually flattened- key.
 Description
-    Checks if a configuration parameter is set.
+    Checks if a key is set.
 
 $Method STRING .get(STRING name, STRING fallback="")
 
 Arguments
-    name: name of the -eventually flattened- configuration parameter.
+    name: name of the -eventually flattened- key.
 
-    fallback: value to be returned if the configuration parameter does not exist.
+    fallback: value to be returned if the key does not exist.
 Description
-    Gets the value of a configuration parameter.
+    Gets the value of a key.
 
     Beware during certain VCL phases like ``vcl_init`` copying values is not
     possible because a workspace is not available. In those cases a pointer to
-    a string allocated in the heap is returned when the variable exists;
+    a string allocated in the heap is returned when the key exists;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
 
@@ -134,5 +134,40 @@ Description
 $Method BOOL .reload()
 
 Description
-    Reloads contents of the configuration file. A ``False`` value is returned
-    on failure.
+    Reloads contents of the file. A ``False`` value is returned on failure.
+
+$Object rules(
+    STRING location,
+    INT period=60,
+    INT curl_connection_timeout=0,
+    INT curl_transfer_timeout=0,
+    BOOL curl_ssl_verify_peer=0,
+    BOOL curl_ssl_verify_host=0,
+    STRING curl_ssl_cafile="",
+    STRING curl_ssl_capath="",
+    STRING curl_proxy="")
+
+Description
+    Parses the file and creates a new instance.
+
+    See ``cfg.file()`` for details.
+
+$Method STRING .get(STRING value, STRING fallback="")
+
+Arguments
+    value: value to be matched against the collection of rules.
+
+    fallback: value to be returned if a match is not found.
+Description
+    Gets the result of executing the pattern matching logic.
+
+    Beware during certain VCL phases like ``vcl_init`` copying values is not
+    possible because a workspace is not available. In those cases a pointer to
+    a string allocated in the heap is returned when a match is found;
+    otherwise a pointer to the input ``fallback`` value is returned. You must
+    use these pointers carefully.
+
+$Method BOOL .reload()
+
+Description
+    Reloads contents of the file. A ``False`` value is returned on failure.

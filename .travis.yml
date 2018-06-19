@@ -12,7 +12,6 @@ addons:
     - python-docutils
 
 before_install:
-  - set -e
   - wget --no-check-certificate http://varnish-cache.org/_downloads/varnish-4.1.9.tgz
   - tar zxvf varnish-*.tgz
   - pushd varnish-*
@@ -26,7 +25,7 @@ before_install:
 before_script:
   - ./autogen.sh
   - ./configure --prefix=/usr
-  - make -j4
+  - make -j1
 
 script:
   - make check -j1

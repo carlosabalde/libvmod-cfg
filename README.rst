@@ -3,11 +3,11 @@
    :alt: Travis CI badge
    :target: https://travis-ci.org/carlosabalde/libvmod-cfg/
 
-VMOD useful to access to contents of environment variables and local or remote configuration files from VCL.
+VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
-Currently JSON and Python's ConfigParser .INI-like configuration files are supported. Remote files can be accessed via HTTP or HTTPS.
+Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; and (3) files containing collections of pattern matching rules are supported. Remote files can be accessed via HTTP or HTTPS.
 
-Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premium partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
+Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premier Partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
 SYNOPSIS
 ========
@@ -37,6 +37,19 @@ import cfg;
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
     Method STRING .dump()
+    Method BOOL .reload()
+
+    Object rules(
+        STRING location,
+        INT period=60,
+        INT curl_connection_timeout=0,
+        INT curl_transfer_timeout=0,
+        BOOL curl_ssl_verify_peer=0,
+        BOOL curl_ssl_verify_host=0,
+        STRING curl_ssl_cafile="",
+        STRING curl_ssl_capath="",
+        STRING curl_proxy="")
+    Method STRING .get(STRING value, STRING fallback="")
     Method BOOL .reload()
 
 EXAMPLE
