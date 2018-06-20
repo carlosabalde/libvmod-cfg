@@ -23,6 +23,19 @@ Description
     Beware environment variables are internally cached. This cache is populated
     when creating a new instance and it's never refreshed.
 
+$Method STRING .dump(BOOL stream=0)
+
+Arguments
+    stream: if enabled the JSON object will be streamed as a synthetic response.
+Description
+    Returns a string representation of a JSON object containing all variables.
+
+    If called during ``vcl_synth`` or ``vcl_backend_error`` with the ``stream``
+    argument enabled, this function will return an empty string and behave as
+    a call to the ``synthetic`` VCL function with the JSON object as input.
+    This highly reduces the amount of required workspace memory, specially for
+    large JSON objects.
+
 $Method BOOL .is_set(STRING name)
 
 Arguments
@@ -44,11 +57,6 @@ Description
     a string allocated in the heap is returned when the variable exists;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
-
-$Method STRING .dump()
-
-Description
-    Returns a string representation of a JSON object containing all variables.
 
 $Object file(
     STRING location,
@@ -104,6 +112,24 @@ Description
     on every VCL WARM event received by the VMOD and every ``period`` seconds
     (if ``period`` > 0).
 
+$Method BOOL .reload()
+
+Description
+    Reloads contents of the file. A ``False`` value is returned on failure.
+
+$Method STRING .dump(BOOL stream=0)
+
+Arguments
+    stream: if enabled the JSON object will be streamed as a synthetic response.
+Description
+    Returns a string representation of a JSON object containing all variables.
+
+    If called during ``vcl_synth`` or ``vcl_backend_error`` with the ``stream``
+    argument enabled, this function will return an empty string and behave as
+    a call to the ``synthetic`` VCL function with the JSON object as input.
+    This highly reduces the amount of required workspace memory, specially for
+    large JSON objects.
+
 $Method BOOL .is_set(STRING name)
 
 Arguments
@@ -125,16 +151,6 @@ Description
     a string allocated in the heap is returned when the key exists;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
-
-$Method STRING .dump()
-
-Description
-    Returns a string representation of a JSON object containing all variables.
-
-$Method BOOL .reload()
-
-Description
-    Reloads contents of the file. A ``False`` value is returned on failure.
 
 $Object rules(
     STRING location,

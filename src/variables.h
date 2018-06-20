@@ -24,6 +24,6 @@ void flush_variables(variables_t *variables);
 
 unsigned is_set_variable(VRT_CTX, variables_t *variables, const char *name);
 const char *get_variable(VRT_CTX, variables_t *variables, const char *name, const char *fallback);
-const char *dump_variables(VRT_CTX, variables_t *variables);
+const char *dump_variables(VRT_CTX, variables_t *variables, unsigned stream);
 
 #endif

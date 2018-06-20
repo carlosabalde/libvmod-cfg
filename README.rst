@@ -5,7 +5,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
-Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; and (3) files containing collections of pattern matching rules are supported. Remote files can be accessed via HTTP or HTTPS.
+Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; and (4) Lua scripts (work in progress!) are supported. Remote files can be accessed via HTTP or HTTPS.
 
 Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premier Partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
@@ -16,10 +16,19 @@ import cfg;
 
 ::
 
+    ##
+    ## Environment variables.
+    ##
+
     Object env()
+    Method STRING .dump(BOOL stream=0)
+
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
-    Method STRING .dump()
+
+    ##
+    ## JSON & INI files.
+    ##
 
     Object file(
         STRING location,
@@ -34,10 +43,15 @@ import cfg;
         ENUM { ini, json } format="ini",
         STRING name_delimiter=":",
         STRING value_delimiter=";")
+    Method BOOL .reload()
+    Method STRING .dump(BOOL stream=0)
+
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
-    Method STRING .dump()
-    Method BOOL .reload()
+
+    ##
+    ## Pattern matching rules.
+    ##
 
     Object rules(
         STRING location,
@@ -49,8 +63,9 @@ import cfg;
         STRING curl_ssl_cafile="",
         STRING curl_ssl_capath="",
         STRING curl_proxy="")
-    Method STRING .get(STRING value, STRING fallback="")
     Method BOOL .reload()
+
+    Method STRING .get(STRING value, STRING fallback="")
 
 EXAMPLE
 =======
@@ -73,8 +88,8 @@ Environment variables
     start: 1459468800
     stop: 1459555200
 
-https://www.example.com/ttl.rules
----------------------------------
+https://www.example.com/ttls.rules
+----------------------------------
 
 ::
 
@@ -110,7 +125,7 @@ https://www.example.com/ttl.rules
         }
 
         new ttls = cfg.rules(
-            "https://www.example.com/ttl.rules",
+            "https://www.example.com/ttls.rules",
             period=300);
     }
 
@@ -125,9 +140,9 @@ https://www.example.com/ttl.rules
                     }
                 } elsif (req.url == "/ttls/reload/") {
                     if (ttls.reload()) {
-                        return (synth(200, "TTL rules reloaded."));
+                        return (synth(200, "TTLs rules reloaded."));
                     } else {
-                        return (synth(500, "Failed to reload TTL rules."));
+                        return (synth(500, "Failed to reload TTLs rules."));
                     }
                 } elsif (req.url == "/settings/dump/") {
                     return (synth(700, "OK"));
@@ -156,7 +171,7 @@ https://www.example.com/ttl.rules
         } elsif (resp.status == 700) {
             set resp.status = 200;
             set resp.http.Content-Type = "application/json";
-            synthetic(settings.dump());
+            settings.dump(stream=true);
             return (deliver);
         }
     }
@@ -178,7 +193,7 @@ Access to variables
 
 ::
 
-    $ curl http://127.0.0.1/settings/dump/ |  python -m json.tool
+    $ curl http://127.0.0.1/settings/dump/ | python -m json.tool
     {
         "joke:start": "1459468800",
         "joke:stop": "1459555200",

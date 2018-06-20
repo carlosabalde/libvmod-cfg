@@ -66,6 +66,12 @@ vmod_env__fini(struct vmod_cfg_env **env)
     *env = NULL;
 }
 
+VCL_STRING
+vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env, VCL_BOOL stream)
+{
+    return dump_variables(ctx, &env->variables, stream);
+}
+
 VCL_BOOL
 vmod_env_is_set(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name)
 {
@@ -76,10 +82,4 @@ VCL_STRING
 vmod_env_get(VRT_CTX, struct vmod_cfg_env *env, VCL_STRING name, VCL_STRING fallback)
 {
     return get_variable(ctx, &env->variables, name, fallback);
-}
-
-VCL_STRING
-vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env)
-{
-    return dump_variables(ctx, &env->variables);
 }
