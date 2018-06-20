@@ -264,6 +264,12 @@ vmod_rules__fini(struct vmod_cfg_rules **rules)
     *rules = NULL;
 }
 
+VCL_BOOL
+vmod_rules_reload(VRT_CTX, struct vmod_cfg_rules *rules)
+{
+    return rules_check(ctx, rules, 1);
+}
+
 VCL_STRING
 vmod_rules_get(VRT_CTX, struct vmod_cfg_rules *rules, VCL_STRING value, VCL_STRING fallback)
 {
@@ -291,10 +297,4 @@ vmod_rules_get(VRT_CTX, struct vmod_cfg_rules *rules, VCL_STRING value, VCL_STRI
     }
 
     return result;
-}
-
-VCL_BOOL
-vmod_rules_reload(VRT_CTX, struct vmod_cfg_rules *rules)
-{
-    return rules_check(ctx, rules, 1);
 }
