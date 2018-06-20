@@ -3,6 +3,8 @@
 #include <string.h>
 
 #include "cache/cache.h"
+#include "vsb.h"
+#include "vcl.h"
 
 #include "helpers.h"
 #include "variables.h"
@@ -108,13 +110,17 @@ static const char *json_hex_chars = "0123456789abcdef";
 
 #define DUMP_CHAR(value) \
     do { \
-        *end = value; \
-        if (free_ws <= 0) { \
-            WS_Release(ctx->ws, 0); \
-            FAIL_WS(ctx, NULL); \
+        if (vsb != NULL) { \
+            VSB_putc(vsb, value); \
+        } else { \
+            *end = value; \
+            if (free_ws <= 0) { \
+                WS_Release(ctx->ws, 0); \
+                FAIL_WS(ctx, NULL); \
+            } \
+            end++; \
+            free_ws--; \
         } \
-        end++; \
-        free_ws--; \
     } while (0)
 
 #define DUMP_STRING(value) \
@@ -168,11 +174,19 @@ static const char *json_hex_chars = "0123456789abcdef";
     } while (0)
 
 const char *
-dump_variables(VRT_CTX, variables_t *variables)
+dump_variables(VRT_CTX, variables_t *variables, unsigned stream)
 {
+    struct vsb *vsb = NULL;
+    if (stream && (
+        (ctx->method == VCL_MET_SYNTH) ||
+        (ctx->method == VCL_MET_BACKEND_ERROR))) {
+        CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
+    }
+
     AN(ctx->ws);
     char *result, *end;
     variable_t *variable;
+    unsigned i = 0;
     unsigned free_ws = WS_Reserve(ctx->ws, 0);
     if (free_ws <= 0) {
         WS_Release(ctx->ws, 0);
@@ -183,16 +197,15 @@ dump_variables(VRT_CTX, variables_t *variables)
     DUMP_CHAR('{');
     VRB_FOREACH(variable, variables, variables) {
         CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
+        if (i > 0) {
+            DUMP_CHAR(',');
+        }
         DUMP_STRING(variable->name);
         DUMP_CHAR(':');
         DUMP_STRING(variable->value);
-        DUMP_CHAR(',');
+        i++;
     }
-    if (*(end - 1) == ',') {
-        *(end - 1) = '}';
-    } else {
-        DUMP_CHAR('}');
-    }
+    DUMP_CHAR('}');
     *end = '\0';
 
     WS_Release(ctx->ws, end - result + 1);

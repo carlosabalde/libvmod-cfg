@@ -392,6 +392,22 @@ vmod_file__fini(struct vmod_cfg_file **file)
 #undef FREE_STRING
 
 VCL_BOOL
+vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
+{
+    return file_check(ctx, file, 1);
+}
+
+VCL_STRING
+vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream)
+{
+    file_check(ctx, file, 0);
+    AZ(pthread_rwlock_rdlock(&file->state.rwlock));
+    const char *result = dump_variables(ctx, file->state.variables, stream);
+    AZ(pthread_rwlock_unlock(&file->state.rwlock));
+    return result;
+}
+
+VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {
     file_check(ctx, file, 0);
@@ -409,20 +425,4 @@ vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING f
     const char *result = get_variable(ctx, file->state.variables, name, fallback);
     AZ(pthread_rwlock_unlock(&file->state.rwlock));
     return result;
-}
-
-VCL_STRING
-vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file)
-{
-    file_check(ctx, file, 0);
-    AZ(pthread_rwlock_rdlock(&file->state.rwlock));
-    const char *result = dump_variables(ctx, file->state.variables);
-    AZ(pthread_rwlock_unlock(&file->state.rwlock));
-    return result;
-}
-
-VCL_BOOL
-vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
-{
-    return file_check(ctx, file, 1);
 }
