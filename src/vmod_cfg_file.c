@@ -273,7 +273,7 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
  *****************************************************************************/
 
 static unsigned
-file_check_callback(VRT_CTX, void *ptr, const char *contents)
+file_check_callback(VRT_CTX, void *ptr, char *contents)
 {
     unsigned result = 0;
 
@@ -282,9 +282,8 @@ file_check_callback(VRT_CTX, void *ptr, const char *contents)
 
     variables_t *variables = (*file->parse)(ctx, file, contents);
     if (variables != NULL) {
-        variables_t *old = file->state.variables;
-
         AZ(pthread_rwlock_wrlock(&file->state.rwlock));
+        variables_t *old = file->state.variables;
         file->state.variables = variables;
         AZ(pthread_rwlock_unlock(&file->state.rwlock));
 
