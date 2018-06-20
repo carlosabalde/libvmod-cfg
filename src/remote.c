@@ -8,8 +8,8 @@
 #include "helpers.h"
 #include "remote.h"
 
-static const char *read_path(VRT_CTX, remote_t *remote);
-static const char *read_url(VRT_CTX, remote_t *remote);
+static char *read_path(VRT_CTX, remote_t *remote);
+static char *read_url(VRT_CTX, remote_t *remote);
 
 /******************************************************************************
  * BASICS.
@@ -122,7 +122,7 @@ free_remote(remote_t *remote)
 unsigned
 check_remote(
     VRT_CTX, remote_t *remote, unsigned force,
-    unsigned (*callback)(VRT_CTX, void *, const char *), void *ptr)
+    unsigned (*callback)(VRT_CTX, void *, char *), void *ptr)
 {
     unsigned result = 0;
 
@@ -142,7 +142,7 @@ check_remote(
     }
 
     if (force || winner) {
-        const char *contents = (*remote->read)(ctx, remote);
+        char *contents = (*remote->read)(ctx, remote);
         if (contents != NULL) {
             result = (*callback)(ctx, ptr, contents);
             free((void *) contents);
@@ -166,7 +166,7 @@ check_remote(
     return result;
 }
 
-static const char *
+static char *
 read_path(VRT_CTX, remote_t *remote)
 {
     char *result = NULL;
@@ -221,7 +221,7 @@ read_url_body(void *block, size_t size, size_t nmemb, void *c)
     return block_size;
 }
 
-static const char *
+static char *
 read_url(VRT_CTX, remote_t *remote)
 {
     struct read_url_ctx read_url_ctx = {

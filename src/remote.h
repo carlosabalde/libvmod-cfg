@@ -19,7 +19,7 @@ typedef struct remote {
         const char *ssl_capath;
         const char *proxy;
     } curl;
-    const char *(*read)(VRT_CTX, struct remote *);
+    char *(*read)(VRT_CTX, struct remote *);
 
     struct {
         unsigned version;
@@ -38,6 +38,6 @@ void free_remote(remote_t *remote);
 
 unsigned check_remote(
     VRT_CTX, remote_t *remote, unsigned force,
-    unsigned (*callback)(VRT_CTX, void *, const char *), void *ptr);
+    unsigned (*callback)(VRT_CTX, void *, char *), void *ptr);
 
 #endif
