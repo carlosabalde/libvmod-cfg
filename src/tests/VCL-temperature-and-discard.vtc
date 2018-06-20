@@ -10,6 +10,10 @@ shell {
 [section1]
 field1: value1
 EOF
+
+    cat > "${tmp}/test.rules" <<'EOF'
+foo -> r1
+EOF
 }
 
 varnish v1 -vcl+backend {
@@ -24,6 +28,10 @@ varnish v1 -vcl+backend {
             format=ini,
             name_delimiter=":",
             value_delimiter=";");
+
+        new rules = cfg.rules(
+            "${tmp}/test.rules",
+            period=1);
     }
 } -start
 
