@@ -76,6 +76,14 @@ Environment variables
     start: 1459468800
     stop: 1459555200
 
+https://www.example.com/ttl.rules
+---------------------------------
+
+::
+
+    (?i)\.(?:jpg|png|svg)(?:\?.*)?$      -> 7d
+    (?i)^www\.(?:foo|bar)\.com(?::\d+)?/ -> 1h
+
 /etc/varnish/default.vcl
 ------------------------
 
@@ -103,16 +111,26 @@ Environment variables
         } else {
             return (fail);
         }
+
+        new ttls = cfg.rules(
+            "https://www.example.com/ttl.rules",
+            period=300);
     }
 
     sub vcl_recv {
-        if (req.url ~ "^/settings/(reload|dump)/$") {
+        if (req.url ~ "^/(?:settings|ttls)/(?:reload|dump)/$") {
             if (client.ip ~ internal) {
                 if (req.url == "/settings/reload/") {
                     if (settings.reload()) {
                         return (synth(200, "Settings reloaded."));
                     } else {
                         return (synth(500, "Failed to reload settings."));
+                    }
+                } elsif (req.url == "/ttls/reload/") {
+                    if (ttls.reload()) {
+                        return (synth(200, "TTL rules reloaded."));
+                    } else {
+                        return (synth(500, "Failed to reload TTL rules."));
                     }
                 } elsif (req.url == "/settings/dump/") {
                     return (synth(700, "OK"));
@@ -144,6 +162,12 @@ Environment variables
             synthetic(settings.dump());
             return (deliver);
         }
+    }
+
+    sub vcl_backend_response {
+        set beresp.ttl = std.duration(
+            ttls.get(bereq.http.Host + bereq.url),
+            60s);
     }
 
     sub set_server {
