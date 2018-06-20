@@ -37,7 +37,7 @@ varnish v1 -vcl+backend {
 
     sub vcl_synth {
         set resp.http.Content-Type = "application/json";
-        file.dump(stream=true);
+        if (file.dump(stream=true)) {}
         return (deliver);
     }
 } -start

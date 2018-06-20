@@ -171,7 +171,7 @@ https://www.example.com/ttls.rules
         } elsif (resp.status == 700) {
             set resp.status = 200;
             set resp.http.Content-Type = "application/json";
-            settings.dump(stream=true);
+            if (settings.dump(stream=true)) {}
             return (deliver);
         }
     }
