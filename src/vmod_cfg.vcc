@@ -156,6 +156,11 @@ Description
 
     See ``cfg.file()`` for details.
 
+$Method BOOL .reload()
+
+Description
+    Reloads contents of the file. A ``False`` value is returned on failure.
+
 $Method STRING .get(STRING value, STRING fallback="")
 
 Arguments
@@ -164,8 +169,3 @@ Arguments
     fallback: value to be returned if a match is not found.
 Description
     Gets the result of executing the pattern matching logic.
-
-$Method BOOL .reload()
-
-Description
-    Reloads contents of the file. A ``False`` value is returned on failure.
