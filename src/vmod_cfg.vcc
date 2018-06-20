@@ -168,6 +168,11 @@ Description
 
     See ``cfg.file()`` for details.
 
+$Method BOOL .reload()
+
+Description
+    Reloads contents of the file. A ``False`` value is returned on failure.
+
 $Method STRING .get(STRING value, STRING fallback="")
 
 Arguments
@@ -182,8 +187,3 @@ Description
     a string allocated in the heap is returned when a match is found;
     otherwise a pointer to the input ``fallback`` value is returned. You must
     use these pointers carefully.
-
-$Method BOOL .reload()
-
-Description
-    Reloads contents of the file. A ``False`` value is returned on failure.
