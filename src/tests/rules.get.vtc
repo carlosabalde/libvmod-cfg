@@ -1,0 +1,54 @@
+varnishtest "Test .get() for rules"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.rules" <<'EOF'
+(?i)\.(?:jpg|png|svg)$ -> r1
+(?i)^foo/              -> r2
+
+^bar/                  ->
+    BAZ->r4
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new rules = cfg.rules(
+            "file://${tmp}/test.rules",
+            period=0);
+
+        if (rules.get("logo.png") != "r1") {
+            return (fail);
+        }
+    }
+
+    sub vcl_deliver {
+        set resp.http.result1 = rules.get("image.JPG", "-");
+        set resp.http.result2 = rules.get("image.JPG?v=2", "-");
+        set resp.http.result3 = rules.get("foo/index.html", "-");
+        set resp.http.result4 = rules.get("BAR/index.html", "-");
+        set resp.http.result5 = rules.get("bar/index.html", "-");
+        set resp.http.result6 = rules.get("xxxBAZxxx", "-");
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result1 == "r1"
+    expect resp.http.result2 == "-"
+    expect resp.http.result3 == "r2"
+    expect resp.http.result4 == "-"
+    expect resp.http.result5 == ""
+    expect resp.http.result6 == "r4"
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
