@@ -70,6 +70,60 @@ import cfg;
 
     Method STRING .get(STRING value, STRING fallback="")
 
+    ##
+    ## Lua scripts.
+    ##
+
+    Object script(
+        STRING location="",
+        INT period=60,
+        INT lua_max_vms=128,
+        INT lua_gc_cycle_period=100,
+        BOOL lua_remove_loadfile_function=1,
+        BOOL lua_remove_dofile_function=1,
+        BOOL lua_load_package_lib=0,
+        BOOL lua_load_coroutine_lib=0,
+        BOOL lua_load_io_lib=0,
+        BOOL lua_load_os_lib=0,
+        BOOL lua_load_utf8_lib=0,
+        INT curl_connection_timeout=0,
+        INT curl_transfer_timeout=0,
+        BOOL curl_ssl_verify_peer=0,
+        BOOL curl_ssl_verify_host=0,
+        STRING curl_ssl_cafile="",
+        STRING curl_ssl_capath="",
+        STRING curl_proxy="")
+    Method BOOL .reload()
+
+    Method VOID .init(STRING script="")
+    Method VOID .push(STRING arg)
+    Method VOID .execute()
+
+    Method BOOL .result_is_error()
+    Method BOOL .result_is_nil()
+    Method BOOL .result_is_status()
+    Method BOOL .result_is_integer()
+    Method BOOL .result_is_string()
+    Method BOOL .result_is_array()
+
+    Method STRING .get_result()
+
+    Method STRING .get_error_result()
+    Method STRING .get_status_result()
+    Method INT .get_integer_result()
+    Method STRING .get_string_result()
+
+    Method INT .get_array_result_length()
+    Method BOOL .array_result_is_error(INT index)
+    Method BOOL .array_result_is_nil(INT index)
+    Method BOOL .array_result_is_status(INT index)
+    Method BOOL .array_result_is_integer(INT index)
+    Method BOOL .array_result_is_string(INT index)
+    Method BOOL .array_result_is_array(INT index)
+    Method STRING .get_array_result_value(INT index)
+
+    Method VOID .free_result()
+
 EXAMPLE
 =======
 
@@ -99,6 +153,25 @@ https://www.example.com/ttls.rules
     (?i)\.(?:jpg|png|svg)(?:\?.*)?$      -> 7d
     (?i)^www\.(?:foo|bar)\.com(?::\d+)?/ -> 1h
 
+https://www.example.com/backends.lua
+------------------------------------
+
+::
+
+    local host = string.gsub(string.lower(ARGV[1]), ':%d+$', '')
+    local url = string.lower(ARGV[2])
+
+    -- Remember that Lua's pattern matching is not equivalent to POSIX regular
+    -- expressions. Check https://www.lua.org/pil/20.2.html and
+    -- http://lua-users.org/wiki/PatternsTutorial for details.
+    if host == 'www.foo.com' or host == 'www.bar.com' then
+        if string.match(url, '^/admin/') then
+            return 'new'
+        end
+    end
+
+    return 'old'
+
 /etc/varnish/default.vcl
 ------------------------
 
@@ -109,9 +182,14 @@ https://www.example.com/ttls.rules
     import cfg;
     import std;
 
-    backend default {
+    backend old_be {
         .host = "127.0.0.1";
         .port = "8080";
+    }
+
+    backend new_be {
+        .host = "127.0.0.1";
+        .port = "8888";
     }
 
     acl internal {
@@ -130,10 +208,14 @@ https://www.example.com/ttls.rules
         new ttls = cfg.rules(
             "https://www.example.com/ttls.rules",
             period=300);
+
+        new backends = cfg.script(
+            "https://www.example.com/backends.lua",
+            period=60);
     }
 
     sub vcl_recv {
-        if (req.url ~ "^/(?:settings|ttls)/(?:reload|dump)/$") {
+        if (req.url ~ "^/(?:settings|ttls|backends)/(?:reload|dump)/$") {
             if (client.ip ~ internal) {
                 if (req.url == "/settings/reload/") {
                     if (settings.reload()) {
@@ -146,6 +228,12 @@ https://www.example.com/ttls.rules
                         return (synth(200, "TTLs rules reloaded."));
                     } else {
                         return (synth(500, "Failed to reload TTLs rules."));
+                    }
+                } elsif (req.url == "/backends/reload/") {
+                    if (backends.reload()) {
+                        return (synth(200, "Backends script reloaded."));
+                    } else {
+                        return (synth(500, "Failed to reload backends script."));
                     }
                 } elsif (req.url == "/settings/dump/") {
                     return (synth(700, "OK"));
@@ -177,6 +265,19 @@ https://www.example.com/ttls.rules
             settings.dump(stream=true);
             return (deliver);
         }
+    }
+
+    sub vcl_backend_fetch {
+        backends.init();
+        backends.push(bereq.http.Host);
+        backends.push(bereq.url);
+        backends.execute();
+        if (backends.get_result() == "new") {
+            set bereq.backend = new_be;
+        } else {
+            set bereq.backend = old_be;
+        }
+        backends.free_result();
     }
 
     sub vcl_backend_response {
@@ -213,6 +314,7 @@ The source tree is based on autotools to configure the building, and does also h
 Dependencies:
 
 * `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
+* `liblua <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
 
 COPYRIGHT
 =========

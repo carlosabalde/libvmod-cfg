@@ -7,8 +7,8 @@ URL: https://github.com/carlosabalde/libvmod-cfg
 Group: System Environment/Daemons
 Source0: libvmod-cfg.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires: varnish >= 6.0.0, libcurl
-BuildRequires: make, python-docutils, varnish >= 6.0.0, libcurl-devel
+Requires: varnish >= 6.0.0, libcurl, lua
+BuildRequires: make, python-docutils, varnish >= 6.0.0, libcurl-devel, lua-devel
 
 %description
 Config VMOD for Varnish

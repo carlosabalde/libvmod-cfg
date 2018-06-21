@@ -24,6 +24,7 @@ addons:
     - lcov
     - libcurl3
     - libcurl4-gnutls-dev
+    - liblua5.1-0-dev
     - python-docutils
 
 before_install:
