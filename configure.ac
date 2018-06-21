@@ -17,7 +17,7 @@ AX_CODE_COVERAGE
 AX_COMPILER_FLAGS_CFLAGS
 AX_PTHREAD(,[AC_MSG_ERROR([Could not configure pthreads support])])
 
-LIBS="$PTHREAD_LIBS $LIBS -lcurl"
+LIBS="$PTHREAD_LIBS $LIBS"
 CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CC="$PTHREAD_CC"
 
@@ -31,6 +31,12 @@ AC_ARG_WITH([rst2man],
 # Check for pkg-config
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CURL], [libcurl])
+PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
+    PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
+        PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
+            PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
+    ])
+])
 
 m4_ifndef([VARNISH_PREREQ], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
 
@@ -52,3 +58,20 @@ AC_CONFIG_FILES([
 	src/Makefile
 ])
 AC_OUTPUT
+
+AS_ECHO("
+==== $PACKAGE_STRING ====
+
+CC:                $CC
+CFLAGS:            $CFLAGS
+LDFLAGS:           $LDFLAGS
+
+VARNISHAPI_CFLAGS: $VARNISHAPI_CFLAGS
+VARNISHAPI_LIBS:   $VARNISHAPI_LIBS
+
+CURL_CFLAGS:       $CURL_CFLAGS
+CURL_LIBS:         $CURL_LIBS
+
+LUA_CFLAGS:        $LUA_CFLAGS
+LUA_LIBS:          $LUA_LIBS
+")
