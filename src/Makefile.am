@@ -1,4 +1,4 @@
-AM_CPPFLAGS = @VMOD_INCLUDES@ $(CURL_CFLAGS) -Wall -Werror \
+AM_CPPFLAGS = @VMOD_INCLUDES@ $(CURL_CFLAGS) $(LUA_CFLAGS) -Wall -Werror \
 	-D_GNU_SOURCE=1 \
 	-DINI_ALLOW_MULTILINE=1 \
 	-DINI_ALLOW_BOM=1 \
@@ -12,7 +12,7 @@ vmoddir = @VMOD_DIR@
 vmod_LTLIBRARIES = libvmod_cfg.la
 
 libvmod_cfg_la_LDFLAGS = -module -export-dynamic -avoid-version
-libvmod_cfg_la_LIBADD = $(CURL_LIBS)
+libvmod_cfg_la_LIBADD = $(CURL_LIBS) $(LUA_LIBS)
 
 libvmod_cfg_la_SOURCES = \
 	ini.c ini.h \

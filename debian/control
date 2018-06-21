@@ -8,10 +8,11 @@ Build-Depends: debhelper (>= 7),
  python-docutils,
  varnish (>= 4.1.0),
  libvarnishapi-dev (>= 4.1.0),
- libcurl4-gnutls-dev
+ libcurl4-gnutls-dev,
+ liblua5.1-0-dev
 Standards-Version: 3.8.1
 
 Package: libvmod-cfg
 Architecture: any
-Depends: varnish (>= 4.1.0), libcurl3-gnutls, ${shlibs:Depends}, ${misc:Depends}, ${Varnish:ABI}
+Depends: varnish (>= 4.1.0), libcurl3-gnutls, liblua5.1-0, ${shlibs:Depends}, ${misc:Depends}, ${Varnish:ABI}
 Description: Config VMOD for Varnish

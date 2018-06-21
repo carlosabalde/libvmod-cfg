@@ -34,6 +34,12 @@ AM_CONDITIONAL(HAVE_RST2MAN, [test "x$RST2MAN" != "xno"])
 # Check for pkg-config
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CURL], [libcurl])
+PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
+    PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
+        PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
+            PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
+    ])
+])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -85,3 +91,17 @@ AC_CONFIG_FILES([
 	src/Makefile
 ])
 AC_OUTPUT
+
+AS_ECHO("
+==== $PACKAGE_STRING ====
+
+CC:                $CC
+CFLAGS:            $CFLAGS
+LDFLAGS:           $LDFLAGS
+
+CURL_CFLAGS:       $CURL_CFLAGS
+CURL_LIBS:         $CURL_LIBS
+
+LUA_CFLAGS:        $LUA_CFLAGS
+LUA_LIBS:          $LUA_LIBS
+")
