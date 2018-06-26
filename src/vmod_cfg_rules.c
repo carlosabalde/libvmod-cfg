@@ -26,6 +26,8 @@ struct vmod_cfg_rules {
     unsigned magic;
     #define VMOD_CFG_RULES_MAGIC 0x91baff91
 
+    const char *name;
+
     remote_t *remote;
 
     struct {
@@ -82,7 +84,7 @@ flush_rules(rules_t *rules)
  *****************************************************************************/
 
 rules_t *
-rules_parse(VRT_CTX, char *contents)
+rules_parse(VRT_CTX, struct vmod_cfg_rules *rules, char *contents)
 {
     rules_t *result = malloc(sizeof(rules_t));
     AN(result);
@@ -142,7 +144,8 @@ rules_parse(VRT_CTX, char *contents)
         vre_t *vre = VRE_compile(regexp, 0, &error_string, &error_offset);
         if (vre == NULL) {
             LOG(ctx, LOG_ERR,
-                "Got error while compiling regexp at line %d (%s): %s", row, regexp, error_string);
+                "Got error while compiling regexp at line %d (%s): %s",
+                row, regexp, error_string);
             error = 3;
         } else {
             rule_t *rule = new_rule(vre, value);
@@ -160,7 +163,8 @@ skip:
         // Jump to next line?
         if (error) {
             LOG(ctx, LOG_ERR,
-                "Got error while parsing rules (line=%d, error=%d)", row, error);
+                "Got error while parsing rules (rules=%s, line=%d, error=%d)",
+                rules->name, row, error);
             flush_rules(result);
             free((void *) result);
             result = NULL;
@@ -182,8 +186,12 @@ rules_check_callback(VRT_CTX, void *ptr, char *contents)
     struct vmod_cfg_rules *vmod_cfg_rules;
     CAST_OBJ_NOTNULL(vmod_cfg_rules, ptr, VMOD_CFG_RULES_MAGIC);
 
-    rules_t *rules = rules_parse(ctx, contents);
+    rules_t *rules = rules_parse(ctx, vmod_cfg_rules, contents);
     if (rules != NULL) {
+        LOG(ctx, LOG_INFO,
+            "Remote successfully parsed (rules=%s, location=%s)",
+            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw);
+
         AZ(pthread_rwlock_wrlock(&vmod_cfg_rules->state.rwlock));
         rules_t *old = vmod_cfg_rules->state.rules;
         vmod_cfg_rules->state.rules = rules;
@@ -193,6 +201,10 @@ rules_check_callback(VRT_CTX, void *ptr, char *contents)
         free((void *) old);
 
         result = 1;
+    } else {
+        LOG(ctx, LOG_ERR,
+            "Failed to parse remote (rules=%s, location=%s)",
+            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw);
     }
 
     return result;
@@ -226,6 +238,8 @@ vmod_rules__init(
         ALLOC_OBJ(instance, VMOD_CFG_RULES_MAGIC);
         AN(instance);
 
+        instance->name = strdup(vcl_name);
+        AN(instance->name);
         instance->remote = new_remote(
             location, period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
@@ -250,6 +264,8 @@ vmod_rules__fini(struct vmod_cfg_rules **rules)
     struct vmod_cfg_rules *instance = *rules;
     CHECK_OBJ_NOTNULL(instance, VMOD_CFG_RULES_MAGIC);
 
+    free((void *) instance->name);
+    instance->name = NULL;
     free_remote(instance->remote);
     instance->remote = NULL;
     AZ(pthread_rwlock_destroy(&instance->state.rwlock));

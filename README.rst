@@ -8,7 +8,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
-Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; and (4) Lua scripts (work in progress!) are supported. Remote files can be accessed via HTTP or HTTPS.
+Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; and (4) Lua 5.1 scripts are supported. Remote files can be accessed via HTTP or HTTPS.
 
 Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premier Partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
@@ -77,15 +77,15 @@ import cfg;
     Object script(
         STRING location="",
         INT period=60,
-        INT lua_max_vms=128,
-        INT lua_gc_cycle_period=100,
+        INT lua_max_engines=128,
+        INT lua_max_cycles=0,
+        INT lua_min_gc_cycles=100,
+        INT lua_gc_step_size=100,
         BOOL lua_remove_loadfile_function=1,
         BOOL lua_remove_dofile_function=1,
         BOOL lua_load_package_lib=0,
-        BOOL lua_load_coroutine_lib=0,
         BOOL lua_load_io_lib=0,
         BOOL lua_load_os_lib=0,
-        BOOL lua_load_utf8_lib=0,
         INT curl_connection_timeout=0,
         INT curl_transfer_timeout=0,
         BOOL curl_ssl_verify_peer=0,
@@ -95,34 +95,37 @@ import cfg;
         STRING curl_proxy="")
     Method BOOL .reload()
 
-    Method VOID .init(STRING script="")
+    Method VOID .init(STRING code="")
     Method VOID .push(STRING arg)
     Method VOID .execute()
 
     Method BOOL .result_is_error()
     Method BOOL .result_is_nil()
-    Method BOOL .result_is_status()
-    Method BOOL .result_is_integer()
+    Method BOOL .result_is_boolean()
+    Method BOOL .result_is_number()
     Method BOOL .result_is_string()
-    Method BOOL .result_is_array()
+    Method BOOL .result_is_table()
 
     Method STRING .get_result()
 
-    Method STRING .get_error_result()
-    Method STRING .get_status_result()
+    Method BOOL .get_boolean_result()
+    Method REAL .get_decimal_result()
     Method INT .get_integer_result()
     Method STRING .get_string_result()
 
-    Method INT .get_array_result_length()
-    Method BOOL .array_result_is_error(INT index)
-    Method BOOL .array_result_is_nil(INT index)
-    Method BOOL .array_result_is_status(INT index)
-    Method BOOL .array_result_is_integer(INT index)
-    Method BOOL .array_result_is_string(INT index)
-    Method BOOL .array_result_is_array(INT index)
-    Method STRING .get_array_result_value(INT index)
+    Method INT .get_table_result_length()
+    Method BOOL .table_result_is_error(INT index)
+    Method BOOL .table_result_is_nil(INT index)
+    Method BOOL .table_result_is_boolean(INT index)
+    Method BOOL .table_result_is_number(INT index)
+    Method BOOL .table_result_is_string(INT index)
+    Method BOOL .table_result_is_table(INT index)
+    Method STRING .get_table_result_value(INT index)
 
     Method VOID .free_result()
+
+    Method STRING .stats()
+    Method INT .counter(STRING name)
 
 EXAMPLE
 =======

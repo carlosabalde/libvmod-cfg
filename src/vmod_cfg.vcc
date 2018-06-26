@@ -170,3 +170,240 @@ Arguments
     fallback: value to be returned if a match is not found.
 Description
     Gets the result of executing the pattern matching logic.
+
+$Object script(
+    STRING location="",
+    INT period=60,
+    INT lua_max_engines=128,
+    INT lua_max_cycles=0,
+    INT lua_min_gc_cycles=100,
+    INT lua_gc_step_size=100,
+    BOOL lua_remove_loadfile_function=1,
+    BOOL lua_remove_dotfile_function=1,
+    BOOL lua_load_package_lib=0,
+    BOOL lua_load_io_lib=0,
+    BOOL lua_load_os_lib=0,
+    INT curl_connection_timeout=0,
+    INT curl_transfer_timeout=0,
+    BOOL curl_ssl_verify_peer=0,
+    BOOL curl_ssl_verify_host=0,
+    STRING curl_ssl_cafile="",
+    STRING curl_ssl_capath="",
+    STRING curl_proxy="")
+
+Arguments
+    location: path of the file (as described in ``cfg.file()``) containing the
+    script implementation. If not provided, the script implementation should be
+    provided to the ``.init()`` method.
+
+    lua_max_engines: the VMOD creates one pool of scripting engines per VCL
+    object. This option sets the maximum number of engines in each pool. All
+    Varnish worker threads using the same object will share engines in these
+    pools. Pools are not shared between VCL objects.
+
+    lua_max_cycles: discard scripting engines after this number of script
+    executions (0 means disabling periodical discards).
+
+    lua_min_gc_cycles: call to the scripting engine garbage collector after
+    this number of script executions.
+
+    lua_gc_step_size: scripting engines implement incremental garbage
+    collection (see ``LUA_GCSTEP`` in ``lua_gc()``). This parameter controls
+    the step size.
+
+    lua_remove_loadfile_function: disable ``loadfile`` function.
+
+    lua_remove_dotfile_function: disable ``dotfile`` function.
+
+    lua_load_package_lib: allow access to the ``package`` library.
+
+    lua_load_io_lib: allow access to the ``io`` library.
+
+    lua_load_os_lib: allow access to the ``os`` library.
+Description
+    Parses the file (if provided) and creates a new instance.
+
+    See ``cfg.file()`` for details about undocumented arguments.
+
+$Method BOOL .reload()
+
+Description
+    Reloads contents of the file. A ``False`` value is returned on failure.
+
+$Method VOID .init(PRIV_TASK, STRING code="")
+
+Arguments
+    code: implementation of the script to be executed. If not provided, the
+    implementation provided during object instantiation will be used.
+Description
+    Gets ready for a execution of the script. Arguments should be enqueued
+    separately calling one or more times to the ``.push()`` method.
+
+$Method VOID .push(PRIV_TASK, STRING arg)
+
+Arguments
+    arg: argument for a previously initialized script.
+Description
+    Provides an argument to a previously initialized script.
+
+$Method VOID .execute(PRIV_TASK)
+
+Description
+    Executes a previously initialized script.
+
+$Method BOOL .result_is_error(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script using ``.execute()`` returned
+    an error value.
+
+$Method BOOL .result_is_nil(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script using ``.execute()`` returned
+    a nil value.
+
+$Method BOOL .result_is_boolean(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script using ``.execute()`` returned
+    a boolean value.
+
+$Method BOOL .result_is_number(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script using ``.execute()`` returned
+    a number value.
+
+$Method BOOL .result_is_string(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script ``.execute()`` returned a
+    string value.
+
+$Method BOOL .result_is_table(PRIV_TASK)
+
+Return value
+    TRUE if a previously executed script using ``.execute()`` returned
+    an table value.
+
+$Method STRING .get_result(PRIV_TASK)
+
+Return value
+    A string representation of the result value of a previously executed
+    script using ``.execute()``.
+Description
+    Do not use this function to access to table results.
+
+$Method BOOL .get_boolean_result(PRIV_TASK)
+
+Return value
+    If a previously executed script using ``.execute()`` returned a boolean
+    value, this function returns a boolean representation of that value.
+
+$Method REAL .get_decimal_result(PRIV_TASK)
+
+Return value
+    If a previously executed script using ``.execute()`` returned a decimal
+    value, this function returns a decimal representation of that value.
+
+$Method INT .get_integer_result(PRIV_TASK)
+
+Return value
+    If a previously executed script using ``.execute()`` returned an integer
+    value, this function returns a integer representation of that value.
+
+$Method STRING .get_string_result(PRIV_TASK)
+
+Return value
+    If a previously executed script using ``.execute()`` returned a string
+    value, this function returns a string representation of that value.
+
+$Method INT .get_table_result_length(PRIV_TASK)
+
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns the number of elements in that table.
+
+$Method BOOL .table_result_is_error(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    an error value (nested tables are not supported).
+
+$Method BOOL .table_result_is_nil(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    a nil value (nested tables are not supported).
+
+$Method BOOL .table_result_is_boolean(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    a boolean value (nested tables are not supported).
+
+$Method BOOL .table_result_is_number(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    a number value (nested tables are not supported).
+
+$Method BOOL .table_result_is_string(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    a string value (nested tables are not supported).
+
+$Method BOOL .table_result_is_table(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns TRUE if the nth element in that table is
+    a table value (nested tables are not supported).
+
+$Method STRING .get_table_result_value(PRIV_TASK, INT index)
+
+Arguments
+    index: index in the table result.
+Return value
+    If a previously executed script using ``.execute()`` returned a table
+    value, this function returns a string representation of the nth element
+    in that table (nested table are not supported).
+
+$Method VOID .free_result(PRIV_TASK)
+
+Description
+    Frees memory internally used by a previously executed script using
+    ``.execute()``. It's recommended to use this function, but if not called
+    this will be handled automatically during the next call to ``.init()``
+    using the same object.
+
+$Method STRING .stats()
+
+Description
+    Returns internal stats represented as a JSON string.
+
+$Method INT .counter(STRING name)
+
+Arguments
+    name: name of the counter.
+Description
+    Returns internal counter.

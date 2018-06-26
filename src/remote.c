@@ -65,7 +65,6 @@ new_remote(
     SET_OPTINAL_STRING(curl_ssl_cafile, curl.ssl_cafile);
     SET_OPTINAL_STRING(curl_ssl_capath, curl.ssl_capath);
     SET_OPTINAL_STRING(curl_proxy, curl.proxy);
-    result->state.version = vmod_state.version;
     result->state.tst = 0;
     AZ(pthread_mutex_init(&result->state.mutex, NULL));
     result->state.reloading = 0;
@@ -104,7 +103,6 @@ free_remote(remote_t *remote)
     FREE_OPTINAL_STRING(curl.ssl_capath);
     FREE_OPTINAL_STRING(curl.proxy);
     remote->read = NULL;
-    remote->state.version = 0;
     remote->state.tst = 0;
     AZ(pthread_mutex_destroy(&remote->state.mutex));
     remote->state.reloading = 0;
@@ -131,8 +129,7 @@ check_remote(
 
     if (!force &&
         !remote->state.reloading &&
-        ((remote->state.version != vmod_state.version) ||
-        ((remote->period > 0) && (now - remote->state.tst > remote->period)))) {
+        ((remote->period > 0) && (now - remote->state.tst > remote->period))) {
         AZ(pthread_mutex_lock(&remote->state.mutex));
         if (!remote->state.reloading) {
             remote->state.reloading = 1;
@@ -151,7 +148,6 @@ check_remote(
         if (result || winner) {
             AZ(pthread_mutex_lock(&remote->state.mutex));
             if (result) {
-                remote->state.version = vmod_state.version;
                 remote->state.tst = time(NULL);
             }
             if (winner) {
