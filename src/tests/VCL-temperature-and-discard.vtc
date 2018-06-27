@@ -14,6 +14,10 @@ EOF
     cat > "${tmp}/test.rules" <<'EOF'
 foo -> r1
 EOF
+
+    cat > "${tmp}/test.lua" <<'EOF'
+return 42
+EOF
 }
 
 varnish v1 -vcl+backend {
@@ -31,6 +35,10 @@ varnish v1 -vcl+backend {
 
         new rules = cfg.rules(
             "${tmp}/test.rules",
+            period=1);
+
+        new script = cfg.script(
+            "${tmp}/test.lua",
             period=1);
     }
 } -start

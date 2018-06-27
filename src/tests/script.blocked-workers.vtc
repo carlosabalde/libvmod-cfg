@@ -1,0 +1,78 @@
+varnishtest "Test blocked workers for script"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 2 -start
+
+shell {
+    cat > "${tmp}/test.lua" <<'EOF'
+local function sleep(n)
+  local t0 = os.clock()
+  while os.clock() - t0 <= n do end
+end
+
+local n = tonumber(ARGV[0])
+sleep(n)
+return n
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test.lua",
+            period=0,
+            lua_max_engines=1,
+            lua_max_cycles=0,
+            lua_min_gc_cycles=8,
+            lua_load_os_lib=true);
+    }
+
+    sub vcl_deliver {
+        script.init();
+        script.push(req.http.sleep);
+        script.execute();
+        set resp.http.result = script.get_result();
+        script.free_result();
+
+        set resp.http.stats = script.stats();
+        set resp.http.engines-total = script.counter("engines.total");
+        set resp.http.engines-dropped-cycles = script.counter("engines.dropped.cycles");
+        set resp.http.workers-blocked = script.counter("workers.blocked");
+        set resp.http.executions-total = script.counter("executions.total");
+        set resp.http.executions-unknown = script.counter("executions.unknown");
+        set resp.http.executions-failed = script.counter("executions.failed");
+        set resp.http.executions-gc = script.counter("executions.gc");
+    }
+} -start
+
+client c1 {
+    txreq -hdr "sleep: 2"
+    rxresp
+
+    expect resp.http.result == "2"
+} -start
+
+delay 1.0
+
+client c2 {
+    txreq -hdr "sleep: 0"
+    rxresp
+
+    expect resp.http.result == "0"
+
+    expect resp.http.engines-total == "1"
+    expect resp.http.engines-dropped-cycles == "0"
+    expect resp.http.workers-blocked == "1"
+    expect resp.http.executions-total == "3"
+    expect resp.http.executions-unknown == "1"
+    expect resp.http.executions-failed == "0"
+    expect resp.http.executions-gc == "0"
+} -run
+
+varnish v1 -expect client_req == 2
+
+varnish v1 -expect MGT.child_panic == 0

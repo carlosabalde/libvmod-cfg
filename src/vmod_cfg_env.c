@@ -16,6 +16,9 @@ extern char **environ;
 struct vmod_cfg_env {
     unsigned magic;
     #define VMOD_CFG_ENV_MAGIC 0x44baed10
+
+    const char *name;
+
     variables_t variables;
 };
 
@@ -43,6 +46,8 @@ vmod_env__init(VRT_CTX, struct vmod_cfg_env **env, const char *vcl_name)
     ALLOC_OBJ(instance, VMOD_CFG_ENV_MAGIC);
     AN(instance);
 
+    instance->name = strdup(vcl_name);
+    AN(instance->name);
     VRB_INIT(&instance->variables);
 
     load_env(ctx, instance);
@@ -59,6 +64,8 @@ vmod_env__fini(struct vmod_cfg_env **env)
     struct vmod_cfg_env *instance = *env;
     CHECK_OBJ_NOTNULL(instance, VMOD_CFG_ENV_MAGIC);
 
+    free((void *) instance->name);
+    instance->name = NULL;
     flush_variables(&instance->variables);
 
     FREE_OBJ(instance);

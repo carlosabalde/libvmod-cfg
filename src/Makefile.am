@@ -24,6 +24,7 @@ libvmod_cfg_la_SOURCES = \
 	vmod_cfg_env.c \
 	vmod_cfg_file.c \
 	vmod_cfg_rules.c \
+	vmod_cfg_script.c \
 	vtree.h
 
 nodist_libvmod_cfg_la_SOURCES = \

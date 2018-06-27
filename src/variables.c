@@ -60,11 +60,11 @@ find_variable(variables_t *variables, const char *name)
 void
 flush_variables(variables_t *variables)
 {
-    variable_t *variable, *tmp;
-    VRB_FOREACH_SAFE(variable, variables, variables, tmp) {
-        CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
-        VRB_REMOVE(variables, variables, variable);
-        free_variable(variable);
+    variable_t *ivariable, *ivariable_tmp;
+    VRB_FOREACH_SAFE(ivariable, variables, variables, ivariable_tmp) {
+        CHECK_OBJ_NOTNULL(ivariable, VARIABLE_MAGIC);
+        VRB_REMOVE(variables, variables, ivariable);
+        free_variable(ivariable);
     }
 }
 
