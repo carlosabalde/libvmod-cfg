@@ -3,12 +3,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <syslog.h>
 
 typedef struct vmod_state {
-    pthread_mutex_t mutex;
-    unsigned version;
+    struct {
+        unsigned refs;
+        struct VSC_lck *script;
+    } locks;
 } vmod_state_t;
 
 extern vmod_state_t vmod_state;
