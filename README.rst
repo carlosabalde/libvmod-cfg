@@ -161,8 +161,8 @@ https://www.example.com/backends.lua
 
 ::
 
-    local host = string.gsub(string.lower(ARGV[1]), ':%d+$', '')
-    local url = string.lower(ARGV[2])
+    local host = string.gsub(string.lower(ARGV[0]), ':%d+$', '')
+    local url = string.lower(ARGV[1])
 
     -- Remember that Lua's pattern matching is not equivalent to POSIX regular
     -- expressions. Check https://www.lua.org/pil/20.2.html and
