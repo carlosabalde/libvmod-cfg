@@ -23,6 +23,16 @@ varnish v1 -vcl+backend {
             lua_max_engines=32,
             lua_max_cycles=10,
             lua_min_gc_cycles=8);
+
+        script.init();
+        script.push("2");
+        script.push("4");
+        script.execute();
+        if (!script.result_is_table() ||
+            script.get_table_result_value(2) != "8") {
+            return (fail);
+        }
+        script.free_result();
     }
 
     sub vcl_deliver {
@@ -172,7 +182,7 @@ client c1 {
     expect resp.http.engines-total == "2"
     expect resp.http.engines-dropped-cycles == "1"
     expect resp.http.workers-blocked == "0"
-    expect resp.http.executions-total == "11"
+    expect resp.http.executions-total == "12"
     expect resp.http.executions-unknown == "8"
     expect resp.http.executions-failed == "2"
     expect resp.http.executions-gc == "1"
