@@ -5,6 +5,8 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include "vcl.h"
+#include "vrt.h"
 #include "cache/cache.h"
 #include "vsb.h"
 #include "vsha256.h"
