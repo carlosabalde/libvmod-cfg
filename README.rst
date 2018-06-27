@@ -164,6 +164,8 @@ https://www.example.com/backends.lua
     local host = string.gsub(string.lower(ARGV[0]), ':%d+$', '')
     local url = string.lower(ARGV[1])
 
+    varnish.log('Running Lua backend selection logic')
+
     -- Remember that Lua's pattern matching is not equivalent to POSIX regular
     -- expressions. Check https://www.lua.org/pil/20.2.html and
     -- http://lua-users.org/wiki/PatternsTutorial for details.
