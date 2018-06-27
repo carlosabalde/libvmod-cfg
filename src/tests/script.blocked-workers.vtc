@@ -28,7 +28,7 @@ varnish v1 -vcl+backend {
             lua_max_engines=1,
             lua_max_cycles=0,
             lua_min_gc_cycles=8,
-            lua_load_os_lib=1);
+            lua_load_os_lib=true);
     }
 
     sub vcl_deliver {
