@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 5.0
+Version: 5.1
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,10 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Wed Jun 27 2018 Carlos Abalde <carlos.abalde@gmail.com> - 5.1-1.20180627
+- Added cfg.rules().
+- Added cfg.script().
+- Added stream option to .dump() methods.
 * Thu Mar 15 2018 Carlos Abalde <carlos.abalde@gmail.com> - 5.0-1.20180315
 - Migrated to Varnish Cache 6.0.x.
 * Fri Sep 15 2017 Carlos Abalde <carlos.abalde@gmail.com> - 4.0-1.20170915

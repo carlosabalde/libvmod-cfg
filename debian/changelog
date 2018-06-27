@@ -1,3 +1,11 @@
+libvmod-cfg (5.1-1) stable; urgency=low
+
+  * Added cfg.rules()
+  * Added cfg.script()
+  * Added stream option to .dump() methods
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Wed, 27 Jun 2018 16:00:00 +0200
+
 libvmod-cfg (5.0-1) stable; urgency=low
 
   * Migrated to Varnish Cache 6.0.x
