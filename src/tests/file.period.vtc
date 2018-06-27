@@ -12,10 +12,6 @@ server s_origin2 {
 
     rxreq
     expect req.url == "/test.ini"
-    txresp -body "field: foo"
-
-    rxreq
-    expect req.url == "/test.ini"
     txresp -body "field: bar"
 } -repeat 1 -start
 
