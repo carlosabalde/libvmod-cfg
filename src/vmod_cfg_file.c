@@ -21,6 +21,8 @@ struct vmod_cfg_file {
     unsigned magic;
     #define VMOD_CFG_FILE_MAGIC 0x9774a43f
 
+    const char *name;
+
     remote_t *remote;
     const char *name_delimiter;
     const char *value_delimiter;
@@ -143,15 +145,15 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         result = file_parse_ctx.variables;
 
         LOG(ctx, LOG_INFO,
-            "Remote successfully parsed (location=%s, format=ini)",
-            file->remote->location.raw);
+            "Remote successfully parsed (file=%s, location=%s, format=ini)",
+            file->name, file->remote->location.raw);
     } else {
         flush_variables(file_parse_ctx.variables);
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
-            "Failed to parse remote (location=%s, format=ini, error=%d)",
-            file->remote->location.raw, rc);
+            "Failed to parse remote (file=%s, location=%s, format=ini, error=%d)",
+            file->name, file->remote->location.raw, rc);
     }
 
     return result;
@@ -248,14 +250,14 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
             result = file_parse_ctx.variables;
 
             LOG(ctx, LOG_INFO,
-                "Remote successfully parsed (location=%s, format=json)",
-                file->remote->location.raw);
+                "Remote successfully parsed (file=%s, location=%s, format=json)",
+                file->name, file->remote->location.raw);
         } else {
             free((void *) file_parse_ctx.variables);
 
             LOG(ctx, LOG_ERR,
-                "Unexpected JSON type (location=%s, format=json, type=%d)",
-                file->remote->location.raw, root->type);
+                "Unexpected JSON type (file=%s, location=%s, format=json, type=%d)",
+                file->name, file->remote->location.raw, root->type);
         }
 
         cJSON_Delete(root);
@@ -263,8 +265,8 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
-            "Failed to parse remote (location=%s, format=json)",
-            file->remote->location.raw);
+            "Failed to parse remote (file=%s, location=%s, format=json)",
+            file->name, file->remote->location.raw);
     }
 
     return result;
@@ -335,6 +337,8 @@ vmod_file__init(
         ALLOC_OBJ(instance, VMOD_CFG_FILE_MAGIC);
         AN(instance);
 
+        instance->name = strdup(vcl_name);
+        AN(instance->name);
         instance->remote = new_remote(
             location, period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
@@ -376,6 +380,8 @@ vmod_file__fini(struct vmod_cfg_file **file)
     struct vmod_cfg_file *instance = *file;
     CHECK_OBJ_NOTNULL(instance, VMOD_CFG_FILE_MAGIC);
 
+    free((void *) instance->name);
+    instance->name = NULL;
     free_remote(instance->remote);
     instance->remote = NULL;
     FREE_STRING(name_delimiter);
