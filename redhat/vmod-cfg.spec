@@ -18,7 +18,7 @@ Config VMOD for Varnish
 
 %build
 ./autogen.sh
-./configure --prefix=/usr/ --docdir='${datarootdir}/doc/%{name}'
+./configure --prefix=/usr/ --docdir='${datarootdir}/doc/%{name}' --libdir='%{_libdir}'
 %{__make}
 %{__make} check
 
