@@ -10,6 +10,8 @@ VMOD useful to access to contents of environment variables and local or remote f
 
 Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; and (4) Lua 5.1 scripts are supported. Remote files can be accessed via HTTP or HTTPS.
 
+Wondering why I created this VMOD? How it could make your life easier? I wrote a blog post with some answers: `Moving logic to the caching edge (and back) <https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back>`_.
+
 Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premier Partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
 SYNOPSIS
