@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 1.5
+Version: 1.6
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Tue Aug 07 2018 Carlos Abalde <carlos.abalde@gmail.com> - 1.6-1.20180807
+- Increased INI_MAX_LINE from 2KB to 16KB
 * Wed Jun 27 2018 Carlos Abalde <carlos.abalde@gmail.com> - 1.5-1.20180627
 - Added cfg.rules().
 - Added cfg.script().
