@@ -1,3 +1,9 @@
+libvmod-cfg (5.2-1) stable; urgency=low
+
+  * Increased INI_MAX_LINE from 2KB to 16KB
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Tue, 07 Aug 2018 16:00:00 +0200
+
 libvmod-cfg (5.1-1) stable; urgency=low
 
   * Added cfg.rules()
