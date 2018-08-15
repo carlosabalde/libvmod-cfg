@@ -7,9 +7,13 @@ server s1 {
 
 shell {
     cat > "${tmp}/test.lua" <<'EOF'
+local function now()
+  return os.time(os.date('!*t'))
+end
+
 local function sleep(n)
-  local t0 = os.clock()
-  while os.clock() - t0 <= n do end
+  local t0 = now()
+  while now() - t0 <= n do end
 end
 
 local n = tonumber(ARGV[0])
