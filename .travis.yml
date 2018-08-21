@@ -26,6 +26,7 @@ addons:
     - libcurl4-gnutls-dev
     - liblua5.1-0-dev
     - python-docutils
+    - python-sphinx
 
 before_install:
   - wget --no-check-certificate http://varnish-cache.org/_downloads/varnish-5.0.0.tgz
@@ -52,14 +53,4 @@ after_success:
   - bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy
 
 after_failure:
-  - |
-    for log in $(find src/tests/ -name '*.log' | sort); do
-      if grep -q ':test-result: FAIL' $(echo "$log" | sed 's/log$/trs/'); then
-        printf "\n"
-        printf "+==============================================================================+\n"
-        printf "| %-76s |\n" "$log"
-        printf "+==============================================================================+\n"
-        printf "\n"
-        cat "$log"
-      fi
-    done
+  - cat src/tests/test-suite.log
