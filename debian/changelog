@@ -1,0 +1,63 @@
+libvmod-cfg (6.0-1) stable; urgency=low
+
+  * Migrated to Varnish Cache 6.1.x
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Tue, 18 Sep 2018 16:00:00 +0200
+
+libvmod-cfg (5.2-1) stable; urgency=low
+
+  * Increased INI_MAX_LINE from 2KB to 16KB
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Tue, 07 Aug 2018 16:00:00 +0200
+
+libvmod-cfg (5.1-1) stable; urgency=low
+
+  * Added cfg.rules()
+  * Added cfg.script()
+  * Added stream option to .dump() methods
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Wed, 27 Jun 2018 16:00:00 +0200
+
+libvmod-cfg (5.0-1) stable; urgency=low
+
+  * Migrated to Varnish Cache 6.0.x
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Thu, 15 Mar 2018 16:00:00 +0100
+
+libvmod-cfg (4.0-1) stable; urgency=low
+
+  * Migrated to Varnish Cache 5.2.x
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 15 Sep 2017 16:00:00 +0200
+
+libvmod-cfg (3.1-1) stable; urgency=low
+
+  * Added JSON support
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 25 Aug 2017 16:00:00 +0200
+
+libvmod-cfg (3.0-1) stable; urgency=low
+
+  * Migrated to Varnish Cache 5.1.x
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 17 Mar 2017 16:00:00 +0100
+
+libvmod-cfg (2.0-1) stable; urgency=low
+
+  * Migrated to Varnish Cache 5.0.x
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 17 Mar 2017 16:00:00 +0100
+
+libvmod-cfg (1.3-1) stable; urgency=low
+
+  * Fixed bug reading files from disk
+  * Added reporting of error code when failed to parse .ini files
+  * Updated .ini parser
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Thu, 02 Feb 2017 16:00:00 +0100
+
+libvmod-cfg (1.2-1) stable; urgency=low
+
+  * Initial version
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 16 Sep 2016 16:00:00 +0200
