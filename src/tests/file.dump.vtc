@@ -7,11 +7,11 @@ server s1 {
 
 shell {
     cat > "${tmp}/test.ini" <<'EOF'
+Var: what a hell?
+Variable: hell
 field1:
 field2: ""
 field3: Hello "\o/"! á
-field4: hell
-field5: what a hell?
 EOF
 }
 
@@ -34,11 +34,7 @@ varnish v1 -vcl+backend {
     }
 
     sub vcl_deliver {
-        if (req.http.Prefix) {
-            set resp.http.result = file.dump(prefix=req.http.Prefix);
-        } else {
-            set resp.http.result = file.dump();
-        }
+        set resp.http.result = file.dump(prefix=req.http.prefix);
     }
 
     sub vcl_synth {
@@ -51,15 +47,15 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","field4":"hell","field5":"what a hell?"}}
+    expect resp.http.result == {{"Var":"what a hell?","Variable":"hell","field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
 
-    txreq -hdr "Prefix: He"
+    txreq -hdr "prefix: Vari"
     rxresp
-    expect resp.http.result == {{"field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
+    expect resp.http.result == {{"Variable":"hell"}}
 
     txreq -hdr "Synth: 1"
     rxresp
-    expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","field4":"hell","field5":"what a hell?"}}
+    expect resp.body == {{"Var":"what a hell?","Variable":"hell","field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
 } -run
 
 varnish v1 -expect client_req == 3

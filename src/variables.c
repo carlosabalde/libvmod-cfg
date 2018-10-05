@@ -199,7 +199,7 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
         CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
         if (prefix != NULL &&
             *prefix != '\0' &&
-            strncmp(variable->value, prefix, strlen(prefix)) != 0) {
+            strncmp(variable->name, prefix, strlen(prefix)) != 0) {
             continue;
         }
         if (i > 0) {
