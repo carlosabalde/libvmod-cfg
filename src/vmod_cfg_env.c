@@ -72,9 +72,9 @@ vmod_env__fini(struct vmod_cfg_env **env)
 }
 
 VCL_STRING
-vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env, VCL_BOOL stream)
+vmod_env_dump(VRT_CTX, struct vmod_cfg_env *env, VCL_BOOL stream, VCL_STRING prefix)
 {
-    return dump_variables(ctx, &env->variables, stream);
+    return dump_variables(ctx, &env->variables, stream, prefix);
 }
 
 VCL_BOOL
