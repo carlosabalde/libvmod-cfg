@@ -406,11 +406,11 @@ vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
 }
 
 VCL_STRING
-vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream)
+vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream, VCL_STRING prefix)
 {
     file_check(ctx, file, 0);
     AZ(pthread_rwlock_rdlock(&file->state.rwlock));
-    const char *result = dump_variables(ctx, file->state.variables, stream);
+    const char *result = dump_variables(ctx, file->state.variables, stream, prefix);
     AZ(pthread_rwlock_unlock(&file->state.rwlock));
     return result;
 }

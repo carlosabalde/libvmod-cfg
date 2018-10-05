@@ -23,7 +23,7 @@ import cfg;
     ##
 
     Object env()
-    Method STRING .dump(BOOL stream=0)
+    Method STRING .dump(BOOL stream=0, STRING prefix="")
 
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
@@ -46,7 +46,7 @@ import cfg;
         STRING name_delimiter=":",
         STRING value_delimiter=";")
     Method BOOL .reload()
-    Method STRING .dump(BOOL stream=0)
+    Method STRING .dump(BOOL stream=0, STRING prefix="")
 
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
