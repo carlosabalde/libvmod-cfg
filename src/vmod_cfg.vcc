@@ -23,10 +23,13 @@ Description
     Beware environment variables are internally cached. This cache is populated
     when creating a new instance and it's never refreshed.
 
-$Method STRING .dump(BOOL stream=0)
+$Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
     stream: if enabled the JSON object will be streamed as a synthetic response.
+
+    prefix: if specified, the JSON object will only contains the variables that
+    start with that prefix.
 Description
     Returns a string representation of a JSON object containing all variables.
 
@@ -117,10 +120,13 @@ $Method BOOL .reload()
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
 
-$Method STRING .dump(BOOL stream=0)
+$Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
     stream: if enabled the JSON object will be streamed as a synthetic response.
+
+    prefix: if specified, the JSON object will only contains the variables that
+    start with that prefix.
 Description
     Returns a string representation of a JSON object containing all variables.
 
