@@ -7,6 +7,8 @@ server s1 {
 
 shell {
     cat > "${tmp}/test.ini" <<'EOF'
+var: what a hell?
+variable: hell
 field1:
 field2: ""
 field3: Hello "\o/"! á
@@ -32,7 +34,7 @@ varnish v1 -vcl+backend {
     }
 
     sub vcl_deliver {
-        set resp.http.result = file.dump();
+        set resp.http.result = file.dump(prefix=req.http.prefix);
     }
 
     sub vcl_synth {
@@ -45,13 +47,17 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
+    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","var":"what a hell?","variable":"hell"}}
+
+    txreq -hdr "prefix: vari"
+    rxresp
+    expect resp.http.result == {{"variable":"hell"}}
 
     txreq -hdr "Synth: 1"
     rxresp
-    expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
+    expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","var":"what a hell?","variable":"hell"}}
 } -run
 
-varnish v1 -expect client_req == 2
+varnish v1 -expect client_req == 3
 
 varnish v1 -expect MGT.child_panic == 0
