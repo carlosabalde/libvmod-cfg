@@ -169,7 +169,7 @@ static const char *json_hex_chars = "0123456789abcdef";
     } while (0)
 
 const char *
-dump_variables(VRT_CTX, variables_t *variables, unsigned stream)
+dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *prefix)
 {
     struct vsb *vsb = NULL;
     if (stream && (
@@ -189,6 +189,11 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream)
     DUMP_CHAR('{');
     VRB_FOREACH(variable, variables, variables) {
         CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
+        if (prefix != NULL &&
+            *prefix != '\0' &&
+            strncmp(variable->name, prefix, strlen(prefix)) != 0) {
+            continue;
+        }
         if (i > 0) {
             DUMP_CHAR(',');
         }
