@@ -10,6 +10,8 @@ shell {
 field1:
 field2: ""
 field3: Hello "\o/"! á
+field4: hell
+field5: what a hell?
 EOF
 }
 
@@ -32,7 +34,11 @@ varnish v1 -vcl+backend {
     }
 
     sub vcl_deliver {
-        set resp.http.result = file.dump();
+        if (req.http.Prefix) {
+            set resp.http.result = file.dump(prefix=req.http.Prefix);
+        } else {
+            set resp.http.result = file.dump();
+        }
     }
 
     sub vcl_synth {
@@ -45,13 +51,17 @@ varnish v1 -vcl+backend {
 client c1 {
     txreq
     rxresp
-    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
+    expect resp.http.result == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","field4":"hell","field5":"what a hell?"}}
+
+    txreq -hdr "Prefix: He"
+    rxresp
+    expect resp.http.result == {{"field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
 
     txreq -hdr "Synth: 1"
     rxresp
-    expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1"}}
+    expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","field4":"hell","field5":"what a hell?"}}
 } -run
 
-varnish v1 -expect client_req == 2
+varnish v1 -expect client_req == 3
 
 varnish v1 -expect MGT.child_panic == 0
