@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 6.0
+Version: 6.1
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,9 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 6.1-1.20181013
+- Added new parameter 'prefix' to .dump() methods.
+- Linked against LuaJIT when possible.
 * Tue Sep 18 2018 Carlos Abalde <carlos.abalde@gmail.com> - 6.0-1.20180918
 - Migrated to Varnish Cache 6.1.x.
 * Tue Aug 07 2018 Carlos Abalde <carlos.abalde@gmail.com> - 5.2-1.20180807
