@@ -31,10 +31,12 @@ AC_ARG_WITH([rst2man],
 # Check for pkg-config
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CURL], [libcurl])
-PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
-    PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
-        PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
-            PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
+PKG_CHECK_MODULES([LUA], [luajit], [], [
+    PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
+        PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
+            PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
+                PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
+        ])
     ])
 ])
 
