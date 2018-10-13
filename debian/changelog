@@ -1,3 +1,10 @@
+libvmod-cfg (1.7-1) stable; urgency=low
+
+  * Added new parameter 'prefix' to .dump() methods
+  * Linked against LuaJIT when possible
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Sat, 13 Oct 2018 16:00:00 +0200
+
 libvmod-cfg (1.6-1) stable; urgency=low
 
   * Increased INI_MAX_LINE from 2KB to 16KB
