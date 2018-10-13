@@ -8,7 +8,7 @@ $script = <<SCRIPT
     autotools-dev automake libtool python-docutils pkg-config libpcre3-dev \
     libeditline-dev libedit-dev make dpkg-dev git libjemalloc-dev \
     libncurses-dev python-sphinx graphviz libcurl3 libcurl4-gnutls-dev \
-    liblua5.1-0-dev
+    liblua5.1-0-dev libluajit-5.1-dev
 
   # Varnish Cache.
   sudo -u vagrant bash -c '\
