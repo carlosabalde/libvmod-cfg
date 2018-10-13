@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 3.3
+Version: 3.4
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,9 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.4-1.20181013
+- Added new parameter 'prefix' to .dump() methods.
+- Linked against LuaJIT when possible.
 * Tue Aug 07 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.3-1.20180807
 - Increased INI_MAX_LINE from 2KB to 16KB
 * Wed Jun 27 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.2-1.20180627
