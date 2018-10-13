@@ -144,7 +144,8 @@ struct vmod_cfg_script {
  *****************************************************************************/
 
 static void
-load_lua_lib(lua_State *L, const char *name, lua_CFunction f) {
+load_lua_lib(lua_State *L, const char *name, lua_CFunction f)
+{
     lua_pushcfunction(L, f);
     lua_pushstring(L, name);
     lua_call(L, 1, 0);
@@ -448,7 +449,7 @@ retry:
     }
 
     // If required, create new engine. If maximum number of engines has been
-    // reached, wait for another thread releasing a engine.
+    // reached, wait for another thread releasing an engine.
     if (result == NULL) {
         if (script->state.pool.nengines >= script->lua.max_engines) {
             Lck_CondWait(&script->state.pool.cond, &script->state.mutex, 0);
