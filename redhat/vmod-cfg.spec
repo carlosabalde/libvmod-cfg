@@ -39,6 +39,7 @@ Config VMOD for Varnish
 * Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.4-1.20181013
 - Added new parameter 'prefix' to .dump() methods.
 - Linked against LuaJIT when possible.
+- Added new parameter 'gc_collect' to .execute() method.
 * Tue Aug 07 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.3-1.20180807
 - Increased INI_MAX_LINE from 2KB to 16KB
 * Wed Jun 27 2018 Carlos Abalde <carlos.abalde@gmail.com> - 3.2-1.20180627
