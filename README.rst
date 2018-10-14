@@ -99,7 +99,7 @@ import cfg;
 
     Method VOID .init(STRING code="")
     Method VOID .push(STRING arg)
-    Method VOID .execute()
+    Method VOID .execute(BOOL gc_collect=0)
 
     Method BOOL .result_is_error()
     Method BOOL .result_is_nil()
