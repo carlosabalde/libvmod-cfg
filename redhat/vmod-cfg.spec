@@ -39,6 +39,7 @@ Config VMOD for Varnish
 * Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 6.1-1.20181013
 - Added new parameter 'prefix' to .dump() methods.
 - Linked against LuaJIT when possible.
+- Added new parameter 'gc_collect' to .execute() method.
 * Tue Sep 18 2018 Carlos Abalde <carlos.abalde@gmail.com> - 6.0-1.20180918
 - Migrated to Varnish Cache 6.1.x.
 * Tue Aug 07 2018 Carlos Abalde <carlos.abalde@gmail.com> - 5.2-1.20180807
