@@ -643,7 +643,7 @@ static unsigned
 execute(
     VRT_CTX, struct vmod_cfg_script *script,
     const char *code, const char **name,
-    int argc, const char *argv[], result_t *result)
+    int argc, const char *argv[], result_t *result, unsigned gc_collect)
 {
     // Initializations.
     unsigned success = 0;
@@ -766,11 +766,18 @@ done:
     // Call the garbage collector from time to time to avoid a full cycle
     // performed by Lua, which adds too latency.
     engine->ncycles++;
-    if (engine->ncycles % script->lua.min_gc_cycles == 0) {
-        lua_gc(engine->L, LUA_GCSTEP, script->lua.gc_step_size);
+    if (gc_collect) {
+        lua_gc(engine->L, LUA_GCCOLLECT, 0);
         Lck_Lock(&script->state.mutex);
         script->state.stats.executions.gc++;
         Lck_Unlock(&script->state.mutex);
+    } else {
+        if (engine->ncycles % script->lua.min_gc_cycles == 0) {
+            lua_gc(engine->L, LUA_GCSTEP, script->lua.gc_step_size);
+            Lck_Lock(&script->state.mutex);
+            script->state.stats.executions.gc++;
+            Lck_Unlock(&script->state.mutex);
+        }
     }
 
     // Unlock script execution engine.
@@ -793,7 +800,7 @@ script_check_callback(VRT_CTX, void *ptr, char *contents)
     CAST_OBJ_NOTNULL(script, ptr, VMOD_CFG_SCRIPT_MAGIC);
 
     const char *name = NULL;
-    if (execute(ctx, script, contents, &name, 0, NULL, NULL)) {
+    if (execute(ctx, script, contents, &name, 0, NULL, NULL, 0)) {
         LOG(ctx, LOG_INFO,
             "Remote successfully compiled (script=%s, location=%s, function=%s, code=%.80s...)",
             script->name, script->remote->location.raw, name, contents);
@@ -1014,7 +1021,8 @@ vmod_script_push(
 
 VCL_VOID
 vmod_script_execute(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VCL_BOOL gc_collect)
 {
     task_state_t *state = get_task_state(ctx, task_priv, 0);
 
@@ -1052,7 +1060,7 @@ vmod_script_execute(
         if (!execute(
                 ctx,  script, code, &name,
                 state->execution.argc, state->execution.argv,
-                &state->execution.result)) {
+                &state->execution.result, gc_collect)) {
             LOG(ctx, LOG_ERR,
                 "Got error while executing script (script=%s, function=%s, code=%.80s...)",
                 script->name, name, code);

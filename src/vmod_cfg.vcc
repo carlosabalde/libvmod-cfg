@@ -252,8 +252,11 @@ Arguments
 Description
     Provides an argument to a previously initialized script.
 
-$Method VOID .execute(PRIV_TASK)
+$Method VOID .execute(PRIV_TASK, BOOL gc_collect=0)
 
+Arguments
+    gc_collect: performs a full garbage-collection cycle once execution is
+    completed.
 Description
     Executes a previously initialized script.
 
