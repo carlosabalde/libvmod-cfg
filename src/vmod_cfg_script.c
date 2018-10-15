@@ -1,9 +1,14 @@
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#if defined(JEMALLOC_ENABLED) && !defined(LUAJIT_ENABLED)
+    #include <jemalloc/jemalloc.h>
+#endif
 
 #include "cache/cache.h"
 #include "vsb.h"
@@ -777,6 +782,12 @@ done:
             Lck_Unlock(&script->state.mutex);
         }
     }
+
+    // Flush calling thread's jemalloc tcache in order to keep memory usage
+    // controlled. No required when using LuaJIT.
+#if defined(JEMALLOC_ENABLED) && !defined(LUAJIT_ENABLED)
+    AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
+#endif
 
     // Unlock script execution engine.
     unlock_engine(ctx, script, engine);
