@@ -321,7 +321,7 @@ The source tree is based on autotools to configure the building, and does also h
 Dependencies:
 
 * `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
-* `luajit <http://luajit.org>`_ (recommended) or `lua 5.1 <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
+* `luajit <http://luajit.org>`_ (recommended; disabled with `--disable-luajit`) or `lua 5.1 <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
 
 COPYRIGHT
 =========
