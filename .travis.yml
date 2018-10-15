@@ -9,6 +9,7 @@ addons:
     packages:
     - libcurl3
     - libcurl4-gnutls-dev
+    - libjemalloc-dev
     - liblua5.1-0-dev
     - libluajit-5.1-dev
     - python-docutils

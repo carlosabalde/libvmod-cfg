@@ -34,14 +34,39 @@ AM_CONDITIONAL(HAVE_RST2MAN, [test "x$RST2MAN" != "xno"])
 # Check for pkg-config
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CURL], [libcurl])
-PKG_CHECK_MODULES([LUA], [luajit], [], [
+
+# --enable-luajit / --disable-luajit
+AC_ARG_ENABLE(luajit,
+    AS_HELP_STRING(
+        [--enable-luajit],
+        [use LuaJIT (default is YES)]),
+        ,
+        [enable_luajit=yes])
+if test "x$enable_luajit" = xyes; then
+    PKG_CHECK_MODULES(
+        [LUA],
+        [luajit],
+        [AC_DEFINE([LUAJIT_ENABLED], [1], [LuaJIT enabled])],
+        [])
+else
     PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
         PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
             PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
                 PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
         ])
     ])
-])
+fi
+
+# --enable-jemalloc / --disable-jemalloc
+AC_ARG_ENABLE(jemalloc,
+    AS_HELP_STRING(
+        [--enable-jemalloc],
+        [use jemalloc (default is YES)]),
+        ,
+        [enable_jemalloc=yes])
+if test "x$enable_jemalloc" = xyes; then
+    AC_DEFINE([JEMALLOC_ENABLED], [1], [jemalloc enabled])
+fi
 
 # Checks for header files.
 AC_HEADER_STDC
