@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 1.7
+Version: 1.8
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Tue Oct 16 2018 Carlos Abalde <carlos.abalde@gmail.com> - 1.8-1.20181016
+- Flushed 'thread.tcache.flush' on Lua (not LuaJIT) script executions.
 * Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 1.7-1.20181013
 - Added new parameter 'prefix' to .dump() methods.
 - Linked against LuaJIT when possible.
