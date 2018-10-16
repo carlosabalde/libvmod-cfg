@@ -6,7 +6,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#if defined(JEMALLOC_ENABLED) && !defined(LUAJIT_ENABLED)
+#if defined(JEMALLOC_TCACHE_FLUSH_ENABLED) && !defined(LUAJIT_ENABLED)
     #include <jemalloc/jemalloc.h>
 #endif
 
@@ -787,7 +787,7 @@ done:
 
     // Flush calling thread's jemalloc tcache in order to keep memory usage
     // controlled. No required when using LuaJIT.
-#if defined(JEMALLOC_ENABLED) && !defined(LUAJIT_ENABLED)
+#if defined(JEMALLOC_TCACHE_FLUSH_ENABLED) && !defined(LUAJIT_ENABLED)
     AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
 #endif
 
