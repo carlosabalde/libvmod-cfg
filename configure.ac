@@ -33,36 +33,59 @@ PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CURL], [libcurl])
 
 # --enable-luajit / --disable-luajit
-AC_ARG_ENABLE(luajit,
-    AS_HELP_STRING(
-        [--enable-luajit],
-        [use LuaJIT (default is YES)]),
-        ,
-        [enable_luajit=yes])
+AC_ARG_ENABLE(
+    luajit,
+    [
+        AS_HELP_STRING(
+            [--enable-luajit],
+            [use LuaJIT (default is YES)])
+    ],
+    [],
+    [enable_luajit=yes])
 if test "x$enable_luajit" = xyes; then
     PKG_CHECK_MODULES(
         [LUA],
         [luajit],
-        [AC_DEFINE([LUAJIT_ENABLED], [1], [LuaJIT enabled])],
-        [])
-else
-    PKG_CHECK_MODULES([LUA], [lua >= 5.1], [], [
-        PKG_CHECK_MODULES([LUA], [lua51 >= 5.1], [], [
-            PKG_CHECK_MODULES([LUA], [lua5.1 >= 5.1], [], [
-                PKG_CHECK_MODULES(LUA, [lua-5.1 >= 5.1])])
+        [
+            AC_DEFINE([LUAJIT_ENABLED], [1], [LuaJIT enabled])
+        ],
+        [
+            AC_MSG_ERROR([LuaJIT not found. Try --disable-luajit])
         ])
-    ])
+else
+    AX_PROG_LUA(
+        [5.1],
+        [5.4],
+        [
+            AX_LUA_HEADERS([], [AC_MSG_ERROR([No Lua headers found])])
+            AX_LUA_LIBS([], [AC_MSG_ERROR([No Lua libs found])])
+            [LUA_CFLAGS="${LUA_INCLUDE}"]
+            [LUA_LIBS="${LUA_LIB}"]
+        ],
+        [
+            AC_MSG_ERROR([Lua not found. Try --enable-luajit])
+        ])
 fi
 
 # --enable-flush-jemalloc-tcache / --disable-flush-jemalloc-tcache
-AC_ARG_ENABLE(flush-jemalloc-tcache,
-    AS_HELP_STRING(
-        [--enable-flush-jemalloc-tcache],
-        [use jemalloc tcache flush (default is YES)]),
-        ,
-        [enable_flush_jemalloc_tcache=yes])
+AC_ARG_ENABLE(
+    flush-jemalloc-tcache,
+    [
+        AS_HELP_STRING(
+            [--enable-flush-jemalloc-tcache],
+            [use jemalloc tcache flush (default is YES)])
+    ],
+    [],
+    [enable_flush_jemalloc_tcache=yes])
+AC_MSG_CHECKING([for jemalloc tcache flush])
 if test "x$enable_flush_jemalloc_tcache" = xyes; then
-    AC_DEFINE([JEMALLOC_TCACHE_FLUSH_ENABLED], [1], [jemalloc tcache flush enabled])
+    AC_MSG_RESULT([enabled])
+    AC_DEFINE(
+        [JEMALLOC_TCACHE_FLUSH_ENABLED],
+        [1],
+        [jemalloc tcache flush enabled])
+else
+    AC_MSG_RESULT([disabled])
 fi
 
 m4_ifndef([VARNISH_PREREQ], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
