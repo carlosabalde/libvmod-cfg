@@ -54,15 +54,15 @@ else
     ])
 fi
 
-# --enable-jemalloc / --disable-jemalloc
-AC_ARG_ENABLE(jemalloc,
+# --enable-flush-jemalloc-tcache / --disable-flush-jemalloc-tcache
+AC_ARG_ENABLE(flush-jemalloc-tcache,
     AS_HELP_STRING(
-        [--enable-jemalloc],
-        [use jemalloc (default is YES)]),
+        [--enable-flush-jemalloc-tcache],
+        [use jemalloc tcache flush (default is YES)]),
         ,
-        [enable_jemalloc=yes])
-if test "x$enable_jemalloc" = xyes; then
-    AC_DEFINE([JEMALLOC_ENABLED], [1], [jemalloc enabled])
+        [enable_flush_jemalloc_tcache=yes])
+if test "x$enable_flush_jemalloc_tcache" = xyes; then
+    AC_DEFINE([JEMALLOC_TCACHE_FLUSH_ENABLED], [1], [jemalloc tcache flush enabled])
 fi
 
 m4_ifndef([VARNISH_PREREQ], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
