@@ -10,10 +10,9 @@ Build-Depends: debhelper (>= 7),
  libvarnishapi-dev (>= 5.0.0),
  libcurl4-gnutls-dev,
  libluajit-5.1-dev
- libjemalloc-dev
 Standards-Version: 3.8.1
 
 Package: libvmod-cfg
 Architecture: any
-Depends: varnish (>= 5.0.0), libcurl3-gnutls, libluajit-5.1-2, libjemalloc1, ${shlibs:Depends}, ${misc:Depends}, ${Varnish:ABI}
+Depends: varnish (>= 5.0.0), libcurl3-gnutls, libluajit-5.1-2, ${shlibs:Depends}, ${misc:Depends}, ${Varnish:ABI}
 Description: Config VMOD for Varnish
