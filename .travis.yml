@@ -10,7 +10,9 @@ compiler:
 
 env:
   matrix:
-    - MAKE_TARGET=check
+    - MAKE_TARGET=check CONFIGURE_FLAGS=--enable-luajit
+    - MAKE_TARGET=check CONFIGURE_FLAGS=--disable-luajit
+    - MAKE_TARGET=check CONFIGURE_FLAGS='--disable-luajit --disable-flush-jemalloc-tcache'
     - MAKE_TARGET=distcheck
 
 matrix:
@@ -36,7 +38,7 @@ before_install:
   - ./autogen.sh
   - ./configure
   - make -sj32
-  - sudo make PREFIX="/usr/local" install
+  - sudo make PREFIX='/usr/local' install
   - sudo ldconfig
   - popd
 
