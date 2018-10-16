@@ -151,15 +151,24 @@ struct vmod_cfg_script {
 static void
 load_lua_lib(lua_State *L, const char *name, lua_CFunction f)
 {
+#if LUA_VERSION_NUM >= 502
+    luaL_requiref(L, name, f, 1);
+    lua_pop(L, 1);
+#else
     lua_pushcfunction(L, f);
     lua_pushstring(L, name);
     lua_call(L, 1, 0);
+#endif
 }
 
 static void
 load_lua_libs(struct vmod_cfg_script *script, lua_State *L)
 {
+#if LUA_VERSION_NUM >= 502
+    load_lua_lib(L, "_G", luaopen_base);
+#else
     load_lua_lib(L, "", luaopen_base);
+#endif
     load_lua_lib(L, LUA_TABLIBNAME, luaopen_table);
     load_lua_lib(L, LUA_STRLIBNAME, luaopen_string);
     load_lua_lib(L, LUA_MATHLIBNAME, luaopen_math);
