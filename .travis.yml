@@ -4,6 +4,17 @@ dist: trusty
 
 language: c
 
+compiler:
+  - clang
+  - gcc
+
+env:
+  matrix:
+    - MAKE_TARGET=check CONFIGURE_FLAGS=--enable-luajit
+    - MAKE_TARGET=check CONFIGURE_FLAGS=--disable-luajit
+    - MAKE_TARGET=check CONFIGURE_FLAGS='--disable-luajit --disable-flush-jemalloc-tcache'
+    - MAKE_TARGET=distcheck
+
 addons:
   apt:
     packages:
@@ -21,18 +32,14 @@ before_install:
   - ./autogen.sh
   - ./configure
   - make -sj32
-  - sudo make PREFIX="/usr/local" install
+  - sudo make PREFIX='/usr/local' install
   - sudo ldconfig
   - popd
 
 before_script:
   - ./autogen.sh
-  - ./configure --prefix=/usr
+  - ./configure --prefix=/usr $CONFIGURE_FLAGS
   - make -j1
 
 script:
-  - make check -j1
-
-compiler:
-  - clang
-  - gcc
+  - make $MAKE_TARGET -j1
