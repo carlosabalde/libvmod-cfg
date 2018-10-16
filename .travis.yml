@@ -13,7 +13,6 @@ env:
     - MAKE_TARGET=check CONFIGURE_FLAGS=--enable-luajit
     - MAKE_TARGET=check CONFIGURE_FLAGS=--disable-luajit
     - MAKE_TARGET=check CONFIGURE_FLAGS='--disable-luajit --disable-flush-jemalloc-tcache'
-    - MAKE_TARGET=distcheck
 
 addons:
   apt:
