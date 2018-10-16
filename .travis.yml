@@ -22,6 +22,8 @@ addons:
     - libjemalloc-dev
     - liblua5.1-0-dev
     - libluajit-5.1-dev
+    - lua5.1
+    - luajit
     - python-docutils
 
 before_install:
