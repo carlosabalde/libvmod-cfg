@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 2.5
+Version: 2.6
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -8,7 +8,7 @@ Group: System Environment/Daemons
 Source0: libvmod-cfg.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires: varnish >= 5.0.0, libcurl, luajit
-BuildRequires: make, python-docutils, varnish >= 5.0.0, varnish-devel >= 5.0.0, libcurl-devel, luajit-devel
+BuildRequires: make, python-docutils, varnish >= 5.0.0, varnish-devel >= 5.0.0, libcurl-devel, luajit-devel, jemalloc-devel
 
 %description
 Config VMOD for Varnish
@@ -36,6 +36,10 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Thu Oct 25 2018 Carlos Abalde <carlos.abalde@gmail.com> - 2.6-1.20181025
+- Triggered 'thread.tcache.flush' also on LuaJIT executions.
+- Added Lua / LuaJIT memory consumption to stats.
+- Added Lua 5.2 & 5.3 support to build system.
 * Tue Oct 16 2018 Carlos Abalde <carlos.abalde@gmail.com> - 2.5-1.20181016
 - Flushed 'thread.tcache.flush' on Lua (not LuaJIT) script executions.
 * Sat Oct 13 2018 Carlos Abalde <carlos.abalde@gmail.com> - 2.4-1.20181013
