@@ -28,6 +28,7 @@ typedef struct engine {
 
     lua_State *L;
     unsigned ncycles;
+    int memory;
 
     VTAILQ_ENTRY(engine) list;
 } engine_t;
@@ -345,6 +346,7 @@ new_engine(lua_State *L)
 
     result->L = L;
     result->ncycles = 0;
+    result->memory = lua_gc(L, LUA_GCCOUNT, 0);
 
     return result;
 }
@@ -355,6 +357,7 @@ free_engine(engine_t *engine)
     lua_close(engine->L);
     engine->L = NULL;
     engine->ncycles = 0;
+    engine->memory = 0;
 
     FREE_OBJ(engine);
 }
@@ -491,6 +494,8 @@ static void
 unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine)
 {
     CHECK_OBJ_NOTNULL(engine, ENGINE_MAGIC);
+
+    engine->memory = lua_gc(engine->L, LUA_GCCOUNT, 0);
 
     Lck_Lock(&script->state.mutex);
     VTAILQ_REMOVE(&script->state.pool.busy_engines, engine, list);
@@ -885,6 +890,32 @@ get_result(VRT_CTX, result_value_t *result_value)
     }
 }
 
+static int
+engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
+{
+    if (is_locked) {
+        Lck_AssertHeld(&script->state.mutex);
+    } else {
+        Lck_Lock(&script->state.mutex);
+    }
+
+    engine_t *iengine;
+    int memory = 0;
+
+    // Sum the memory used by all the engines (free and busy)
+    VTAILQ_FOREACH(iengine, &script->state.pool.free_engines, list) {
+        memory += iengine->memory;
+    }
+    VTAILQ_FOREACH(iengine, &script->state.pool.busy_engines, list) {
+        memory += iengine->memory;
+    }
+
+    if (!is_locked){
+        Lck_Unlock(&script->state.mutex);
+    }
+    return memory;
+}
+
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
@@ -1250,10 +1281,12 @@ VCL_STRING
 vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
 {
     Lck_Lock(&script->state.mutex);
+
     char *result = WS_Printf(ctx->ws,
         "{"
           "\"engines\": {"
             "\"total\": %d,"
+            "\"memory\": %d,"
             "\"dropped\": {"
               "\"cycles\": %d"
             "}"
@@ -1269,6 +1302,7 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
           "}"
         "}",
         script->state.stats.engines.total,
+        engines_memory(ctx, script, 1),
         script->state.stats.engines.dropped.cycles,
         script->state.stats.workers.blocked,
         script->state.stats.executions.total,
@@ -1285,6 +1319,8 @@ vmod_script_counter(VRT_CTX, struct vmod_cfg_script *script, VCL_STRING name)
 {
     if (strcmp(name, "engines.total") == 0) {
         return script->state.stats.engines.total;
+    } else if (strcmp(name, "engines.memory") == 0) {
+        return engines_memory(ctx, script, 0);
     } else if (strcmp(name, "engines.dropped.cycles") == 0) {
         return script->state.stats.engines.dropped.cycles;
     } else if (strcmp(name, "workers.blocked") == 0) {
