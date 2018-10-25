@@ -1,3 +1,11 @@
+libvmod-cfg (4.5-1) stable; urgency=low
+
+  * Triggered 'thread.tcache.flush' also on LuaJIT executions
+  * Added Lua / LuaJIT memory consumption to stats
+  * Added Lua 5.2 & 5.3 support to build system
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Thu, 25 Oct 2018 16:00:00 +0200
+
 libvmod-cfg (4.4-1) stable; urgency=low
 
   * Flushed 'thread.tcache.flush' on Lua (not LuaJIT) script executions
