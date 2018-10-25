@@ -96,7 +96,7 @@ import cfg;
 
     Method VOID .init(STRING code="")
     Method VOID .push(STRING arg)
-    Method VOID .execute(BOOL gc_collect=0)
+    Method VOID .execute(BOOL gc_collect=0, BOOL flush_jemalloc_tcache=1)
 
     Method BOOL .result_is_error()
     Method BOOL .result_is_nil()

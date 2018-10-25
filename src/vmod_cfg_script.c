@@ -6,7 +6,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#if defined(JEMALLOC_TCACHE_FLUSH_ENABLED) && !defined(LUAJIT_ENABLED)
+#ifdef JEMALLOC_TCACHE_FLUSH_ENABLED
     #include <jemalloc/jemalloc.h>
 #endif
 
@@ -656,7 +656,8 @@ static unsigned
 execute(
     VRT_CTX, struct vmod_cfg_script *script,
     const char *code, const char **name,
-    int argc, const char *argv[], result_t *result, unsigned gc_collect)
+    int argc, const char *argv[], result_t *result, unsigned gc_collect,
+    unsigned flush_jemalloc_tcache)
 {
     // Initializations.
     unsigned success = 0;
@@ -795,8 +796,10 @@ done:
 
     // Flush calling thread's jemalloc tcache in order to keep memory usage
     // controlled. No required when using LuaJIT.
-#if defined(JEMALLOC_TCACHE_FLUSH_ENABLED) && !defined(LUAJIT_ENABLED)
-    AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
+#ifdef JEMALLOC_TCACHE_FLUSH_ENABLED
+    if (flush_jemalloc_tcache) {
+        AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
+    }
 #endif
 
     // Unlock script execution engine.
@@ -819,7 +822,7 @@ script_check_callback(VRT_CTX, void *ptr, char *contents)
     CAST_OBJ_NOTNULL(script, ptr, VMOD_CFG_SCRIPT_MAGIC);
 
     const char *name = NULL;
-    if (execute(ctx, script, contents, &name, 0, NULL, NULL, 0)) {
+    if (execute(ctx, script, contents, &name, 0, NULL, NULL, 0, 1)) {
         LOG(ctx, LOG_INFO,
             "Remote successfully compiled (script=%s, location=%s, function=%s, code=%.80s...)",
             script->name, script->remote->location.raw, name, contents);
@@ -1034,7 +1037,8 @@ vmod_script_push(
 
 VCL_VOID
 vmod_script_execute(
-    VRT_CTX, struct vmod_cfg_script *script, VCL_BOOL gc_collect)
+    VRT_CTX, struct vmod_cfg_script *script, VCL_BOOL gc_collect,
+    VCL_BOOL flush_jemalloc_tcache)
 {
     task_state_t *state = get_task_state(ctx, 0);
 
@@ -1073,7 +1077,7 @@ vmod_script_execute(
         if (!execute(
                 ctx,  script, code, &name,
                 state->execution.argc, state->execution.argv,
-                &state->execution.result, gc_collect)) {
+                &state->execution.result, gc_collect, flush_jemalloc_tcache)) {
             LOG(ctx, LOG_ERR,
                 "Got error while executing script (script=%s, function=%s, code=%.80s...)",
                 script->name, name, code);
