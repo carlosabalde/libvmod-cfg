@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -893,7 +894,7 @@ get_result(VRT_CTX, result_value_t *result_value)
     }
 }
 
-static int
+static uint64_t
 engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 {
     if (is_locked) {
@@ -903,9 +904,7 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
     }
 
     engine_t *iengine;
-    int memory = 0;
-
-    // Sum the memory used by all the engines (free and busy)
+    uint64_t memory = 0;
     VTAILQ_FOREACH(iengine, &script->state.pool.free_engines, list) {
         memory += iengine->memory;
     }
@@ -913,9 +912,10 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
         memory += iengine->memory;
     }
 
-    if (!is_locked){
+    if (!is_locked) {
         Lck_Unlock(&script->state.mutex);
     }
+
     return memory;
 }
 
@@ -1285,12 +1285,11 @@ VCL_STRING
 vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
 {
     Lck_Lock(&script->state.mutex);
-
     char *result = WS_Printf(ctx->ws,
         "{"
           "\"engines\": {"
             "\"total\": %d,"
-            "\"memory\": %d,"
+            "\"memory\": %" PRIu64 ","
             "\"dropped\": {"
               "\"cycles\": %d"
             "}"
