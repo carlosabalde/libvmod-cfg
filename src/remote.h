@@ -9,6 +9,7 @@ typedef struct remote {
         const char *raw;
         const char *parsed;
     } location;
+    const char *backup;
     unsigned period;
     struct {
         unsigned connection_timeout;

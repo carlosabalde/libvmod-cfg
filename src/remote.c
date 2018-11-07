@@ -8,6 +8,7 @@
 #include "helpers.h"
 #include "remote.h"
 
+static char *read_backup(VRT_CTX, remote_t *remote);
 static char *read_path(VRT_CTX, remote_t *remote);
 static char *read_url(VRT_CTX, remote_t *remote);
 
@@ -46,7 +47,6 @@ new_remote(
     remote_t *result;
     ALLOC_OBJ(result, REMOTE_MAGIC);
     AN(result);
-
     SET_STRING(location, location.raw);
     if (strncmp(location, "file://", 7) == 0) {
         SET_LOCATION(path, 7);
@@ -57,6 +57,7 @@ new_remote(
     } else {
         SET_LOCATION(path, 0);
     }
+    result->backup = "/etc/varnish/vcl_settings.bkp";
     result->period = period;
     result->curl.connection_timeout = curl_connection_timeout;
     result->curl.transfer_timeout = curl_transfer_timeout;
@@ -94,6 +95,7 @@ free_remote(remote_t *remote)
 {
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
+    // FREE_STRING(backup);       Comentar si haría falta borrar este campo al limpiar la struct
     remote->period = 0;
     remote->curl.connection_timeout = 0;
     remote->curl.transfer_timeout = 0;
@@ -118,6 +120,28 @@ free_remote(remote_t *remote)
  *****************************************************************************/
 
 unsigned
+check_remote_backup(VRT_CTX, remote_t *remote, unsigned (*callback)(VRT_CTX, void *, char *), void *ptr)
+{
+    unsigned result = 0;
+    char *contents = read_backup(ctx, remote);
+
+    if (contents != NULL) {
+        if ((result = (*callback)(ctx, ptr, contents)) == 1) {
+            LOG(ctx, LOG_INFO,
+                "Settings loaded from backup (%s)",
+                remote->backup);
+        } else {
+            LOG(ctx, LOG_ERR,
+                "Failed to load backup file (%s)",
+                remote->backup);
+        }
+    }
+    free((void *) contents);
+
+    return result;
+}
+
+unsigned
 check_remote(
     VRT_CTX, remote_t *remote, unsigned force,
     unsigned (*callback)(VRT_CTX, void *, char *), void *ptr)
@@ -139,10 +163,26 @@ check_remote(
     }
 
     if (force || winner) {
+        FILE *f;
         char *contents = (*remote->read)(ctx, remote);
         if (contents != NULL) {
-            result = (*callback)(ctx, ptr, contents);
+            if ((result = (*callback)(ctx, ptr, contents)) == 1) {
+                FILE *backup = fopen(remote->backup, "w+");
+                int r = fputs(contents, backup);
+                if (r <= 0) {
+                     LOG(ctx, LOG_ERR,
+                         "Failed to write backup file (%s)",
+                         remote->backup);
+                }
+                fclose(backup);
+            } else if ((f = fopen(remote->backup, "r"))) {
+                fclose(f);
+                result = check_remote_backup(ctx, remote, callback, ptr);
+            }
             free((void *) contents);
+        } else if ((f = fopen(remote->backup, "r"))) {
+            fclose(f);
+            result = check_remote_backup(ctx, remote, callback, ptr);
         }
 
         if (result || winner) {
@@ -157,6 +197,40 @@ check_remote(
         }
     } else {
         result = 1;
+    }
+
+    return result;
+}
+
+static char *
+read_backup(VRT_CTX, remote_t *remote)
+{
+    char *result = NULL;
+
+    FILE *bf = fopen(remote->backup, "rb");
+    if (bf != NULL) {
+        fseek(bf, 0, SEEK_END);
+        unsigned long fsize = ftell(bf);
+        fseek(bf, 0, SEEK_SET);
+
+        result = malloc(fsize + 1);
+        AN(result);
+        size_t nitems = fread(result, 1, fsize, bf);
+        fclose(bf);
+        result[fsize] = '\0';
+
+        if (nitems != fsize) {
+            free((void *) result);
+            result = NULL;
+
+            LOG(ctx, LOG_ERR,
+                "Failed to read backup file (%s)",
+                remote->backup);
+        }
+    } else {
+        LOG(ctx, LOG_ERR,
+            "Failed to open backup file (%s)",
+            remote->backup);
     }
 
     return result;
