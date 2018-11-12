@@ -39,12 +39,13 @@ static char *read_url(VRT_CTX, remote_t *remote);
 
 remote_t *
 new_remote(
-    const char *location, unsigned period, unsigned curl_connection_timeout,
+    const char *location, const char *backup, unsigned period, unsigned curl_connection_timeout,
     unsigned curl_transfer_timeout, unsigned curl_ssl_verify_peer,
     unsigned curl_ssl_verify_host, const char *curl_ssl_cafile,
     const char *curl_ssl_capath, const char *curl_proxy)
 {
     remote_t *result;
+    FILE *bf;
     ALLOC_OBJ(result, REMOTE_MAGIC);
     AN(result);
     SET_STRING(location, location.raw);
@@ -57,7 +58,11 @@ new_remote(
     } else {
         SET_LOCATION(path, 0);
     }
-    result->backup = "/etc/varnish/vcl_settings.bkp";
+    if ((backup != NULL) && (backup != '\0') && (bf = fopen(backup, "w+"))) {
+        fclose(bf);
+        SET_STRING(backup, backup);
+    }
+    // result->backup = "/etc/varnish/vcl_settings.bkp";
     result->period = period;
     result->curl.connection_timeout = curl_connection_timeout;
     result->curl.transfer_timeout = curl_transfer_timeout;
@@ -95,7 +100,7 @@ free_remote(remote_t *remote)
 {
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
-    // FREE_STRING(backup);       Comentar si haría falta borrar este campo al limpiar la struct
+    FREE_STRING(backup);
     remote->period = 0;
     remote->curl.connection_timeout = 0;
     remote->curl.transfer_timeout = 0;
@@ -166,21 +171,25 @@ check_remote(
         FILE *f;
         char *contents = (*remote->read)(ctx, remote);
         if (contents != NULL) {
-            if ((result = (*callback)(ctx, ptr, contents)) == 1) {
+            if (((result = (*callback)(ctx, ptr, contents)) == 1) && (remote->backup != NULL)) {
                 FILE *backup = fopen(remote->backup, "w+");
                 int r = fputs(contents, backup);
                 if (r <= 0) {
-                     LOG(ctx, LOG_ERR,
-                         "Failed to write backup file (%s)",
-                         remote->backup);
+                    LOG(ctx, LOG_ERR,
+                        "Failed to write backup file (%s)",
+                        remote->backup);
+                } else {
+                    LOG(ctx, LOG_INFO,
+                        "Successfully write to backup file (%s)",
+                        remote->backup);
                 }
                 fclose(backup);
-            } else if ((f = fopen(remote->backup, "r"))) {
+            } else if ((remote->backup != NULL) && (f = fopen(remote->backup, "r"))) {
                 fclose(f);
                 result = check_remote_backup(ctx, remote, callback, ptr);
             }
             free((void *) contents);
-        } else if ((f = fopen(remote->backup, "r"))) {
+        } else if ((remote->backup != NULL) && (f = fopen(remote->backup, "r"))) {
             fclose(f);
             result = check_remote_backup(ctx, remote, callback, ptr);
         }

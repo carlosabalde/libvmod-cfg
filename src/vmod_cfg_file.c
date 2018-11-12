@@ -313,7 +313,7 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 VCL_VOID
 vmod_file__init(
     VRT_CTX, struct vmod_cfg_file **file, const char *vcl_name,
-    VCL_STRING location, VCL_INT period,
+    VCL_STRING location, const char *backup, VCL_INT period,
     VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
     VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
     VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,
@@ -338,7 +338,7 @@ vmod_file__init(
         instance->name = strdup(vcl_name);
         AN(instance->name);
         instance->remote = new_remote(
-            location, period, curl_connection_timeout, curl_transfer_timeout,
+            location, backup, period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
             curl_ssl_capath, curl_proxy);
         SET_STRING(name_delimiter, name_delimiter);

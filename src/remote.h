@@ -31,7 +31,7 @@ typedef struct remote {
 } remote_t;
 
 remote_t *new_remote(
-    const char *location, unsigned period, unsigned curl_connection_timeout,
+    const char *location, const char *backup, unsigned period, unsigned curl_connection_timeout,
     unsigned curl_transfer_timeout, unsigned curl_ssl_verify_peer,
     unsigned curl_ssl_verify_host, const char *curl_ssl_cafile,
     const char *curl_ssl_capath, const char *curl_proxy);
