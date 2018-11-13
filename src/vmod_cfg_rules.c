@@ -219,7 +219,7 @@ rules_check(VRT_CTX, struct vmod_cfg_rules *rules, unsigned force)
 VCL_VOID
 vmod_rules__init(
     VRT_CTX, struct vmod_cfg_rules **rules, const char *vcl_name,
-    VCL_STRING location, const char *backup, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
     VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
     VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
     VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,

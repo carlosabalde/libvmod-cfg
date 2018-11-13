@@ -891,7 +891,7 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
-    VCL_STRING location, const char *backup, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
     VCL_INT lua_max_engines, VCL_INT lua_max_cycles,
     VCL_INT lua_min_gc_cycles, VCL_INT lua_gc_step_size,
     VCL_BOOL lua_remove_loadfile_function, VCL_BOOL lua_remove_dotfile_function,

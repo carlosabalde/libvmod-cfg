@@ -1,0 +1,299 @@
+varnishtest "Test backup option for files"
+
+server s_origin1 {
+    rxreq
+    txresp
+} -repeat 2 -start
+
+########################################################
+## test.ini fails and backup doesn't exist
+########################################################
+
+shell {
+    rm -rf "${tmp}/backup.ini"
+}
+
+server s_origin2 {
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+} -repeat 1 -start
+
+varnish v_origin2 -vcl {
+    backend default {
+        .host = "${s_origin2_addr}";
+        .port = "${s_origin2_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
+varnish v_no_backup -vcl {
+    import ${vmod_cfg};
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${v_origin2_addr}:${v_origin2_port}/test.ini",
+            backup="${tmp}/backup.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+} -start
+
+logexpect l_no_backup -v v_no_backup -d 1 -g raw {
+    expect * * VCL_Error {Failed to parse remote .*}
+    expect * * VCL_Error {Failed to open backup file .*}
+} -start -wait
+
+########################################################
+## test.ini fails and backup exist but it's wrong
+########################################################
+
+shell {
+    rm -rf "${tmp}/backup.ini"
+    cat > "${tmp}/backup.ini" <<'EOF'
+    [broken
+EOF
+}
+
+server s_origin3 {
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+} -repeat 1 -start
+
+varnish v_origin3 -vcl {
+    backend default {
+        .host = "${s_origin3_addr}";
+        .port = "${s_origin3_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
+varnish v_backup_wrong -vcl {
+    import ${vmod_cfg};
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${v_origin3_addr}:${v_origin3_port}/test.ini",
+            backup="${tmp}/backup.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+} -start
+
+logexpect l_backup_wrong -v v_backup_wrong -d 1 -g raw {
+    expect * * VCL_Error {Failed to parse remote .*}
+    expect * * VCL_Error {Failed to parse remote .*}
+    expect * * VCL_Error {Failed to load backup file .*}
+} -start -wait
+
+########################################################
+## test.ini fails and backup exist
+########################################################
+
+shell {
+    rm -rf "${tmp}/backup.ini"
+    cat > "${tmp}/backup.ini" <<'EOF'
+    field: foo
+EOF
+}
+
+server s_origin4 {
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+} -repeat 1 -start
+
+varnish v_origin4 -vcl {
+    backend default {
+        .host = "${s_origin4_addr}";
+        .port = "${s_origin4_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
+varnish v_backup -vcl {
+    import ${vmod_cfg};
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${v_origin4_addr}:${v_origin4_port}/test.ini",
+            backup="${tmp}/backup.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+
+    sub vcl_deliver {
+        set resp.http.result = file.get("field", "-");
+        set resp.http.dump = file.dump();
+    }
+} -start
+
+logexpect l_backup -v v_backup -d 1 -g raw {
+    expect * * VCL_Error {Failed to parse remote .*}
+    expect * * VCL_Log {Remote successfully parsed .*}
+    expect * * VCL_Log {Settings loaded from backup .*}
+} -start -wait
+
+client c3 -connect ${v_backup_sock} {
+    txreq
+    rxresp
+    expect resp.http.result == "foo"
+    expect resp.http.dump == {{"field":"foo"}}
+} -run
+
+varnish v_backup -expect client_req == 1
+
+varnish v_backup -expect MGT.child_panic == 0
+
+########################################################
+## Basic functionalities
+########################################################
+
+shell {
+    rm -rf "${tmp}/backup.ini"
+}
+
+server s_origin5 {
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: foo"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "field: bar"
+
+    rxreq
+    expect req.url == "/test.ini"
+    txresp -body "[broken"
+} -repeat 1 -start
+
+varnish v_origin5 -vcl {
+    backend default {
+        .host = "${s_origin5_addr}";
+        .port = "${s_origin5_port}";
+    }
+
+    sub vcl_recv {
+        return (pass);
+    }
+} -start
+
+varnish v_general -vcl {
+    import ${vmod_cfg};
+
+    backend default {
+        .host = "${s_origin1_addr}";
+        .port = "${s_origin1_port}";
+    }
+
+    sub vcl_init {
+        new file = cfg.file(
+            "http://${v_origin5_addr}:${v_origin5_port}/test.ini",
+            backup="${tmp}/backup.ini",
+            period=0,
+            curl_connection_timeout=2000,
+            curl_transfer_timeout=2000,
+            curl_ssl_verify_peer=false,
+            curl_ssl_verify_host=false,
+            curl_ssl_cafile="",
+            curl_ssl_capath="",
+            curl_proxy="",
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+
+    sub vcl_deliver {
+        if (req.http.reload == "1") {
+            set resp.http.reload = file.reload();
+        }
+        set resp.http.result = file.get("field", "-");
+        set resp.http.dump = file.dump();
+    }
+} -start
+
+client c4 -connect ${v_general_sock} {
+    txreq
+    rxresp
+    expect resp.http.reload == <undef>
+    expect resp.http.result == "foo"
+    expect resp.http.dump == {{"field":"foo"}}
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.reload == "true"
+    expect resp.http.result == "foo"
+    expect resp.http.dump == {{"field":"foo"}}
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.reload == "true"
+    expect resp.http.result == "bar"
+    expect resp.http.dump == {{"field":"bar"}}
+
+    txreq -hdr "reload: 1"
+    rxresp
+    expect resp.http.reload == "true"
+    expect resp.http.result == "bar"
+    expect resp.http.dump == {{"field":"bar"}}
+} -run
+
+varnish v_general -expect client_req == 4
+
+varnish v_general -expect MGT.child_panic == 0

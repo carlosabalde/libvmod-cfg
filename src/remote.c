@@ -45,7 +45,6 @@ new_remote(
     const char *curl_ssl_capath, const char *curl_proxy)
 {
     remote_t *result;
-    FILE *bf;
     ALLOC_OBJ(result, REMOTE_MAGIC);
     AN(result);
     SET_STRING(location, location.raw);
@@ -58,11 +57,9 @@ new_remote(
     } else {
         SET_LOCATION(path, 0);
     }
-    if ((backup != NULL) && (backup != '\0') && (bf = fopen(backup, "w+"))) {
-        fclose(bf);
+    if ((backup != NULL) && (*backup != '\0')) {
         SET_STRING(backup, backup);
     }
-    // result->backup = "/etc/varnish/vcl_settings.bkp";
     result->period = period;
     result->curl.connection_timeout = curl_connection_timeout;
     result->curl.transfer_timeout = curl_transfer_timeout;
@@ -131,7 +128,7 @@ check_remote_backup(VRT_CTX, remote_t *remote, unsigned (*callback)(VRT_CTX, voi
     char *contents = read_backup(ctx, remote);
 
     if (contents != NULL) {
-        if ((result = (*callback)(ctx, ptr, contents)) == 1) {
+        if ((result = (*callback)(ctx, ptr, contents))) {
             LOG(ctx, LOG_INFO,
                 "Settings loaded from backup (%s)",
                 remote->backup);
@@ -140,8 +137,8 @@ check_remote_backup(VRT_CTX, remote_t *remote, unsigned (*callback)(VRT_CTX, voi
                 "Failed to load backup file (%s)",
                 remote->backup);
         }
+        free((void *) contents);
     }
-    free((void *) contents);
 
     return result;
 }
@@ -168,13 +165,11 @@ check_remote(
     }
 
     if (force || winner) {
-        FILE *f;
         char *contents = (*remote->read)(ctx, remote);
         if (contents != NULL) {
-            if (((result = (*callback)(ctx, ptr, contents)) == 1) && (remote->backup != NULL)) {
+            if ((result = (*callback)(ctx, ptr, contents)) && (remote->backup != NULL)) {
                 FILE *backup = fopen(remote->backup, "w+");
-                int r = fputs(contents, backup);
-                if (r <= 0) {
+                if (fputs(contents, backup) <= 0) {
                     LOG(ctx, LOG_ERR,
                         "Failed to write backup file (%s)",
                         remote->backup);
@@ -184,13 +179,11 @@ check_remote(
                         remote->backup);
                 }
                 fclose(backup);
-            } else if ((remote->backup != NULL) && (f = fopen(remote->backup, "r"))) {
-                fclose(f);
+            } else if (remote->backup != NULL) {
                 result = check_remote_backup(ctx, remote, callback, ptr);
             }
             free((void *) contents);
-        } else if ((remote->backup != NULL) && (f = fopen(remote->backup, "r"))) {
-            fclose(f);
+        } else if (remote->backup != NULL) {
             result = check_remote_backup(ctx, remote, callback, ptr);
         }
 
