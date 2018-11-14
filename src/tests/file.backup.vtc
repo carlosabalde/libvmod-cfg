@@ -58,7 +58,7 @@ varnish v_no_backup -vcl {
 
 logexpect l_no_backup -v v_no_backup -d 1 -g raw {
     expect * * VCL_Error {Failed to parse remote .*}
-    expect * * VCL_Error {Failed to open backup file .*}
+    #expect * * VCL_Error {Failed to open backup file .*}
 } -start -wait
 
 ########################################################

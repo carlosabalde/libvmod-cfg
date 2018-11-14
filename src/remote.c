@@ -3,6 +3,8 @@
 #include <string.h>
 #include <curl/curl.h>
 
+#include <sys/stat.h>
+
 #include "cache/cache.h"
 
 #include "helpers.h"
@@ -57,7 +59,7 @@ new_remote(
     } else {
         SET_LOCATION(path, 0);
     }
-    if ((backup != NULL) && (*backup != '\0')) {
+    if ((backup != NULL) && (strlen(backup) > 0)) {
         SET_STRING(backup, backup);
     }
     result->period = period;
@@ -97,7 +99,7 @@ free_remote(remote_t *remote)
 {
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
-    FREE_STRING(backup);
+    remote->backup="";
     remote->period = 0;
     remote->curl.connection_timeout = 0;
     remote->curl.transfer_timeout = 0;
@@ -121,7 +123,7 @@ free_remote(remote_t *remote)
  * HELPERS.
  *****************************************************************************/
 
-unsigned
+static unsigned
 check_remote_backup(VRT_CTX, remote_t *remote, unsigned (*callback)(VRT_CTX, void *, char *), void *ptr)
 {
     unsigned result = 0;
@@ -130,12 +132,12 @@ check_remote_backup(VRT_CTX, remote_t *remote, unsigned (*callback)(VRT_CTX, voi
     if (contents != NULL) {
         if ((result = (*callback)(ctx, ptr, contents))) {
             LOG(ctx, LOG_INFO,
-                "Settings loaded from backup (%s)",
-                remote->backup);
+                "Settings loaded from backup (location=%s, backup=%s)",
+                remote->location.raw, remote->backup);
         } else {
             LOG(ctx, LOG_ERR,
-                "Failed to load backup file (%s)",
-                remote->backup);
+                "Failed to load backup file (location=%s, backup=%s)",
+                remote->location.raw, remote->backup);
         }
         free((void *) contents);
     }
@@ -166,25 +168,32 @@ check_remote(
 
     if (force || winner) {
         char *contents = (*remote->read)(ctx, remote);
+        struct stat st;
         if (contents != NULL) {
-            if ((result = (*callback)(ctx, ptr, contents)) && (remote->backup != NULL)) {
-                FILE *backup = fopen(remote->backup, "w+");
-                if (fputs(contents, backup) <= 0) {
+            if ((result = (*callback)(ctx, ptr, contents)) && (remote->backup != NULL) && (strlen(contents) > 0)) {
+                FILE *backup = fopen(remote->backup, "wb");
+                int rc = fputs(contents, backup);
+                if (rc < 0) {
+                    char buf[256];
                     LOG(ctx, LOG_ERR,
-                        "Failed to write backup file (%s)",
-                        remote->backup);
+                        "Failed to write backup file (location=%s, backup=%s, error=%s)",
+                        remote->location.raw, remote->backup, strerror_r(rc, buf, sizeof(buf)));
                 } else {
                     LOG(ctx, LOG_INFO,
-                        "Successfully write to backup file (%s)",
-                        remote->backup);
+                        "Successfully write to backup file (location=%s, backup=%s)",
+                        remote->location.raw, remote->backup);
                 }
                 fclose(backup);
             } else if (remote->backup != NULL) {
-                result = check_remote_backup(ctx, remote, callback, ptr);
+                if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
+                    result = check_remote_backup(ctx, remote, callback, ptr);
+                }
             }
             free((void *) contents);
         } else if (remote->backup != NULL) {
-            result = check_remote_backup(ctx, remote, callback, ptr);
+            if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
+                result = check_remote_backup(ctx, remote, callback, ptr);
+            }
         }
 
         if (result || winner) {
@@ -226,13 +235,13 @@ read_backup(VRT_CTX, remote_t *remote)
             result = NULL;
 
             LOG(ctx, LOG_ERR,
-                "Failed to read backup file (%s)",
-                remote->backup);
+                "Failed to read backup file (location=%s, backup=%s)",
+                remote->location.raw, remote->backup);
         }
     } else {
         LOG(ctx, LOG_ERR,
-            "Failed to open backup file (%s)",
-            remote->backup);
+            "Failed to open backup file (location=%s, backup=%s)",
+            remote->location.raw, remote->backup);
     }
 
     return result;
