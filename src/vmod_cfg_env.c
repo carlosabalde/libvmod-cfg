@@ -28,7 +28,7 @@ load_env(VRT_CTX, struct vmod_cfg_env *env)
         char *ptr = strchr(environ[i], '=');
         if (ptr != NULL) {
             variable_t *variable = new_variable(environ[i], ptr - environ[i], ptr + 1);
-            AZ(VRB_INSERT(variables, &env->variables, variable));
+            AZ(VRBT_INSERT(variables, &env->variables, variable));
         }
     }
 }
@@ -46,7 +46,7 @@ vmod_env__init(VRT_CTX, struct vmod_cfg_env **env, const char *vcl_name)
 
     instance->name = strdup(vcl_name);
     AN(instance->name);
-    VRB_INIT(&instance->variables);
+    VRBT_INIT(&instance->variables);
 
     load_env(ctx, instance);
 
