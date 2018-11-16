@@ -10,12 +10,12 @@ typedef struct variable {
     const char *name;
     char *value;
 
-    VRB_ENTRY(variable) tree;
+    VRBT_ENTRY(variable) tree;
 } variable_t;
 
-typedef VRB_HEAD(variables, variable) variables_t;
+typedef VRBT_HEAD(variables, variable) variables_t;
 
-VRB_PROTOTYPE(variables, variable, tree, variablecmp);
+VRBT_PROTOTYPE(variables, variable, tree, variablecmp);
 
 variable_t *new_variable(const char *name, size_t len, const char *value);
 void free_variable(variable_t *variable);
