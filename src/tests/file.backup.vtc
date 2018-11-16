@@ -31,7 +31,7 @@ varnish v_origin_no_backup -vcl {
 } -start
 
 varnish v_no_backup -vcl {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     backend default {
         .host = "${s_origin1_addr}";
@@ -90,7 +90,7 @@ varnish v_origin_broken_backup -vcl {
 } -start
 
 varnish v_broken_backup -vcl {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     backend default {
         .host = "${s_origin1_addr}";
@@ -150,7 +150,7 @@ varnish v_origin_valid_backup -vcl {
 } -start
 
 varnish v_valid_backup -vcl {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     backend default {
         .host = "${s_origin1_addr}";
@@ -235,7 +235,7 @@ varnish v_origin_basics -vcl {
 } -start
 
 varnish v_basics -vcl {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     backend default {
         .host = "${s_origin1_addr}";
