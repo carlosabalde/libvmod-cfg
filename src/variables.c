@@ -19,7 +19,7 @@ variablecmp(const variable_t *v1, const variable_t *v2)
     return strcmp(v1->name, v2->name);
 }
 
-VRB_GENERATE(variables, variable, tree, variablecmp);
+VRBT_GENERATE(variables, variable, tree, variablecmp);
 
 variable_t *
 new_variable(const char *name, size_t len, const char *value)
@@ -54,16 +54,16 @@ find_variable(variables_t *variables, const char *name)
 {
     variable_t variable;
     variable.name = name;
-    return VRB_FIND(variables, variables, &variable);
+    return VRBT_FIND(variables, variables, &variable);
 }
 
 void
 flush_variables(variables_t *variables)
 {
     variable_t *ivariable, *ivariable_tmp;
-    VRB_FOREACH_SAFE(ivariable, variables, variables, ivariable_tmp) {
+    VRBT_FOREACH_SAFE(ivariable, variables, variables, ivariable_tmp) {
         CHECK_OBJ_NOTNULL(ivariable, VARIABLE_MAGIC);
-        VRB_REMOVE(variables, variables, ivariable);
+        VRBT_REMOVE(variables, variables, ivariable);
         free_variable(ivariable);
     }
 }
@@ -187,7 +187,7 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
     result = end = ctx->ws->f;
 
     DUMP_CHAR('{');
-    VRB_FOREACH(variable, variables, variables) {
+    VRBT_FOREACH(variable, variables, variables) {
         CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
         if (prefix != NULL &&
             *prefix != '\0' &&
