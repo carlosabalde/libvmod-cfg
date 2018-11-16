@@ -101,7 +101,7 @@ file_parse_ini_handler(void *c, const char *section, const char *name, const cha
     variable_t *variable = find_variable(ctx->variables, buffer);
     if (variable == NULL) {
         variable = new_variable(buffer, strlen(buffer), value);
-        AZ(VRB_INSERT(variables, ctx->variables, variable));
+        AZ(VRBT_INSERT(variables, ctx->variables, variable));
     } else {
         variable->value = realloc(
             variable->value,
@@ -133,7 +133,7 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsign
         .variables = malloc(sizeof(variables_t))
     };
     AN(file_parse_ctx.variables);
-    VRB_INIT(file_parse_ctx.variables);
+    VRBT_INIT(file_parse_ctx.variables);
 
     int rc = ini_parse_stream(
         (ini_reader) file_ini_stream_reader, &file_ini_stream_ctx,
@@ -192,7 +192,7 @@ file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
 
     if (value != NULL) {
         variable_t *variable = new_variable(name, strlen(name), value);
-        AZ(VRB_INSERT(variables, ctx->variables, variable));
+        AZ(VRBT_INSERT(variables, ctx->variables, variable));
         if (item->type == cJSON_Number) {
             free((void *) value);
         }
@@ -236,7 +236,7 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsig
         .variables = malloc(sizeof(variables_t))
     };
     AN(file_parse_ctx.variables);
-    VRB_INIT(file_parse_ctx.variables);
+    VRBT_INIT(file_parse_ctx.variables);
 
     const char *error;
     cJSON *root = cJSON_ParseWithOpts(contents, &error, 0);
@@ -353,7 +353,7 @@ vmod_file__init(
         AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));
         instance->state.variables = malloc(sizeof(variables_t));
         AN(instance->state.variables);
-        VRB_INIT(instance->state.variables);
+        VRBT_INIT(instance->state.variables);
 
         file_check(ctx, instance, 1);
     }
