@@ -181,7 +181,7 @@ skip:
 }
 
 static unsigned
-rules_check_callback(VRT_CTX, void *ptr, char *contents)
+rules_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 {
     unsigned result = 0;
 
@@ -191,8 +191,8 @@ rules_check_callback(VRT_CTX, void *ptr, char *contents)
     rules_t *rules = rules_parse(ctx, vmod_cfg_rules, contents);
     if (rules != NULL) {
         LOG(ctx, LOG_INFO,
-            "Remote successfully parsed (rules=%s, location=%s)",
-            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw);
+            "Remote successfully parsed (rules=%s, location=%s, is_backup=%d)",
+            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw, is_backup);
 
         AZ(pthread_rwlock_wrlock(&vmod_cfg_rules->state.rwlock));
         rules_t *old = vmod_cfg_rules->state.rules;
@@ -205,8 +205,8 @@ rules_check_callback(VRT_CTX, void *ptr, char *contents)
         result = 1;
     } else {
         LOG(ctx, LOG_ERR,
-            "Failed to parse remote (rules=%s, location=%s)",
-            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw);
+            "Failed to parse remote (rules=%s, location=%s, is_backup=%d)",
+            vmod_cfg_rules->name, vmod_cfg_rules->remote->location.raw, is_backup);
     }
 
     return result;
@@ -221,7 +221,7 @@ rules_check(VRT_CTX, struct vmod_cfg_rules *rules, unsigned force)
 VCL_VOID
 vmod_rules__init(
     VRT_CTX, struct vmod_cfg_rules **rules, const char *vcl_name,
-    VCL_STRING location, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
     VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
     VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
     VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,
@@ -243,7 +243,7 @@ vmod_rules__init(
         instance->name = strdup(vcl_name);
         AN(instance->name);
         instance->remote = new_remote(
-            location, period, curl_connection_timeout, curl_transfer_timeout,
+            location, backup, period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
             curl_ssl_capath, curl_proxy);
         AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));

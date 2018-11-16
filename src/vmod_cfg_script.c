@@ -820,7 +820,7 @@ done:
  *****************************************************************************/
 
 static unsigned
-script_check_callback(VRT_CTX, void *ptr, char *contents)
+script_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 {
     unsigned result = 0;
 
@@ -830,8 +830,8 @@ script_check_callback(VRT_CTX, void *ptr, char *contents)
     const char *name = NULL;
     if (execute(ctx, script, contents, &name, 0, NULL, NULL, 0, 1)) {
         LOG(ctx, LOG_INFO,
-            "Remote successfully compiled (script=%s, location=%s, function=%s, code=%.80s...)",
-            script->name, script->remote->location.raw, name, contents);
+            "Remote successfully compiled (script=%s, location=%s, is_backup=%d, function=%s, code=%.80s...)",
+            script->name, script->remote->location.raw, is_backup, name, contents);
 
         Lck_Lock(&script->state.mutex);
         if (script->state.function.code != NULL) {
@@ -848,8 +848,8 @@ script_check_callback(VRT_CTX, void *ptr, char *contents)
         result = 1;
     } else {
         LOG(ctx, LOG_ERR,
-            "Failed to compile remote (script=%s, location=%s, code=%.80s...)",
-            script->name, script->remote->location.raw, contents);
+            "Failed to compile remote (script=%s, location=%s, is_backup=%d, code=%.80s...)",
+            script->name, script->remote->location.raw, is_backup, contents);
 
         free((void *) name);
     }
@@ -919,7 +919,7 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
-    VCL_STRING location, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
     VCL_INT lua_max_engines, VCL_INT lua_max_cycles,
     VCL_INT lua_min_gc_cycles, VCL_INT lua_gc_step_size,
     VCL_BOOL lua_remove_loadfile_function, VCL_BOOL lua_remove_dotfile_function,
@@ -949,7 +949,7 @@ vmod_script__init(
         AN(instance->name);
         if ((location != NULL) && (strlen(location) > 0)) {
             instance->remote = new_remote(
-                location, period, curl_connection_timeout, curl_transfer_timeout,
+                location, backup, period, curl_connection_timeout, curl_transfer_timeout,
                 curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
                 curl_ssl_capath, curl_proxy);
         } else {

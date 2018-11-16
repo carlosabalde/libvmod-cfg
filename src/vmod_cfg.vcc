@@ -63,6 +63,7 @@ Description
 
 $Object file(
     STRING location,
+    STRING backup="",
     INT period=60,
     INT curl_connection_timeout=0,
     INT curl_transfer_timeout=0,
@@ -79,6 +80,9 @@ Arguments
     location: path of the file. The following schemes are supported:
     ``file://``, ``http://`` and ``https://``. If not specified ``file://``
     is assumed.
+
+    backup: when this option is used, you have to specify where to save the
+    backup file.
 
     period: how frequently (seconds) contents of the file are reloaded (0 means
     disabling periodical reloads).
@@ -160,6 +164,7 @@ Description
 
 $Object rules(
     STRING location,
+    STRING backup="",
     INT period=60,
     INT curl_connection_timeout=0,
     INT curl_transfer_timeout=0,
@@ -196,6 +201,7 @@ Description
 
 $Object script(
     STRING location="",
+    STRING backup="",
     INT period=60,
     INT lua_max_engines=128,
     INT lua_max_cycles=0,
@@ -218,6 +224,9 @@ Arguments
     location: path of the file (as described in ``cfg.file()``) containing the
     script implementation. If not provided, the script implementation should be
     provided to the ``.init()`` method.
+
+    backup: when this option is used, you have to specify where to save the
+    backup file.
 
     lua_max_engines: the VMOD creates one pool of scripting engines per VCL
     object. This option sets the maximum number of engines in each pool. All
