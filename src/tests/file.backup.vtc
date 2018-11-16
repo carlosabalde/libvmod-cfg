@@ -10,7 +10,7 @@ server s_origin1 {
 ########################################################
 
 shell {
-    rm -rf "${tmp}/backup.ini"
+    rm -f "${tmp}/backup.ini"
 }
 
 server s_origin2 {
@@ -58,7 +58,7 @@ varnish v_no_backup -vcl {
 
 logexpect l_no_backup -v v_no_backup -d 1 -g raw {
     expect * * VCL_Error {Failed to parse remote .*}
-    #expect * * VCL_Error {Failed to open backup file .*}
+    expect * * VCL_Error {Backup file is empty or doesn't exist .*}
 } -start -wait
 
 ########################################################
@@ -66,7 +66,7 @@ logexpect l_no_backup -v v_no_backup -d 1 -g raw {
 ########################################################
 
 shell {
-    rm -rf "${tmp}/backup.ini"
+    rm -f "${tmp}/backup.ini"
     cat > "${tmp}/backup.ini" <<'EOF'
     [broken
 EOF
@@ -126,7 +126,7 @@ logexpect l_backup_wrong -v v_backup_wrong -d 1 -g raw {
 ########################################################
 
 shell {
-    rm -rf "${tmp}/backup.ini"
+    rm -f "${tmp}/backup.ini"
     cat > "${tmp}/backup.ini" <<'EOF'
     field: foo
 EOF
@@ -202,7 +202,7 @@ varnish v_backup -expect MGT.child_panic == 0
 ########################################################
 
 shell {
-    rm -rf "${tmp}/backup.ini"
+    rm -f "${tmp}/backup.ini"
 }
 
 server s_origin5 {

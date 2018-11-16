@@ -170,14 +170,15 @@ check_remote(
         char *contents = (*remote->read)(ctx, remote);
         struct stat st;
         if (contents != NULL) {
-            if ((result = (*callback)(ctx, ptr, contents)) && (remote->backup != NULL) && (strlen(contents) > 0)) {
+            result = (*callback)(ctx, ptr, contents);
+            if (result && (remote->backup != NULL) && (strlen(contents) > 0)) {
                 FILE *backup = fopen(remote->backup, "wb");
                 int rc = fputs(contents, backup);
                 if (rc < 0) {
-                    char buf[256];
+                    char buffer[256];
                     LOG(ctx, LOG_ERR,
                         "Failed to write backup file (location=%s, backup=%s, error=%s)",
-                        remote->location.raw, remote->backup, strerror_r(rc, buf, sizeof(buf)));
+                        remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
                 } else {
                     LOG(ctx, LOG_INFO,
                         "Successfully write to backup file (location=%s, backup=%s)",
@@ -187,12 +188,20 @@ check_remote(
             } else if (remote->backup != NULL) {
                 if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
                     result = check_remote_backup(ctx, remote, callback, ptr);
+                } else {
+                    LOG(ctx, LOG_ERR,
+                        "Backup file is empty or doesn't exist (location=%s, backup=%s)",
+                        remote->location.raw, remote->backup);
                 }
             }
             free((void *) contents);
         } else if (remote->backup != NULL) {
             if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
                 result = check_remote_backup(ctx, remote, callback, ptr);
+            } else {
+                LOG(ctx, LOG_ERR,
+                    "Backup file is empty or doesn't exist (location=%s, backup=%s)",
+                    remote->location.raw, remote->backup);
             }
         }
 
