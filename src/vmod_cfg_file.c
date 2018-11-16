@@ -26,7 +26,7 @@ struct vmod_cfg_file {
     remote_t *remote;
     const char *name_delimiter;
     const char *value_delimiter;
-    variables_t *(*parse)(VRT_CTX, struct vmod_cfg_file *, const char *);
+    variables_t *(*parse)(VRT_CTX, struct vmod_cfg_file *, const char *, unsigned);
 
     struct {
         pthread_rwlock_t rwlock;
@@ -121,7 +121,7 @@ file_parse_ini_handler(void *c, const char *section, const char *name, const cha
 }
 
 static variables_t *
-file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
+file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsigned is_backup)
 {
     variables_t *result = NULL;
 
@@ -145,15 +145,15 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         result = file_parse_ctx.variables;
 
         LOG(ctx, LOG_INFO,
-            "Remote successfully parsed (file=%s, location=%s, format=ini)",
-            file->name, file->remote->location.raw);
+            "Remote successfully parsed (file=%s, location=%s, is_backup=%d, format=ini)",
+            file->name, file->remote->location.raw, is_backup);
     } else {
         flush_variables(file_parse_ctx.variables);
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
-            "Failed to parse remote (file=%s, location=%s, format=ini, error=%d)",
-            file->name, file->remote->location.raw, rc);
+            "Failed to parse remote (file=%s, location=%s, is_backup=%d, format=ini, error=%d)",
+            file->name, file->remote->location.raw, is_backup, rc);
     }
 
     return result;
@@ -229,7 +229,7 @@ file_parse_json_walk(
 }
 
 static variables_t *
-file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
+file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsigned is_backup)
 {
     variables_t *result = NULL;
 
@@ -250,14 +250,14 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
             result = file_parse_ctx.variables;
 
             LOG(ctx, LOG_INFO,
-                "Remote successfully parsed (file=%s, location=%s, format=json)",
-                file->name, file->remote->location.raw);
+                "Remote successfully parsed (file=%s, location=%s, is_backup=%d, format=json)",
+                file->name, file->remote->location.raw, is_backup);
         } else {
             free((void *) file_parse_ctx.variables);
 
             LOG(ctx, LOG_ERR,
-                "Unexpected JSON type (file=%s, location=%s, format=json, type=%d)",
-                file->name, file->remote->location.raw, root->type);
+                "Unexpected JSON type (file=%s, location=%s, is_backup=%d, format=json, type=%d)",
+                file->name, file->remote->location.raw, is_backup, root->type);
         }
 
         cJSON_Delete(root);
@@ -265,8 +265,8 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
-            "Failed to parse remote (file=%s, location=%s, format=json)",
-            file->name, file->remote->location.raw);
+            "Failed to parse remote (file=%s, location=%s, is_backup=%d, format=json)",
+            file->name, file->remote->location.raw, is_backup);
     }
 
     return result;
@@ -277,14 +277,14 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents)
  *****************************************************************************/
 
 static unsigned
-file_check_callback(VRT_CTX, void *ptr, char *contents)
+file_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 {
     unsigned result = 0;
 
     struct vmod_cfg_file *file;
     CAST_OBJ_NOTNULL(file, ptr, VMOD_CFG_FILE_MAGIC);
 
-    variables_t *variables = (*file->parse)(ctx, file, contents);
+    variables_t *variables = (*file->parse)(ctx, file, contents, is_backup);
     if (variables != NULL) {
         AZ(pthread_rwlock_wrlock(&file->state.rwlock));
         variables_t *old = file->state.variables;
@@ -315,7 +315,7 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 VCL_VOID
 vmod_file__init(
     VRT_CTX, struct vmod_cfg_file **file, const char *vcl_name,
-    VCL_STRING location, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
     VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
     VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
     VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,
@@ -340,7 +340,7 @@ vmod_file__init(
         instance->name = strdup(vcl_name);
         AN(instance->name);
         instance->remote = new_remote(
-            location, period, curl_connection_timeout, curl_transfer_timeout,
+            location, backup, period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
             curl_ssl_capath, curl_proxy);
         SET_STRING(name_delimiter, name_delimiter);
