@@ -9,6 +9,7 @@ typedef struct remote {
         const char *raw;
         const char *parsed;
     } location;
+    const char *backup;
     unsigned period;
     struct {
         unsigned connection_timeout;
@@ -30,7 +31,7 @@ typedef struct remote {
 } remote_t;
 
 remote_t *new_remote(
-    const char *location, unsigned period, unsigned curl_connection_timeout,
+    const char *location, const char *backup, unsigned period, unsigned curl_connection_timeout,
     unsigned curl_transfer_timeout, unsigned curl_ssl_verify_peer,
     unsigned curl_ssl_verify_host, const char *curl_ssl_cafile,
     const char *curl_ssl_capath, const char *curl_proxy);
@@ -38,6 +39,6 @@ void free_remote(remote_t *remote);
 
 unsigned check_remote(
     VRT_CTX, remote_t *remote, unsigned force,
-    unsigned (*callback)(VRT_CTX, void *, char *), void *ptr);
+    unsigned (*callback)(VRT_CTX, void *, char *, unsigned), void *ptr);
 
 #endif
