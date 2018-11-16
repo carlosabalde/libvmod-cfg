@@ -37,6 +37,7 @@ import cfg;
 
     Object file(
         STRING location,
+        STRING backup="",
         INT period=60,
         INT curl_connection_timeout=0,
         INT curl_transfer_timeout=0,
@@ -60,6 +61,7 @@ import cfg;
 
     Object rules(
         STRING location,
+        STRING backup="",
         INT period=60,
         INT curl_connection_timeout=0,
         INT curl_transfer_timeout=0,
@@ -78,6 +80,7 @@ import cfg;
 
     Object script(
         STRING location="",
+        STRING backup="",
         INT period=60,
         INT lua_max_engines=128,
         INT lua_max_cycles=0,
