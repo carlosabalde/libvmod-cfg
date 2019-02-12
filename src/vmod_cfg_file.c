@@ -343,9 +343,9 @@ vmod_file__init(
             curl_ssl_capath, curl_proxy);
         SET_STRING(name_delimiter, name_delimiter);
         SET_STRING(value_delimiter, value_delimiter);
-        if (format == vmod_enum_ini) {
+        if (format == enum_vmod_cfg_ini) {
             instance->parse = &file_parse_ini;
-        } else if (format == vmod_enum_json) {
+        } else if (format == enum_vmod_cfg_json) {
             instance->parse = &file_parse_json;
         } else {
             WRONG("Illegal format value.");
