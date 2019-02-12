@@ -26,7 +26,7 @@ dlreopen(void *addr)
 }
 
 int
-event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
+vmod_event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
 {
     static int logging_initialized = 0;
 
