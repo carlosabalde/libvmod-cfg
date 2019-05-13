@@ -313,6 +313,24 @@ enable_lua_protections(lua_State *L)
 #define GET_VARNISH_TABLE_SCRIPT(L, where) \
     GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
 
+static struct http *
+get_http_object(VRT_CTX, const char *name)
+{
+    struct http *hp;
+    if (strcmp(name, "req") == 0) {
+        hp = ctx->http_req;
+    } else if (strcmp(name, "req-top") == 0) {
+        hp = ctx->http_req_top;
+    } else if (strcmp(name, "bereq") == 0) {
+        hp = ctx->http_bereq;
+    } else if (strcmp(name, "beresp") == 0) {
+        hp = ctx->http_beresp;
+    } else {
+        hp = ctx->http_resp;
+    }
+    return hp;
+}
+
 static int
 lua_varnish_regmatch_command(lua_State *L)
 {
@@ -449,6 +467,121 @@ lua_varnish_log_command(lua_State *L)
     return 0;
 }
 
+static int
+lua_varnish_get_header_command(lua_State *L)
+{
+    // Initializations.
+    const char *value = NULL;
+
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc < 1) {
+        lua_pushstring(L, "varnish.get_header() requires one argument.");
+        lua_error(L);
+    }
+    const char *name = lua_tostring(L, -1 * argc);
+    const char *where;
+    if (argc >= 2) {
+        where = lua_tostring(L, -1 * argc + 1);
+    } else {
+        where = "req";
+    }
+
+    // Check input arguments.
+    if (name != NULL && strlen(name) > 0 &&
+        (strcmp(where, "req") == 0 ||
+         strcmp(where, "req-top") == 0 ||
+         strcmp(where, "bereq") == 0 ||
+         strcmp(where, "beresp") == 0 ||
+         strcmp(where, "resp") == 0 ||
+         strcmp(where, "obj") == 0)) {
+        // Execute 'ctx = varnish._ctx'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+
+        // Get header.
+        char buffer[strlen(name) + 3];
+        sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
+        if (strcmp(where, "obj") == 0) {
+            if (ctx->req != NULL && ctx->req->objcore != NULL) {
+                CHECK_OBJ_NOTNULL(ctx->req, REQ_MAGIC);
+                value = HTTP_GetHdrPack(ctx->req->wrk, ctx->req->objcore, buffer);
+            } else {
+                lua_pushfstring(
+                    L,
+                    "varnish.get_header() called over unavaliable '%s' object.",
+                    where);
+                lua_error(L);
+            }
+        } else {
+            struct http *hp = get_http_object(ctx, where);
+            if (hp != NULL) {
+                http_GetHdr(hp, buffer, &value);
+            } else {
+                lua_pushfstring(
+                    L,
+                    "varnish.get_header() called over unavailable '%s' object.",
+                    where);
+                lua_error(L);
+            }
+        }
+    }
+
+    // Done!
+    lua_pushstring(L, value);
+    return 1;
+}
+
+static int
+lua_varnish_set_header_command(lua_State *L)
+{
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc < 2) {
+        lua_pushstring(L, "varnish.set_header() requires two arguments.");
+        lua_error(L);
+    }
+    const char *name = lua_tostring(L, -1 * argc);
+    const char *value = lua_tostring(L, -1 * argc + 1);
+    const char *where;
+    if (argc >= 3) {
+        where = lua_tostring(L, -1 * argc + 2);
+    } else {
+        where = "req";
+    }
+
+    // Check input arguments.
+    if (name != NULL && strlen(name) > 0 &&
+        value != NULL && strlen(value) > 0 &&
+        (strcmp(where, "req") == 0 ||
+         strcmp(where, "req-top") == 0 ||
+         strcmp(where, "bereq") == 0 ||
+         strcmp(where, "beresp") == 0 ||
+         strcmp(where, "resp") == 0)) {
+        // Execute 'ctx = varnish._ctx'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+
+        // Set header.
+        char buffer[strlen(name) + 3];
+        sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
+        struct http *hp = get_http_object(ctx, where);
+        if (hp != NULL) {
+            http_Unset(hp, buffer);
+            http_PrintfHeader(hp, "%s: %s", name, value);
+        } else {
+            lua_pushfstring(
+                L,
+                "varnish.set_header() called over unavailable '%s' object.",
+                where);
+            lua_error(L);
+        }
+    }
+
+    // Done!
+    return 0;
+}
+
 #undef GET_VARNISH_TABLE_FOO_FIELD
 #undef GET_VARNISH_TABLE_CTX
 #undef GET_VARNISH_TABLE_SCRIPT
@@ -467,6 +600,10 @@ new_L(VRT_CTX, struct vmod_cfg_script *script)
     lua_newtable(result);
     lua_pushcfunction(result, lua_varnish_log_command);
     lua_setfield(result, -2, "log");
+    lua_pushcfunction(result, lua_varnish_get_header_command);
+    lua_setfield(result, -2, "get_header");
+    lua_pushcfunction(result, lua_varnish_set_header_command);
+    lua_setfield(result, -2, "set_header");
     lua_pushcfunction(result, lua_varnish_regmatch_command);
     lua_setfield(result, -2, "regmatch");
     lua_pushcfunction(result, lua_varnish_regsubone_command);
@@ -982,7 +1119,7 @@ done:
     Lck_Unlock(&script->state.mutex);
 
     // Call the garbage collector from time to time to avoid a full cycle
-    // performed by Lua, which adds too latency.
+    // performed by Lua, which adds too much latency.
     engine->ncycles++;
     if (gc_collect) {
         lua_gc(engine->L, LUA_GCCOLLECT, 0);
