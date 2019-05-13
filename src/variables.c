@@ -187,7 +187,7 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
     char *result, *end;
     variable_t *variable;
     unsigned i = 0;
-    unsigned free_ws = WS_Reserve(ctx->ws, 0);
+    unsigned free_ws = WS_ReserveAll(ctx->ws);
     if (free_ws <= 0) {
         WS_Release(ctx->ws, 0);
         FAIL_WS(ctx, NULL);
