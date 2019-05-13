@@ -244,13 +244,33 @@ enable_lua_protections(lua_State *L)
         "     __metatable = false\n"
         "   });\n"
         "end\n"
-        "varnish = readonly_table(varnish, {_ctx = true})\n"
+        "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
         "\n"
         "readonly_table = nil\n"
         "debug = nil\n";
     AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
     AZ(lua_pcall(L, 0, 0, 0));
 }
+
+// Extract field from 'varnish.field'. Both 'varnish' table and user data are
+// pushed into the stack and the removed.
+#define GET_VARNISH_TABLE_FOO_FIELD(L, field, where, MAGIC) \
+    do { \
+        lua_getglobal(L, "varnish"); \
+        AN(lua_istable(L, -1)); \
+        lua_getfield(L, -1, field); \
+        AN(lua_islightuserdata(L, -1)); \
+        void *data = lua_touserdata(L, -1); \
+        AN(data); \
+        CAST_OBJ_NOTNULL(where, data, MAGIC); \
+        lua_pop(L, 2); \
+    } while (0)
+
+#define GET_VARNISH_TABLE_CTX(L, where) \
+    GET_VARNISH_TABLE_FOO_FIELD(L, "_ctx", where, VRT_CTX_MAGIC)
+
+#define GET_VARNISH_TABLE_SCRIPT(L, where) \
+    GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
 
 static int
 lua_varnish_log_command(lua_State *L)
@@ -265,17 +285,9 @@ lua_varnish_log_command(lua_State *L)
 
     // Check input arguments.
     if (message != NULL) {
-        // Extract varnish context from 'varnish._ctx'. Both 'varnish' table and
-        // user data are pushed into the stack and the removed.
+        // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
-        lua_getglobal(L, "varnish");
-        AN(lua_istable(L, -1));
-        lua_getfield(L, -1, "_ctx");
-        AN(lua_islightuserdata(L, -1));
-        void *data = lua_touserdata(L, -1);
-        AN(data);
-        CAST_OBJ_NOTNULL(ctx, data, VRT_CTX_MAGIC);
-        lua_pop(L, 2);
+        GET_VARNISH_TABLE_CTX(L, ctx);
 
         // Log.
         if (ctx->vsl != NULL) {
@@ -289,6 +301,10 @@ lua_varnish_log_command(lua_State *L)
     return 0;
 }
 
+#undef GET_VARNISH_TABLE_FOO_FIELD
+#undef GET_VARNISH_TABLE_CTX
+#undef GET_VARNISH_TABLE_SCRIPT
+
 static lua_State *
 new_L(VRT_CTX, struct vmod_cfg_script *script)
 {
@@ -298,7 +314,8 @@ new_L(VRT_CTX, struct vmod_cfg_script *script)
     load_lua_libs(script, result);
     remove_unsupported_lua_functions(script, result);
 
-    // Add support for varnish._ctx, varnish._error_handler(), varnish.log(), etc.
+    // Add support for varnish._ctx, varnish._script, varnish._error_handler(),
+    // varnish.log(), etc.
     lua_newtable(result);
     lua_pushstring(result, "log");
     lua_pushcfunction(result, lua_varnish_log_command);
@@ -680,11 +697,13 @@ execute(
 
     // Push 'varnish' table and Varnish context into the stack. Then execute
     // 'varnish._ctx = ctx', keeping the 'varnish' table in the top of the
-    // stack.
+    // stack. Same for 'varnish._script = script'.
     lua_getglobal(engine->L, "varnish");
     AN(lua_istable(engine->L, -1));
     lua_pushlightuserdata(engine->L, (struct vrt_ctx *) ctx);
     lua_setfield(engine->L, -2, "_ctx");
+    lua_pushlightuserdata(engine->L, (struct vmod_cfg_script *) script);
+    lua_setfield(engine->L, -2, "_script");
 
     // Push the value of 'varnish._error_handler' into the stack. This will
     // keep the 'varnish' table in the stack, just under the the error handler
@@ -768,10 +787,12 @@ done:
     // Current state of the stack at this point (top to bottom):
     //   - 'varnish' table.
 
-    // Execute 'varnish._ctx = nil' and the remove 'varnish' table from the
-    // stack.
+    // Execute 'varnish._ctx = nil' and 'varnish._script = nil', then
+    // remove 'varnish' table from the stack.
     lua_pushnil(engine->L);
     lua_setfield(engine->L, -2, "_ctx");
+    lua_pushnil(engine->L);
+    lua_setfield(engine->L, -2, "_script");
     lua_pop(engine->L, 1);
 
     // Update stats.
