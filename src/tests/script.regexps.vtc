@@ -1,0 +1,253 @@
+varnishtest "Test regmatch(), regsub() & regsuball() for script"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 4 -start
+
+shell {
+    cat > "${tmp}/test-regmatch.lua" <<'EOF'
+local string = ARGV[0]
+local regexp = ARGV[1]
+local cache = ARGV[2] == 'true'
+return varnish.regmatch(string, regexp, cache)
+EOF
+
+    cat > "${tmp}/test-regsub-and-regsuball.lua" <<'EOF'
+local string = ARGV[0]
+local regexp = ARGV[1]
+local sub = ARGV[2]
+local cache = ARGV[3] == 'true'
+return {
+    varnish.regsub(string, regexp, sub, cache),
+    varnish.regsuball(string, regexp, sub, cache),
+}
+EOF
+}
+
+##
+## Test: regmatch().
+##
+
+varnish v1 -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test-regmatch.lua",
+            period=0);
+    }
+
+    sub vcl_deliver {
+        # Match #1.
+        set req.http.String = "Hello world!";
+        set req.http.Regexp = "^Hello world!$";
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-1 = "1";
+        }
+
+        # Match #2.
+        set req.http.String = "foo";
+        set req.http.Regexp = "^bar$";
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-2 = "1";
+        }
+
+        # Match #3.
+        set req.http.String = "foo_123";
+        set req.http.Regexp = "^foo_[\d]+$";
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-3 = "1";
+        }
+
+        # Match #4.
+        set req.http.String = "foo_bar";
+        set req.http.Regexp = "^foo_[\d]+$";
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-4 = "1";
+        }
+
+        # Match #5: cache enabled. First time compiling the expression.
+        set req.http.String = "foo_123_456";
+        set req.http.Regexp = "^foo(?:_[\d]+)+$";
+        set req.http.Cache = "true";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-5 = "1";
+        }
+
+        # Match #6: cache enabled. Compiled expression should be reused.
+        set req.http.Cache = "true";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-6 = "1";
+        }
+
+        # Match #7: invalid regexp.
+        set req.http.String = "foo";
+        set req.http.Regexp = "[";
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_boolean() &&
+            script.get_boolean_result()) {
+            set resp.http.Result-7 = "1";
+        }
+
+        # Counters.
+        set resp.http.Regexps-Current = script.counter("regexps.current");
+    }
+
+    sub execute_script {
+        script.init();
+        script.push(req.http.String);
+        script.push(req.http.Regexp);
+        script.push(req.http.Cache);
+        script.execute();
+    }
+} -start
+
+logexpect l1 -v v1 -g raw {
+    expect * * VCL_Error "Got error while compiling regexp"
+} -start
+
+client c1 -connect ${v1_sock} {
+    txreq
+    rxresp
+    expect resp.http.Result-1 == "1"
+    expect resp.http.Result-2 == <undef>
+    expect resp.http.Result-3 == "1"
+    expect resp.http.Result-4 == <undef>
+    expect resp.http.Result-5 == "1"
+    expect resp.http.Result-6 == "1"
+    expect resp.http.Result-7 == <undef>
+    expect resp.http.Regexps-Current == "1"
+} -run
+
+logexpect l1 -wait
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
+
+##
+## Test: regsub() & regsuball().
+##
+
+varnish v2 -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test-regsub-and-regsuball.lua",
+            period=0);
+    }
+
+    sub vcl_deliver {
+        # regsub() & regsuball() with cache disabled.
+        set req.http.Cache = "false";
+        call execute_script;
+        if (script.result_is_table() &&
+            script.get_table_result_length() == 2 &&
+            script.table_result_is_string(0) &&
+            script.table_result_is_string(1)) {
+            set resp.http.Result-1 = script.get_table_result_value(0);
+            set resp.http.Result-2 = script.get_table_result_value(1);
+        }
+
+        # regsub() & regsuball() with cache enabled. First time compiling the expression.
+        set req.http.Cache = "true";
+        call execute_script;
+        if (script.result_is_table() &&
+            script.get_table_result_length() == 2 &&
+            script.table_result_is_string(0) &&
+            script.table_result_is_string(1)) {
+            set resp.http.Result-3 = script.get_table_result_value(0);
+            set resp.http.Result-4 = script.get_table_result_value(1);
+        }
+
+        # regsub() & regsuball() with cache enabled. Compiled expression should be reused.
+        set req.http.Cache = "true";
+        call execute_script;
+        if (script.result_is_table() &&
+            script.get_table_result_length() == 2 &&
+            script.table_result_is_string(0) &&
+            script.table_result_is_string(1)) {
+            set resp.http.Result-5 = script.get_table_result_value(0);
+            set resp.http.Result-6 = script.get_table_result_value(1);
+        }
+
+        # Counters.
+        set resp.http.Regexps-Current = script.counter("regexps.current");
+    }
+
+    sub execute_script {
+        script.init();
+        script.push(req.http.String);
+        script.push(req.http.Regexp);
+        script.push(req.http.Sub);
+        script.push(req.http.Cache);
+        script.execute();
+    }
+} -start
+
+logexpect l2 -v v2 -g raw {
+    expect * * VCL_Error "Got error while compiling regexp"
+} -start
+
+client c2 -connect ${v2_sock} {
+    txreq -hdr "String: foo=123" \
+          -hdr {Regexp: foo=([\d]+)} \
+          -hdr {Sub: \1}
+    rxresp
+    expect resp.http.Result-1 == "123"
+    expect resp.http.Result-2 == "123"
+    expect resp.http.Result-3 == "123"
+    expect resp.http.Result-4 == "123"
+    expect resp.http.Result-5 == "123"
+    expect resp.http.Result-6 == "123"
+    expect resp.http.Regexps-Current == "1"
+
+    txreq -hdr "String: foo,bar,foo,baz,bar" \
+          -hdr {Regexp: (foo|bar)} \
+          -hdr {Sub: super\1}
+    rxresp
+    expect resp.http.Result-1 == "superfoo,bar,foo,baz,bar"
+    expect resp.http.Result-2 == "superfoo,superbar,superfoo,baz,superbar"
+    expect resp.http.Result-3 == "superfoo,bar,foo,baz,bar"
+    expect resp.http.Result-4 == "superfoo,superbar,superfoo,baz,superbar"
+    expect resp.http.Result-5 == "superfoo,bar,foo,baz,bar"
+    expect resp.http.Result-6 == "superfoo,superbar,superfoo,baz,superbar"
+    expect resp.http.Regexps-Current == "2"
+
+    txreq -hdr "String: foo" \
+          -hdr {Regexp: ((foo)} \
+          -hdr {Sub: \1}
+    rxresp
+    expect resp.http.Result-1 == <undef>
+    expect resp.http.Result-2 == <undef>
+    expect resp.http.Result-3 == <undef>
+    expect resp.http.Result-4 == <undef>
+    expect resp.http.Result-5 == <undef>
+    expect resp.http.Result-6 == <undef>
+    expect resp.http.Regexps-Current == "2"
+} -run
+
+logexpect l2 -wait
+
+varnish v2 -expect client_req == 3
+
+varnish v2 -expect MGT.child_panic == 0
