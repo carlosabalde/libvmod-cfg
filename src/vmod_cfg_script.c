@@ -14,10 +14,34 @@
 #include "cache/cache.h"
 #include "vsb.h"
 #include "vsha256.h"
+#include "vre.h"
 #include "vcc_cfg_if.h"
 
 #include "helpers.h"
 #include "remote.h"
+
+// regexp_t & regexps_t.
+
+typedef struct regexp {
+    unsigned magic;
+    #define REGEXP_MAGIC 0xb581daff
+
+    const char *text;
+    vre_t *vre;
+
+    VRBT_ENTRY(regexp) tree;
+} regexp_t;
+
+typedef VRBT_HEAD(regexps, regexp) regexps_t;
+
+static int
+regexpcmp(const regexp_t *v1, const regexp_t *v2)
+{
+    return strcmp(v1->text, v2->text);
+}
+
+VRBT_PROTOTYPE(regexps, regexp, tree, regexpcmp);
+VRBT_GENERATE(regexps, regexp, tree, regexpcmp);
 
 // engine_t & engines_t.
 
@@ -103,6 +127,7 @@ struct vmod_cfg_script {
 
     struct {
         struct lock mutex;
+        pthread_rwlock_t rwlock;
 
         struct {
             const char *code;
@@ -111,10 +136,15 @@ struct vmod_cfg_script {
 
         struct {
             pthread_cond_t cond;
-            unsigned nengines;
-            engines_t free_engines;
-            engines_t busy_engines;
-        } pool;
+            unsigned n;
+            engines_t free;
+            engines_t busy;
+        } engines;
+
+        struct {
+            unsigned n;
+            regexps_t list;
+        } regexps;
 
         struct {
             struct {
@@ -145,6 +175,10 @@ struct vmod_cfg_script {
         } stats;
     } state;
 };
+
+static vre_t * init_regexp(
+    VRT_CTX, struct vmod_cfg_script *script,
+    const char *regexp, unsigned cache);
 
 /******************************************************************************
  * LUA HELPERS.
@@ -273,6 +307,111 @@ enable_lua_protections(lua_State *L)
     GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
 
 static int
+lua_varnish_regmatch_command(lua_State *L)
+{
+    // Initializations.
+    unsigned result = 0;
+
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc < 2) {
+        lua_pushstring(L, "varnish.regmatch() requires two arguments.");
+        lua_error(L);
+    }
+    const char *string = lua_tostring(L, -1 * argc);
+    const char *regexp = lua_tostring(L, -1 * argc + 1);
+    unsigned cache;
+    if (argc >= 3) {
+        cache = lua_toboolean(L, -1 * argc + 2);
+    } else {
+        cache = 1;
+    }
+
+    // Check input arguments.
+    if (string != NULL && regexp != NULL) {
+        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+        struct vmod_cfg_script *script;
+        GET_VARNISH_TABLE_SCRIPT(L, script);
+
+        // Execute match.
+        vre_t *re = init_regexp(ctx, script, regexp, cache);
+        if (re != NULL) {
+            result = VRT_re_match(ctx, string, re);
+            if (!cache) {
+                VRT_re_fini(re);
+            }
+        }
+    }
+
+    // Done!
+    lua_pushboolean(L, result);
+    return 1;
+}
+
+static int
+lua_varnish_regsub_command(lua_State *L, unsigned all)
+{
+    // Initializations.
+    const char *result = NULL;
+
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc < 3) {
+        lua_pushstring(L, "varnish.regsub() & varnish.regsuball() require three arguments.");
+        lua_error(L);
+    }
+    const char *string = lua_tostring(L, -1 * argc);
+    const char *regexp = lua_tostring(L, -1 * argc + 1);
+    const char *sub = lua_tostring(L, -1 * argc + 2);
+    unsigned cache;
+    if (argc >= 4) {
+        cache = lua_toboolean(L, -1 * argc + 3);
+    } else {
+        cache = 1;
+    }
+
+    // Check input arguments.
+    if (string != NULL && regexp != NULL && sub != NULL) {
+        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+        struct vmod_cfg_script *script;
+        GET_VARNISH_TABLE_SCRIPT(L, script);
+
+        // Execute regsub.
+        vre_t *re = init_regexp(ctx, script, regexp, cache);
+        if (re != NULL) {
+            result = VRT_regsub(ctx, all, string, re, sub);
+            if (!cache) {
+                VRT_re_fini(re);
+            }
+        }
+    }
+
+    // Done!
+    if (result !=  NULL) {
+        lua_pushstring(L, result);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int
+lua_varnish_regsubone_command(lua_State *L)
+{
+    return lua_varnish_regsub_command(L, 0);
+}
+
+static int
+lua_varnish_regsuball_command(lua_State *L)
+{
+    return lua_varnish_regsub_command(L, 1);
+}
+
+static int
 lua_varnish_log_command(lua_State *L)
 {
     // Extract input arguments.
@@ -317,9 +456,14 @@ new_L(VRT_CTX, struct vmod_cfg_script *script)
     // Add support for varnish._ctx, varnish._script, varnish._error_handler(),
     // varnish.log(), etc.
     lua_newtable(result);
-    lua_pushstring(result, "log");
     lua_pushcfunction(result, lua_varnish_log_command);
-    lua_settable(result, -3);
+    lua_setfield(result, -2, "log");
+    lua_pushcfunction(result, lua_varnish_regmatch_command);
+    lua_setfield(result, -2, "regmatch");
+    lua_pushcfunction(result, lua_varnish_regsubone_command);
+    lua_setfield(result, -2, "regsub");
+    lua_pushcfunction(result, lua_varnish_regsuball_command);
+    lua_setfield(result, -2, "regsuball");
     lua_setglobal(result, "varnish");
 
     // Add a helper function for error reporting.
@@ -352,6 +496,32 @@ new_L(VRT_CTX, struct vmod_cfg_script *script)
 /******************************************************************************
  * HELPERS.
  *****************************************************************************/
+
+static regexp_t *
+new_regexp(const char *text, vre_t *vre)
+{
+    regexp_t *result = NULL;
+    ALLOC_OBJ(result, REGEXP_MAGIC);
+    AN(result);
+
+    result->text = strdup(text);
+    AN(result->text);
+    result->vre = vre;
+
+    return result;
+}
+
+static void
+free_regexp(regexp_t *regexp)
+{
+    free((void *) regexp->text);
+    regexp->text = NULL;
+
+    VRT_re_fini(regexp->vre);
+    regexp->vre = NULL;
+
+    FREE_OBJ(regexp);
+}
 
 static engine_t *
 new_engine(lua_State *L)
@@ -463,19 +633,19 @@ lock_engine(VRT_CTX, struct vmod_cfg_script *script)
     Lck_Lock(&script->state.mutex);
 
 retry:
-    while (!VTAILQ_EMPTY(&script->state.pool.free_engines)) {
+    while (!VTAILQ_EMPTY(&script->state.engines.free)) {
         // Extract engine.
-        result = VTAILQ_FIRST(&script->state.pool.free_engines);
+        result = VTAILQ_FIRST(&script->state.engines.free);
         CHECK_OBJ_NOTNULL(result, ENGINE_MAGIC);
 
         // Mark the engine as busy.
-        VTAILQ_REMOVE(&script->state.pool.free_engines, result, list);
-        VTAILQ_INSERT_TAIL(&script->state.pool.busy_engines, result, list);
+        VTAILQ_REMOVE(&script->state.engines.free, result, list);
+        VTAILQ_INSERT_TAIL(&script->state.engines.busy, result, list);
 
         // Is the engine valid?
         if (!is_valid_engine(ctx, script, result)) {
-            VTAILQ_REMOVE(&script->state.pool.busy_engines, result, list);
-            script->state.pool.nengines--;
+            VTAILQ_REMOVE(&script->state.engines.busy, result, list);
+            script->state.engines.n--;
             free_engine(result);
             result = NULL;
         } else {
@@ -486,15 +656,15 @@ retry:
     // If required, create new engine. If maximum number of engines has been
     // reached, wait for another thread releasing an engine.
     if (result == NULL) {
-        if (script->state.pool.nengines >= script->lua.max_engines) {
-            Lck_CondWait(&script->state.pool.cond, &script->state.mutex, 0);
+        if (script->state.engines.n >= script->lua.max_engines) {
+            Lck_CondWait(&script->state.engines.cond, &script->state.mutex, 0);
             script->state.stats.workers.blocked++;
             goto retry;
         } else {
             result = new_engine(new_L(ctx, script));
             script->state.stats.engines.total++;
-            VTAILQ_INSERT_TAIL(&script->state.pool.busy_engines, result, list);
-            script->state.pool.nengines++;
+            VTAILQ_INSERT_TAIL(&script->state.engines.busy, result, list);
+            script->state.engines.n++;
         }
     }
 
@@ -513,9 +683,9 @@ unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine)
     engine->memory = lua_gc(engine->L, LUA_GCCOUNT, 0);
 
     Lck_Lock(&script->state.mutex);
-    VTAILQ_REMOVE(&script->state.pool.busy_engines, engine, list);
-    VTAILQ_INSERT_TAIL(&script->state.pool.free_engines, engine, list);
-    AZ(pthread_cond_signal(&script->state.pool.cond));
+    VTAILQ_REMOVE(&script->state.engines.busy, engine, list);
+    VTAILQ_INSERT_TAIL(&script->state.engines.free, engine, list);
+    AZ(pthread_cond_signal(&script->state.engines.cond));
     Lck_Unlock(&script->state.mutex);
 }
 
@@ -835,6 +1005,59 @@ done:
     return success;
 }
 
+static vre_t *
+init_regexp(
+    VRT_CTX, struct vmod_cfg_script *script,
+    const char *regexp, unsigned cache)
+{
+
+    // Initializations.
+    vre_t *result = NULL;
+
+    // Using the cache? Try to find existing compiled regexp.
+    if (cache) {
+        regexp_t search_regexp;
+        search_regexp.text = regexp;
+        AZ(pthread_rwlock_rdlock(&script->state.rwlock));
+        regexp_t *cached_regexp = VRBT_FIND(regexps, &script->state.regexps.list, &search_regexp);
+        if (cached_regexp != NULL) {
+            result = cached_regexp->vre;
+        }
+        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+    }
+
+    // Not using the cache / Not found? Compile the regexp.
+    if (result == NULL) {
+        const char *error;
+        int erroroffset;
+        result = VRE_compile(regexp, 0, &error, &erroroffset);
+
+        // Error compiling regexp?
+        if (result == NULL) {
+            LOG(ctx, LOG_ERR,
+                "Got error while compiling regexp (script=%s, regexp=%s): %s",
+                script->name, regexp, error);
+
+        // Cache result?
+        } else if (cache) {
+            regexp_t *a_regexp = new_regexp(regexp, result);
+            AZ(pthread_rwlock_wrlock(&script->state.rwlock));
+            regexp_t *cached_regexp = VRBT_FIND(regexps, &script->state.regexps.list, a_regexp);
+            if (cached_regexp == NULL) {
+                AZ(VRBT_INSERT(regexps, &script->state.regexps.list, a_regexp));
+                script->state.regexps.n++;
+            } else {
+                free_regexp(a_regexp);
+                result = cached_regexp->vre;
+            }
+            AZ(pthread_rwlock_unlock(&script->state.rwlock));
+        }
+    }
+
+    // Done!
+    return result;
+}
+
 /******************************************************************************
  * BASICS.
  *****************************************************************************/
@@ -926,10 +1149,10 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 
     engine_t *iengine;
     uint64_t memory = 0;
-    VTAILQ_FOREACH(iengine, &script->state.pool.free_engines, list) {
+    VTAILQ_FOREACH(iengine, &script->state.engines.free, list) {
         memory += iengine->memory;
     }
-    VTAILQ_FOREACH(iengine, &script->state.pool.busy_engines, list) {
+    VTAILQ_FOREACH(iengine, &script->state.engines.busy, list) {
         memory += iengine->memory;
     }
 
@@ -989,12 +1212,15 @@ vmod_script__init(
         instance->lua.libraries.io = lua_load_io_lib;
         instance->lua.libraries.os = lua_load_os_lib;
         Lck_New(&instance->state.mutex, vmod_state.locks.script);
+        AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));
         instance->state.function.code = NULL;
         instance->state.function.name = NULL;
-        AZ(pthread_cond_init(&instance->state.pool.cond, NULL));
-        instance->state.pool.nengines = 0;
-        VTAILQ_INIT(&instance->state.pool.free_engines);
-        VTAILQ_INIT(&instance->state.pool.busy_engines);
+        AZ(pthread_cond_init(&instance->state.engines.cond, NULL));
+        instance->state.engines.n = 0;
+        VTAILQ_INIT(&instance->state.engines.free);
+        VTAILQ_INIT(&instance->state.engines.busy);
+        instance->state.regexps.n = 0;
+        VRBT_INIT(&instance->state.regexps.list);
         memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
         script_check(ctx, instance, 1);
@@ -1028,6 +1254,7 @@ vmod_script__fini(struct vmod_cfg_script **script)
     instance->lua.libraries.io = 0;
     instance->lua.libraries.os = 0;
     Lck_Delete(&instance->state.mutex);
+    AZ(pthread_rwlock_destroy(&instance->state.rwlock));
     if (instance->state.function.code != NULL) {
         free((void *) instance->state.function.code);
         instance->state.function.code = NULL;
@@ -1036,10 +1263,17 @@ vmod_script__fini(struct vmod_cfg_script **script)
         free((void *) instance->state.function.name);
         instance->state.function.name = NULL;
     }
-    AZ(pthread_cond_destroy(&instance->state.pool.cond));
-    instance->state.pool.nengines = 0;
-    flush_engines(&instance->state.pool.free_engines);
-    flush_engines(&instance->state.pool.busy_engines);
+    AZ(pthread_cond_destroy(&instance->state.engines.cond));
+    instance->state.engines.n = 0;
+    flush_engines(&instance->state.engines.free);
+    flush_engines(&instance->state.engines.busy);
+    instance->state.regexps.n = 0;
+    regexp_t *regexp, *regexp_tmp;
+    VRBT_FOREACH_SAFE(regexp, regexps, &instance->state.regexps.list, regexp_tmp) {
+        CHECK_OBJ_NOTNULL(regexp, REGEXP_MAGIC);
+        VRBT_REMOVE(regexps, &instance->state.regexps.list, regexp);
+        free_regexp(regexp);
+    }
     memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
     FREE_OBJ(instance);
@@ -1306,14 +1540,19 @@ VCL_STRING
 vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
 {
     Lck_Lock(&script->state.mutex);
+    AZ(pthread_rwlock_rdlock(&script->state.rwlock));
     char *result = WS_Printf(ctx->ws,
         "{"
           "\"engines\": {"
+            "\"current\": %d,"
             "\"total\": %d,"
             "\"memory\": %" PRIu64 ","
             "\"dropped\": {"
               "\"cycles\": %d"
             "}"
+          "},"
+          "\"regexps\": {"
+            "\"current\": %d"
           "},"
           "\"workers\": {"
               "\"blocked\": %d"
@@ -1325,14 +1564,17 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
             "\"gc\": %d"
           "}"
         "}",
+        script->state.engines.n,
         script->state.stats.engines.total,
         engines_memory(ctx, script, 1),
         script->state.stats.engines.dropped.cycles,
+        script->state.regexps.n,
         script->state.stats.workers.blocked,
         script->state.stats.executions.total,
         script->state.stats.executions.unknown,
         script->state.stats.executions.failed,
         script->state.stats.executions.gc);
+    AZ(pthread_rwlock_unlock(&script->state.rwlock));
     Lck_Unlock(&script->state.mutex);
     if (result == NULL) {
         FAIL_WS(ctx, NULL);
@@ -1343,12 +1585,16 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
 VCL_INT
 vmod_script_counter(VRT_CTX, struct vmod_cfg_script *script, VCL_STRING name)
 {
-    if (strcmp(name, "engines.total") == 0) {
+    if (strcmp(name, "engines.current") == 0) {
+        return script->state.engines.n;
+    } else if (strcmp(name, "engines.total") == 0) {
         return script->state.stats.engines.total;
     } else if (strcmp(name, "engines.memory") == 0) {
         return engines_memory(ctx, script, 0);
     } else if (strcmp(name, "engines.dropped.cycles") == 0) {
         return script->state.stats.engines.dropped.cycles;
+    } else if (strcmp(name, "regexps.current") == 0) {
+        return script->state.regexps.n;
     } else if (strcmp(name, "workers.blocked") == 0) {
         return script->state.stats.workers.blocked;
     } else if (strcmp(name, "executions.total") == 0) {
