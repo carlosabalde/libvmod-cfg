@@ -19,6 +19,11 @@
 #include "vre.h"
 #include "vcc_cfg_if.h"
 
+#ifndef v_unused_
+#  define v_unused_ __attribute__((__unused__))
+#endif
+#include "vtree.h"
+
 #include "helpers.h"
 #include "remote.h"
 
@@ -42,8 +47,8 @@ regexpcmp(const regexp_t *v1, const regexp_t *v2)
     return strcmp(v1->text, v2->text);
 }
 
-VRBT_PROTOTYPE(regexps, regexp, tree, regexpcmp);
-VRBT_GENERATE(regexps, regexp, tree, regexpcmp);
+VRBT_PROTOTYPE_STATIC(regexps, regexp, tree, regexpcmp);
+VRBT_GENERATE_STATIC(regexps, regexp, tree, regexpcmp);
 
 // engine_t & engines_t.
 
