@@ -2,7 +2,7 @@ varnishtest "Test basics for script"
 
 server s1 {
    rxreq
-   txresp
+   txresp -hdr "X-Obj-Log: Hello world from the object!"
 } -repeat 1 -start
 
 shell {
@@ -13,7 +13,7 @@ return {a, b, a * b}
 EOF
 }
 
-varnish v1 -vcl+backend {
+varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
     import ${vmod_cfg};
 
     sub vcl_init {
@@ -113,9 +113,23 @@ varnish v1 -vcl+backend {
         script.free_result();
 
         script.init({"
-            varnish.log(ARGV[0])
+            if (varnish.get_header("X-Req-Log", "req")) ~= nil then
+                varnish.log(varnish.get_header("X-Req-Log", "req"))
+            end
+            if varnish.get_header("X-Obj-Log", "obj") ~= nil then
+                varnish.log(varnish.get_header("X-Obj-Log", "obj"))
+            end
+            if varnish.get_header("X-Unavailable-Header", "req") == nil then
+                varnish.log("X-Unavailable-Header is not defined")
+            end
+            varnish.set_header("X-Set-Header", "set-value", "resp")
         "});
-        script.push("Hello world!");
+        script.execute();
+        script.free_result();
+
+        script.init({"
+            return varnish.get_header("X-Error", "bereq")
+        "});
         script.execute();
         script.free_result();
 
@@ -137,11 +151,14 @@ varnish v1 -vcl+backend {
 } -start
 
 logexpect l1 -v v1 -g raw {
-    expect * * VCL_Log "Hello world!"
+    expect * * VCL_Log "Hello world from the request!"
+    expect * * VCL_Log "Hello world from the object!"
+    expect * * VCL_Log "X-Unavailable-Header is not defined"
+    expect * * VCL_Error {^\[CFG\].* Failed to execute script \((.|\n)*\): varnish\.get_header\(\) called over unavailable 'bereq' object.}
 } -start
 
 client c1 {
-    txreq
+    txreq -hdr "X-Req-Log: Hello world from the request!"
     rxresp
 
     expect resp.http.result1-is-table == "true"
@@ -179,12 +196,14 @@ client c1 {
     expect resp.http.result8-table-value-2 == "10"
     expect resp.http.result8-table-value-2-is-number == "true"
 
+    expect resp.http.X-Set-Header == "set-value"
+
     expect resp.http.engines-total == "2"
     expect resp.http.engines-dropped-cycles == "1"
     expect resp.http.workers-blocked == "0"
-    expect resp.http.executions-total == "12"
-    expect resp.http.executions-unknown == "8"
-    expect resp.http.executions-failed == "2"
+    expect resp.http.executions-total == "13"
+    expect resp.http.executions-unknown == "9"
+    expect resp.http.executions-failed == "3"
     expect resp.http.executions-gc == "1"
 } -run
 
