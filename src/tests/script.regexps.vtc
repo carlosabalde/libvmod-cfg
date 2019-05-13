@@ -30,7 +30,7 @@ EOF
 ##
 
 varnish v1 -vcl+backend {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     sub vcl_init {
         new script = cfg.script(
@@ -148,7 +148,7 @@ varnish v1 -expect MGT.child_panic == 0
 ##
 
 varnish v2 -vcl+backend {
-    import ${vmod_cfg};
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     sub vcl_init {
         new script = cfg.script(
