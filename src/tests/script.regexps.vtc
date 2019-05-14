@@ -44,9 +44,10 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "^Hello world!$";
         set req.http.Cache = "false";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-1 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-1 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-1 = "error";
         }
 
         # Match #2.
@@ -54,9 +55,10 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "^bar$";
         set req.http.Cache = "false";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-2 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-2 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-2 = "error";
         }
 
         # Match #3.
@@ -64,9 +66,10 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "^foo_[\d]+$";
         set req.http.Cache = "false";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-3 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-3 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-3 = "error";
         }
 
         # Match #4.
@@ -74,9 +77,10 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "^foo_[\d]+$";
         set req.http.Cache = "false";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-4 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-4 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-4 = "error";
         }
 
         # Match #5: cache enabled. First time compiling the expression.
@@ -84,17 +88,19 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "^foo(?:_[\d]+)+$";
         set req.http.Cache = "true";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-5 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-5 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-5 = "error";
         }
 
         # Match #6: cache enabled. Compiled expression should be reused.
         set req.http.Cache = "true";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-6 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-6 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-6 = "error";
         }
 
         # Match #7: invalid regexp.
@@ -102,9 +108,10 @@ varnish v1 -vcl+backend {
         set req.http.Regexp = "[";
         set req.http.Cache = "false";
         call execute_script;
-        if (script.result_is_boolean() &&
-            script.get_boolean_result()) {
-            set resp.http.Result-7 = "1";
+        if (script.result_is_boolean()) {
+            set resp.http.Result-7 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-7 = "error";
         }
 
         # Counters.
@@ -127,13 +134,13 @@ logexpect l1 -v v1 -g raw {
 client c1 -connect ${v1_sock} {
     txreq
     rxresp
-    expect resp.http.Result-1 == "1"
-    expect resp.http.Result-2 == <undef>
-    expect resp.http.Result-3 == "1"
-    expect resp.http.Result-4 == <undef>
-    expect resp.http.Result-5 == "1"
-    expect resp.http.Result-6 == "1"
-    expect resp.http.Result-7 == <undef>
+    expect resp.http.Result-1 == "true"
+    expect resp.http.Result-2 == "false"
+    expect resp.http.Result-3 == "true"
+    expect resp.http.Result-4 == "false"
+    expect resp.http.Result-5 == "true"
+    expect resp.http.Result-6 == "true"
+    expect resp.http.Result-7 == "error"
     expect resp.http.Regexps-Current == "1"
 } -run
 
@@ -166,6 +173,9 @@ varnish v2 -vcl+backend {
             script.table_result_is_string(1)) {
             set resp.http.Result-1 = script.get_table_result_value(0);
             set resp.http.Result-2 = script.get_table_result_value(1);
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-1 = "error";
+            set resp.http.Result-2 = "error";
         }
 
         # regsub() & regsuball() with cache enabled. First time compiling the expression.
@@ -177,6 +187,9 @@ varnish v2 -vcl+backend {
             script.table_result_is_string(1)) {
             set resp.http.Result-3 = script.get_table_result_value(0);
             set resp.http.Result-4 = script.get_table_result_value(1);
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-3 = "error";
+            set resp.http.Result-4 = "error";
         }
 
         # regsub() & regsuball() with cache enabled. Compiled expression should be reused.
@@ -188,6 +201,9 @@ varnish v2 -vcl+backend {
             script.table_result_is_string(1)) {
             set resp.http.Result-5 = script.get_table_result_value(0);
             set resp.http.Result-6 = script.get_table_result_value(1);
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-5 = "error";
+            set resp.http.Result-6 = "error";
         }
 
         # Counters.
@@ -237,12 +253,12 @@ client c2 -connect ${v2_sock} {
           -hdr {Regexp: ((foo)} \
           -hdr {Sub: \1}
     rxresp
-    expect resp.http.Result-1 == <undef>
-    expect resp.http.Result-2 == <undef>
-    expect resp.http.Result-3 == <undef>
-    expect resp.http.Result-4 == <undef>
-    expect resp.http.Result-5 == <undef>
-    expect resp.http.Result-6 == <undef>
+    expect resp.http.Result-1 == "error"
+    expect resp.http.Result-2 == "error"
+    expect resp.http.Result-3 == "error"
+    expect resp.http.Result-4 == "error"
+    expect resp.http.Result-5 == "error"
+    expect resp.http.Result-6 == "error"
     expect resp.http.Regexps-Current == "2"
 } -run
 
