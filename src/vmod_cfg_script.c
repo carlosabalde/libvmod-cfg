@@ -998,7 +998,7 @@ done:
     }
 
     // Flush calling thread's jemalloc tcache in order to keep memory usage
-    // controlled. No required when using LuaJIT.
+    // controlled.
 #ifdef JEMALLOC_TCACHE_FLUSH_ENABLED
     if (flush_jemalloc_tcache) {
         AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
