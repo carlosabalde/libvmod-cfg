@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 6.3
+Version: 6.4
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,12 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Wed May 15 2019 Carlos Abalde <carlos.abalde@gmail.com> - 6.4-1.20190515
+- Added backup feature.
+- Added varnish.get_header() & varnish.set_header() Lua helpers.
+- Added varnish.regmatch(), varnish.regsub() & varnish.regsuball() Lua helpers.
+- Added 'engines.current' & 'regexps.current' metrics to stats.
+- Updated cJSON & inih dependencies.
 * Thu Oct 25 2018 Carlos Abalde <carlos.abalde@gmail.com> - 6.3-1.20181025
 - Triggered 'thread.tcache.flush' also on LuaJIT executions.
 - Added Lua / LuaJIT memory consumption to stats.
