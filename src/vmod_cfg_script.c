@@ -349,6 +349,9 @@ lua_varnish_regmatch_command(lua_State *L)
             if (!cache) {
                 VRT_re_fini(re);
             }
+        } else {
+            lua_pushfstring(L, "Failed to instantiate '%s' regexp.", regexp);
+            lua_error(L);
         }
     }
 
@@ -394,15 +397,14 @@ lua_varnish_regsub_command(lua_State *L, unsigned all)
             if (!cache) {
                 VRT_re_fini(re);
             }
+        } else {
+            lua_pushfstring(L, "Failed to instantiate '%s' regexp.", regexp);
+            lua_error(L);
         }
     }
 
     // Done!
-    if (result !=  NULL) {
-        lua_pushstring(L, result);
-    } else {
-        lua_pushnil(L);
-    }
+    lua_pushstring(L, result);
     return 1;
 }
 
