@@ -168,12 +168,17 @@ https://www.example.com/backends.lua
 
     varnish.log('Running Lua backend selection logic')
 
-    -- Remember that Lua's pattern matching is not equivalent to POSIX regular
+    -- Remember Lua's pattern matching is not equivalent to POSIX regular
     -- expressions. Check https://www.lua.org/pil/20.2.html and
     -- http://lua-users.org/wiki/PatternsTutorial for details.
+    -- Keep in mind varnish.regmatch(), varnish.regsub() and
+    -- varnish.regsuball() are available in order to circumvent this
+    -- inconvenience.
     if host == 'www.foo.com' or host == 'www.bar.com' then
         if string.match(url, '^/admin/') then
             return 'new'
+        elseif varnish.regmatch(url, '^/(?:new|old)/') the
+            return varnish.regsub(url, '^/(new|old)/.*$', '\1')
         end
     end
 
