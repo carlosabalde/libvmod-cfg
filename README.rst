@@ -180,7 +180,7 @@ https://www.example.com/backends.lua
     if host == 'www.foo.com' or host == 'www.bar.com' then
         if string.match(url, '^/admin/') then
             return 'new'
-        elseif varnish.regmatch(url, '^/(?:new|old)/') the
+        elseif varnish.regmatch(url, '^/(?:new|old)/') then
             return varnish.regsub(url, '^/(new|old)/.*$', '\1')
         end
     end
