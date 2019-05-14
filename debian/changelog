@@ -1,3 +1,13 @@
+libvmod-cfg (1.10-1) stable; urgency=low
+
+  * Added backup feature
+  * Added varnish.get_header() & varnish.set_header() Lua helpers
+  * Added varnish.regmatch(), varnish.regsub() & varnish.regsuball() Lua helpers
+  * Added 'engines.current' & 'regexps.current' metrics to stats
+  * Updated cJSON & inih dependencies
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Wed, 15 May 2019 16:00:00 +0200
+
 libvmod-cfg (1.9-1) stable; urgency=low
 
   * Triggered 'thread.tcache.flush' also on LuaJIT executions
