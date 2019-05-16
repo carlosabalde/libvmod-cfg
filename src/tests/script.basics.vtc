@@ -144,7 +144,7 @@ logexpect l1 -v v1 -g raw {
     expect * * VCL_Log "Hello world from the request!"
     expect * * VCL_Log "Hello world from the object!"
     expect * * VCL_Log "X-Unavailable-Header is not defined"
-    expect * * VCL_Error {^\[CFG\].* Failed to execute script \((.|\n)*\): varnish\.get_header\(\) called over unavailable 'bereq' object.}
+    expect * * VCL_Error {varnish\.get_header\(\) called over unavailable 'bereq' object.}
 } -start
 
 client c1 {
