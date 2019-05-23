@@ -313,24 +313,6 @@ enable_lua_protections(lua_State *L)
 #define GET_VARNISH_TABLE_SCRIPT(L, where) \
     GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
 
-static struct http *
-get_http_object(VRT_CTX, const char *name)
-{
-    struct http *hp;
-    if (strcmp(name, "req") == 0) {
-        hp = ctx->http_req;
-    } else if (strcmp(name, "req-top") == 0) {
-        hp = ctx->http_req_top;
-    } else if (strcmp(name, "bereq") == 0) {
-        hp = ctx->http_bereq;
-    } else if (strcmp(name, "beresp") == 0) {
-        hp = ctx->http_beresp;
-    } else {
-        hp = ctx->http_resp;
-    }
-    return hp;
-}
-
 static int
 lua_varnish_regmatch_command(lua_State *L)
 {
@@ -467,6 +449,46 @@ lua_varnish_log_command(lua_State *L)
     return 0;
 }
 
+static enum gethdr_e
+get_http_where(const char *name)
+{
+    if (strcmp(name, "req") == 0) {
+        return HDR_REQ;
+    } else if (strcmp(name, "req-top") == 0) {
+        return HDR_REQ_TOP;
+    } else if (strcmp(name, "bereq") == 0) {
+        return HDR_BEREQ;
+    } else if (strcmp(name, "resp") == 0) {
+        return HDR_RESP;
+    } else if (strcmp(name, "beresp") == 0) {
+        return HDR_BERESP;
+    } else if (strcmp(name, "obj") == 0) {
+        return HDR_OBJ;
+    } else {
+        WRONG("Invalid header type value.");
+    }
+}
+
+static unsigned
+is_valid_http_where(VRT_CTX, enum gethdr_e where)
+{
+    if (where == HDR_REQ) {
+        return ctx->http_req != NULL;
+    } else if (where == HDR_REQ_TOP) {
+        return ctx->http_req_top != NULL;
+    } else if (where == HDR_BEREQ) {
+        return ctx->http_bereq != NULL;
+    } else if (where == HDR_RESP) {
+        return ctx->http_resp != NULL;
+    } else if (where == HDR_BERESP) {
+        return ctx->http_beresp != NULL;
+    } else if (where == HDR_OBJ) {
+        return ctx->req != NULL && ctx->req->objcore != NULL;
+    } else {
+        return 0;
+    }
+}
+
 static int
 lua_varnish_get_header_command(lua_State *L)
 {
@@ -500,30 +522,18 @@ lua_varnish_get_header_command(lua_State *L)
         GET_VARNISH_TABLE_CTX(L, ctx);
 
         // Get header.
-        char buffer[strlen(name) + 3];
-        sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
-        if (strcmp(where, "obj") == 0) {
-            if (ctx->req != NULL && ctx->req->objcore != NULL) {
-                CHECK_OBJ_NOTNULL(ctx->req, REQ_MAGIC);
-                value = HTTP_GetHdrPack(ctx->req->wrk, ctx->req->objcore, buffer);
-            } else {
-                lua_pushfstring(
-                    L,
-                    "varnish.get_header() called over unavaliable '%s' object.",
-                    where);
-                lua_error(L);
-            }
+        enum gethdr_e he = get_http_where(where);
+        if (is_valid_http_where(ctx, he)) {
+            char buffer[strlen(name) + 3];
+            sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
+            const struct gethdr_s hs = {he, buffer};
+            value = VRT_GetHdr(ctx, &hs);
         } else {
-            struct http *hp = get_http_object(ctx, where);
-            if (hp != NULL) {
-                http_GetHdr(hp, buffer, &value);
-            } else {
-                lua_pushfstring(
-                    L,
-                    "varnish.get_header() called over unavailable '%s' object.",
-                    where);
-                lua_error(L);
-            }
+            lua_pushfstring(
+                L,
+                "varnish.get_header() called over unavailable '%s' object.",
+                where);
+            lua_error(L);
         }
     }
 
@@ -563,12 +573,16 @@ lua_varnish_set_header_command(lua_State *L)
         GET_VARNISH_TABLE_CTX(L, ctx);
 
         // Set header.
-        char buffer[strlen(name) + 3];
-        sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
-        struct http *hp = get_http_object(ctx, where);
-        if (hp != NULL) {
-            http_Unset(hp, buffer);
-            http_PrintfHeader(hp, "%s: %s", name, value);
+        enum gethdr_e he = get_http_where(where);
+        if (is_valid_http_where(ctx, he)) {
+            char buffer[strlen(name) + 3];
+            sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
+            const struct gethdr_s hs = {he, buffer};
+            VRT_SetHdr(
+                ctx,
+                &hs,
+                value,
+                vrt_magic_string_end);
         } else {
             lua_pushfstring(
                 L,
