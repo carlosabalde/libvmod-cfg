@@ -1,6 +1,6 @@
 libvmod-cfg (6.5-1) stable; urgency=low
 
-  * Fixed error in check_remote() when backup file can't be opened.
+  * Fixed error in check_remote() when backup file can't be opened
 
  -- Carlos Abalde <carlos.abalde@gmail.com>  Mon, 27 May 2019 16:00:00 +0200
 
