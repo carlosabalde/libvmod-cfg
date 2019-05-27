@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 2.7
+Version: 2.8
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Mon May 27 2019 Carlos Abalde <carlos.abalde@gmail.com> - 2.8-1.20190527
+- Fixed error in check_remote() when backup file can't be opened.
 * Wed May 15 2019 Carlos Abalde <carlos.abalde@gmail.com> - 2.7-1.20190515
 - Added backup feature.
 - Added varnish.get_header() & varnish.set_header() Lua helpers.
