@@ -177,18 +177,24 @@ check_remote(
             result = (*callback)(ctx, ptr, contents, 0);
             if (result && (remote->backup != NULL) && (strlen(contents) > 0)) {
                 FILE *backup = fopen(remote->backup, "wb");
-                int rc = fputs(contents, backup);
-                if (rc < 0) {
-                    char buffer[256];
-                    LOG(ctx, LOG_ERR,
-                        "Failed to write backup file (location=%s, backup=%s, error=%s)",
-                        remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
+                if (backup != NULL) {
+                    int rc = fputs(contents, backup);
+                    if (rc < 0) {
+                        char buffer[256];
+                        LOG(ctx, LOG_ERR,
+                            "Failed to write backup file (location=%s, backup=%s, error=%s)",
+                            remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
+                    } else {
+                        LOG(ctx, LOG_INFO,
+                            "Successfully write to backup file (location=%s, backup=%s)",
+                            remote->location.raw, remote->backup);
+                    }
+                    fclose(backup);
                 } else {
-                    LOG(ctx, LOG_INFO,
-                        "Successfully write to backup file (location=%s, backup=%s)",
+                    LOG(ctx, LOG_ERR,
+                        "Failed to open backup file (location=%s, backup=%s)",
                         remote->location.raw, remote->backup);
                 }
-                fclose(backup);
             } else if (remote->backup != NULL) {
                 if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
                     result = check_remote_backup(ctx, remote, callback, ptr);
