@@ -5,7 +5,9 @@
 
 engine_t *new_javascript_engine(VRT_CTX, struct vmod_cfg_script *script);
 
-int get_used_javascript_engine_memory(engine_t * engine);
+int get_javascript_engine_used_memory(engine_t * engine);
+
+int get_javascript_engine_stack_size(engine_t * engine);
 
 unsigned execute_javascript(
     VRT_CTX, struct vmod_cfg_script *script, const char *code, const char **name,
