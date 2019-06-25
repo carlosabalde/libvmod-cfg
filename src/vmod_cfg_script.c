@@ -114,12 +114,14 @@ vmod_script__init(
             instance->engine_cfg.lua.libraries.io = lua_load_io_lib;
             instance->engine_cfg.lua.libraries.os = lua_load_os_lib;
             instance->api.new_engine = new_lua_engine;
-            instance->api.get_used_engine_memory = get_used_lua_engine_memory;
+            instance->api.get_engine_used_memory = get_lua_engine_used_memory;
+            instance->api.get_engine_stack_size = get_lua_engine_stack_size;
             instance->api.execute = execute_lua;
         } else if (type == enum_vmod_cfg_javascript) {
             instance->type = ENGINE_TYPE_JAVASCRIPT;
             instance->api.new_engine = new_javascript_engine;
-            instance->api.get_used_engine_memory = get_used_javascript_engine_memory;
+            instance->api.get_engine_used_memory = get_javascript_engine_used_memory;
+            instance->api.get_engine_stack_size = get_javascript_engine_stack_size;
             instance->api.execute = execute_javascript;
         } else {
             WRONG("Illegal type value.");
@@ -170,7 +172,8 @@ vmod_script__fini(struct vmod_cfg_script **script)
     } else if (instance->type == ENGINE_TYPE_JAVASCRIPT) {
     }
     instance->api.new_engine = NULL;
-    instance->api.get_used_engine_memory = NULL;
+    instance->api.get_engine_used_memory = NULL;
+    instance->api.get_engine_stack_size = NULL;
     instance->api.execute = NULL;
     Lck_Delete(&instance->state.mutex);
     AZ(pthread_rwlock_destroy(&instance->state.rwlock));

@@ -125,7 +125,8 @@ struct vmod_cfg_script {
 
     struct {
         engine_t *(*new_engine)(VRT_CTX, struct vmod_cfg_script *script);
-        int (*get_used_engine_memory)(engine_t *engine);
+        int (*get_engine_used_memory)(engine_t *engine);
+        int (*get_engine_stack_size)(engine_t *engine);
         unsigned (*execute)(VRT_CTX, struct vmod_cfg_script *script, const char *code, const char **name, int argc, const char *argv[], result_t *result, unsigned gc_collect, unsigned flush_jemalloc_tcache);
     } api;
 
@@ -200,17 +201,17 @@ vre_t * init_regexp(
     const char *regexp, unsigned cache);
 
 void varnish_log_command(VRT_CTX, const char *message);
+const char *varnish_get_header_command(
+    VRT_CTX, const char *name, const char *where, const char **error);
+void varnish_set_header_command(
+    VRT_CTX, const char *name, const char *value, const char *where,
+    const char **error);
 unsigned varnish_regmatch_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
     const char *regexp, unsigned cache, const char **error);
 const char *varnish_regsub_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
     const char *regexp, const char *sub, unsigned cache, unsigned all,
-    const char **error);
-const char *varnish_get_header_command(
-    VRT_CTX, const char *name, const char *where, const char **error);
-void varnish_set_header_command(
-    VRT_CTX, const char *name, const char *value, const char *where,
     const char **error);
 
 #endif
