@@ -108,7 +108,7 @@ vmod_script__init(
         instance->max_engines = max_engines;
         instance->max_cycles = max_cycles;
         instance->min_gc_cycles = min_gc_cycles;
-        if (type == enum_vmod_cfg_lua) {
+        if (type == vmod_enum_lua) {
             instance->type = ENGINE_TYPE_LUA;
             instance->engine_cfg.lua.gc_step_size = lua_gc_step_size;
             instance->engine_cfg.lua.functions.loadfile = !lua_remove_loadfile_function;
@@ -119,7 +119,7 @@ vmod_script__init(
             instance->api.new_engine = new_lua_engine;
             instance->api.get_used_engine_memory = get_used_lua_engine_memory;
             instance->api.execute = execute_lua;
-        } else if (type == enum_vmod_cfg_javascript) {
+        } else if (type == vmod_enum_javascript) {
             instance->type = ENGINE_TYPE_JAVASCRIPT;
             instance->api.new_engine = new_javascript_engine;
             instance->api.get_used_engine_memory = get_used_javascript_engine_memory;
