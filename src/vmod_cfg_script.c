@@ -10,12 +10,6 @@
 #include "vre.h"
 #include "vcc_if.h"
 
-#ifndef v_unused_
-#  define v_unused_ __attribute__((__unused__))
-#endif
-#include "vtree.h"
-
-#include "helpers.h"
 #include "script_javascript.h"
 #include "script_lua.h"
 
