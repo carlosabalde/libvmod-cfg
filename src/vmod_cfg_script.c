@@ -8,9 +8,6 @@
 #include "vre.h"
 #include "vcc_cfg_if.h"
 
-#include "vtree.h"
-
-#include "helpers.h"
 #include "script_javascript.h"
 #include "script_lua.h"
 
