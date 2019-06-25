@@ -82,7 +82,7 @@ import cfg;
         ENUM { lua, javascript } type="lua",
         INT max_engines=128,
         INT max_cycles=0,
-        INT lua_min_gc_cycles=100,
+        INT min_gc_cycles=100,
         INT lua_gc_step_size=100,
         BOOL lua_remove_loadfile_function=1,
         BOOL lua_remove_dofile_function=1,
@@ -345,7 +345,7 @@ MIT's implementation of the JSON parser by Max Bruckner has been borrowed from t
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.c
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.h
 
-MIT's implementation of the JavaScript engine by Sami Vaarala has been built using the `Duktape project <https://github.com/svaarala/duktape/>`_:
+MIT's implementation of the JavaScript engine by Sami Vaarala has been built using the `Duktape project <https://github.com/svaarala/duktape/>`_.
 
 BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnishcache/varnish-cache>`_:
 
