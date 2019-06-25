@@ -65,55 +65,6 @@ script_check(VRT_CTX, struct vmod_cfg_script *script, unsigned force)
     }
 }
 
-static const char *
-get_result(VRT_CTX, result_value_t *result_value)
-{
-    const char *value;
-
-    switch (result_value->type) {
-        case RESULT_VALUE_TYPE_BOOLEAN:
-            value = WS_Copy(ctx->ws, result_value->value.boolean ? "true" : "false", -1);
-            AN(value);
-            return value;
-
-        case RESULT_VALUE_TYPE_NUMBER:
-            value = WS_Printf(ctx->ws, "%g", result_value->value.number);
-            AN(value);
-            return value;
-
-        case RESULT_VALUE_TYPE_STRING:
-            return result_value->value.string;
-
-        default:
-            return NULL;
-    }
-}
-
-static uint64_t
-engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
-{
-    if (is_locked) {
-        Lck_AssertHeld(&script->state.mutex);
-    } else {
-        Lck_Lock(&script->state.mutex);
-    }
-
-    engine_t *iengine;
-    uint64_t memory = 0;
-    VTAILQ_FOREACH(iengine, &script->state.engines.free, list) {
-        memory += iengine->memory;
-    }
-    VTAILQ_FOREACH(iengine, &script->state.engines.busy, list) {
-        memory += iengine->memory;
-    }
-
-    if (!is_locked) {
-        Lck_Unlock(&script->state.mutex);
-    }
-
-    return memory;
-}
-
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
@@ -156,7 +107,7 @@ vmod_script__init(
         instance->max_engines = max_engines;
         instance->max_cycles = max_cycles;
         instance->min_gc_cycles = min_gc_cycles;
-        if (type == enum_vmod_cfg_lua) {
+        if (strcmp(type, "lua") == 0) {
             instance->type = ENGINE_TYPE_LUA;
             instance->engine_cfg.lua.gc_step_size = lua_gc_step_size;
             instance->engine_cfg.lua.functions.loadfile = !lua_remove_loadfile_function;
@@ -167,7 +118,7 @@ vmod_script__init(
             instance->api.new_engine = new_lua_engine;
             instance->api.get_used_engine_memory = get_used_lua_engine_memory;
             instance->api.execute = execute_lua;
-        } else if (type == enum_vmod_cfg_javascript) {
+        } else if (strcmp(type, "javascript") == 0) {
             instance->type = ENGINE_TYPE_JAVASCRIPT;
             instance->api.new_engine = new_javascript_engine;
             instance->api.get_used_engine_memory = get_used_javascript_engine_memory;
@@ -382,9 +333,9 @@ vmod_script_result_is_table(VRT_CTX, struct vmod_cfg_script *script)
 }
 
 VCL_BOOL
-vmod_script_result_is_array(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+vmod_script_result_is_array(VRT_CTX, struct vmod_cfg_script *script)
 {
-    return vmod_script_result_is_table(ctx, script, task_priv);
+    return vmod_script_result_is_table(ctx, script);
 }
 
 static const char *
@@ -395,16 +346,12 @@ get_result(VRT_CTX, result_value_t *result_value)
     switch (result_value->type) {
         case RESULT_VALUE_TYPE_BOOLEAN:
             value = WS_Copy(ctx->ws, result_value->value.boolean ? "true" : "false", -1);
-            if (value == NULL) {
-                FAIL_WS(ctx, NULL);
-            }
+            AN(value);
             return value;
 
         case RESULT_VALUE_TYPE_NUMBER:
             value = WS_Printf(ctx->ws, "%g", result_value->value.number);
-            if (value == NULL) {
-                FAIL_WS(ctx, NULL);
-            }
+            AN(value);
             return value;
 
         case RESULT_VALUE_TYPE_STRING:
@@ -497,9 +444,9 @@ vmod_script_get_table_result_length(
 
 VCL_INT
 vmod_script_get_array_result_length(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    return vmod_script_get_table_result_length(ctx, script, task_priv);
+    return vmod_script_get_table_result_length(ctx, script);
 }
 
 #define VMOD_SCRIPT_TABLE_RESULT_IS_FOO(lower, upper) \
@@ -515,9 +462,9 @@ vmod_script_table_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, V
         (state->execution.result.values[index].type == RESULT_VALUE_TYPE_ ## upper); \
 } \
 VCL_BOOL \
-vmod_script_array_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv, VCL_INT index) \
+vmod_script_array_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, VCL_INT index) \
 { \
-    return vmod_script_table_result_is_ ## lower(ctx, script, task_priv, index); \
+    return vmod_script_table_result_is_ ## lower(ctx, script, index); \
 } \
 
 VMOD_SCRIPT_TABLE_RESULT_IS_FOO(error, ERROR)
@@ -549,10 +496,10 @@ vmod_script_get_table_result_value(
 
 VCL_STRING
 vmod_script_get_array_result_value(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_INT index)
 {
-    return vmod_script_get_table_result_value(ctx, script, task_priv, index);
+    return vmod_script_get_table_result_value(ctx, script, index);
 }
 
 VCL_VOID

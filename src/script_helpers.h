@@ -5,6 +5,9 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#ifndef v_unused_
+#  define v_unused_ __attribute__((__unused__))
+#endif
 #include "vtree.h"
 
 #include "duktape.h"
@@ -187,7 +190,7 @@ const char *new_function_name(const char *code);
 task_state_t *new_task_state();
 void reset_task_state(task_state_t *state);
 void free_task_state(task_state_t *state);
-task_state_t *get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset);
+task_state_t *get_task_state(VRT_CTX, unsigned reset);
 
 engine_t *new_engine(enum ENGINE_TYPE type, void *ctx);
 void free_engine(engine_t *engine);

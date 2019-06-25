@@ -7,6 +7,8 @@
     #include <jemalloc/jemalloc.h>
 #endif
 
+#include "vcl.h"
+#include "vrt.h"
 #include "cache/cache.h"
 #include "vsb.h"
 #include "vre.h"
@@ -84,9 +86,7 @@ post_execute(
     #define STORE_STRING(where) \
         where.type = RESULT_VALUE_TYPE_STRING; \
         where.value.string = WS_Copy(ctx->ws, lua_tostring(engine->ctx.L, -1), -1); \
-        if (where.value.string == NULL) { \
-            FAIL_WS(ctx, 0); \
-        }
+        AN(where.value.string);
 
     #define STORE_ERROR(where) \
         where.type = RESULT_VALUE_TYPE_ERROR

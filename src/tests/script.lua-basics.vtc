@@ -24,10 +24,6 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             max_engines=32,
             max_cycles=10,
             min_gc_cycles=8);
-            type=lua,
-            max_engines=32,
-            max_cycles=10,
-            min_gc_cycles=8);
     }
 
     sub vcl_deliver {

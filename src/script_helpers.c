@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "vcl.h"
+#include "vrt.h"
 #include "cache/cache.h"
 #include "vsb.h"
 #include "vsha256.h"
@@ -151,16 +153,17 @@ free_task_state(task_state_t *state)
 }
 
 task_state_t *
-get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset)
+get_task_state(VRT_CTX, unsigned reset)
 {
     task_state_t *result = NULL;
+    shared_task_state_t *state = get_shared_task_state();
 
-    if (task_priv->priv == NULL) {
-        task_priv->priv = new_task_state();
-        task_priv->free = (vmod_priv_free_f *)free_task_state;
-        result = task_priv->priv;
+    if (state->script.state == NULL) {
+        state->script.state = new_task_state();
+        state->script.free = (void *)free_task_state;
+        result = (task_state_t *) state->script.state;
     } else {
-        result = task_priv->priv;
+        result = (task_state_t *) state->script.state;
         CHECK_OBJ(result, TASK_STATE_MAGIC);
     }
 
@@ -349,9 +352,7 @@ varnish_regmatch_command(
         }
     } else {
         *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
-        if (*error == NULL) {
-            FAIL_WS(ctx, 0);
-        }
+        AN(error);
     }
 
     return result;
@@ -378,9 +379,7 @@ varnish_regsub_command(
         }
     } else {
         *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
-        if (*error == NULL) {
-            FAIL_WS(ctx, NULL);
-        }
+        AN(error);
     }
 
     return result;
@@ -453,9 +452,7 @@ varnish_get_header_command(
                 ctx->ws,
                 "varnish.get_header() called over unavailable '%s' object.",
                 where);
-            if (*error == NULL) {
-                FAIL_WS(ctx, NULL);
-            }
+            AN(error);
         }
     }
 
@@ -493,9 +490,7 @@ varnish_set_header_command(
                 ctx->ws,
                 "varnish.set_header() called over unavailable '%s' object.",
                 where);
-            if (*error == NULL) {
-                FAIL_WS(ctx, );
-            }
+            AN(error);
         }
     }
 }
