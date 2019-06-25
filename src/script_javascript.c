@@ -25,13 +25,27 @@ static duk_context *new_context(VRT_CTX, struct vmod_cfg_script *script);
 engine_t *
 new_javascript_engine(VRT_CTX, struct vmod_cfg_script *script)
 {
-    return new_engine(ENGINE_TYPE_JAVASCRIPT, new_context(ctx, script));
+    AN(script->type == ENGINE_TYPE_JAVASCRIPT);
+
+    engine_t *result = new_engine(script->type, new_context(ctx, script));
+    result->memory = get_javascript_engine_used_memory(result);
+    return result;
 }
 
 int
-get_used_javascript_engine_memory(engine_t * engine)
+get_javascript_engine_used_memory(engine_t * engine)
 {
+    AN(engine->type == ENGINE_TYPE_JAVASCRIPT);
+
     return 0;
+}
+
+int
+get_javascript_engine_stack_size(engine_t * engine)
+{
+    AN(engine->type == ENGINE_TYPE_JAVASCRIPT);
+
+    return duk_get_top(engine->ctx.D);
 }
 
 static unsigned
@@ -39,6 +53,9 @@ pre_execute(
     VRT_CTX, struct vmod_cfg_script * script, engine_t *engine,
     const char *code, const char *name)
 {
+    AN(script->type == ENGINE_TYPE_JAVASCRIPT);
+    AN(engine->type == ENGINE_TYPE_JAVASCRIPT);
+
     unsigned sucess = 0;
 
     struct vsb *vsb = VSB_new_auto();

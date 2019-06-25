@@ -87,7 +87,14 @@ unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine)
 {
     CHECK_OBJ_NOTNULL(engine, ENGINE_MAGIC);
 
-    engine->memory = script->api.get_used_engine_memory(engine);
+    engine->memory = script->api.get_engine_used_memory(engine);
+
+    int size = script->api.get_engine_stack_size(engine);
+    if (size > 0) {
+        LOG(ctx, LOG_ERR,
+            "Found non-zero stack when unlocking engine (script=%s, size=%d)",
+            script->name, size);
+    }
 
     Lck_Lock(&script->state.mutex);
     VTAILQ_REMOVE(&script->state.engines.busy, engine, list);
@@ -188,12 +195,11 @@ new_engine(enum ENGINE_TYPE type, void *ctx)
     result->type = type;
     if (result->type == ENGINE_TYPE_LUA) {
         result->ctx.L = (lua_State *) ctx;
-        result->memory = lua_gc(result->ctx.L, LUA_GCCOUNT, 0);
     } else if (result->type == ENGINE_TYPE_JAVASCRIPT) {
         result->ctx.D = (duk_context *) ctx;
-        result->memory = 0;
     }
     result->ncycles = 0;
+    result->memory = 0;
 
     return result;
 }

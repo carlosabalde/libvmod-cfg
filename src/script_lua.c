@@ -25,13 +25,27 @@ static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
 engine_t *
 new_lua_engine(VRT_CTX, struct vmod_cfg_script *script)
 {
-    return new_engine(ENGINE_TYPE_LUA, new_context(ctx, script));
+    AN(script->type == ENGINE_TYPE_LUA);
+
+    engine_t *result = new_engine(script->type, new_context(ctx, script));
+    result->memory = get_lua_engine_used_memory(result);
+    return result;
 }
 
 int
-get_used_lua_engine_memory(engine_t * engine)
+get_lua_engine_used_memory(engine_t * engine)
 {
+    AN(engine->type == ENGINE_TYPE_LUA);
+
     return lua_gc(engine->ctx.L, LUA_GCCOUNT, 0);
+}
+
+int
+get_lua_engine_stack_size(engine_t * engine)
+{
+    AN(engine->type == ENGINE_TYPE_LUA);
+
+    return lua_gettop(engine->ctx.L);
 }
 
 static unsigned
@@ -39,6 +53,9 @@ pre_execute(
     VRT_CTX, struct vmod_cfg_script * script, engine_t *engine,
     const char *code, const char *name)
 {
+    AN(script->type == ENGINE_TYPE_LUA);
+    AN(engine->type == ENGINE_TYPE_LUA);
+
     unsigned sucess = 0;
 
     struct vsb *vsb = VSB_new_auto();
