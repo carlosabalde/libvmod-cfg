@@ -35,7 +35,8 @@ varnish v1 -vcl+backend {
     sub vcl_init {
         new script = cfg.script(
             "file://${tmp}/test-regmatch.lua",
-            period=0);
+            period=0,
+            type=lua);
     }
 
     sub vcl_deliver {
@@ -160,7 +161,8 @@ varnish v2 -vcl+backend {
     sub vcl_init {
         new script = cfg.script(
             "file://${tmp}/test-regsub-and-regsuball.lua",
-            period=0);
+            period=0,
+            type=lua);
     }
 
     sub vcl_deliver {

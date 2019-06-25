@@ -5,7 +5,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
-Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; and (4) Lua 5.1 scripts are supported. Remote files can be accessed via HTTP or HTTPS.
+Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; (4) Lua 5.1 scripts; and (5) ECMAScript (i.e. JavaScript) scripts are supported. Remote files can be accessed via HTTP or HTTPS. Execution of Lua scripts using LuaJIT is solid and it has been extensively tested in highly trafficked environments. However, JavaScript execution does not enforce any sandboxing at all and it still needs to be seriously benchmarked.
 
 Wondering why I created this VMOD? How it could make your life easier? I wrote a blog post with some answers: `Moving logic to the caching edge (and back) <https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back>`_.
 
@@ -72,15 +72,16 @@ import cfg;
     Method STRING .get(STRING value, STRING fallback="")
 
     ##
-    ## Lua scripts.
+    ## Lua & JavaScript scripts.
     ##
 
     Object script(
         STRING location="",
         STRING backup="",
         INT period=60,
-        INT lua_max_engines=128,
-        INT lua_max_cycles=0,
+        ENUM { lua, javascript } type="lua",
+        INT max_engines=128,
+        INT max_cycles=0,
         INT lua_min_gc_cycles=100,
         INT lua_gc_step_size=100,
         BOOL lua_remove_loadfile_function=1,
@@ -102,11 +103,11 @@ import cfg;
     Method VOID .execute(BOOL gc_collect=0, BOOL flush_jemalloc_tcache=1)
 
     Method BOOL .result_is_error()
-    Method BOOL .result_is_nil()
+    Method BOOL .result_is_{nil,null}()
     Method BOOL .result_is_boolean()
     Method BOOL .result_is_number()
     Method BOOL .result_is_string()
-    Method BOOL .result_is_table()
+    Method BOOL .result_is_{table,array}()
 
     Method STRING .get_result()
 
@@ -115,14 +116,14 @@ import cfg;
     Method INT .get_integer_result()
     Method STRING .get_string_result()
 
-    Method INT .get_table_result_length()
-    Method BOOL .table_result_is_error(INT index)
-    Method BOOL .table_result_is_nil(INT index)
-    Method BOOL .table_result_is_boolean(INT index)
-    Method BOOL .table_result_is_number(INT index)
-    Method BOOL .table_result_is_string(INT index)
-    Method BOOL .table_result_is_table(INT index)
-    Method STRING .get_table_result_value(INT index)
+    Method INT .get_{table,array}_result_length()
+    Method BOOL .{table,array}_result_is_error(INT index)
+    Method BOOL .{table,array}_result_is_{nil/null}(INT index)
+    Method BOOL .{table,array}_result_is_boolean(INT index)
+    Method BOOL .{table,array}_result_is_number(INT index)
+    Method BOOL .{table,array}_result_is_string(INT index)
+    Method BOOL .{table,array}_result_is_{table/array}(INT index)
+    Method STRING .get_{table,array}_result_value(INT index)
 
     Method VOID .free_result()
 
@@ -223,7 +224,8 @@ https://www.example.com/backends.lua
 
         new backends = cfg.script(
             "https://www.example.com/backends.lua",
-            period=60);
+            period=60,
+            type=lua);
     }
 
     sub vcl_recv {
@@ -342,6 +344,8 @@ MIT's implementation of the JSON parser by Max Bruckner has been borrowed from t
 
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.c
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.h
+
+MIT's implementation of the JavaScript engine by Sami Vaarala has been built using the `Duktape project <https://github.com/svaarala/duktape/>`_:
 
 BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnishcache/varnish-cache>`_:
 

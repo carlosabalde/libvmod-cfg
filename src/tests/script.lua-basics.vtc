@@ -1,0 +1,209 @@
+varnishtest "Test basics for Lua script"
+
+server s1 {
+   rxreq
+   txresp -hdr "X-Obj-Log: Hello world from the object!"
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.lua" <<'EOF'
+local a = tonumber(ARGV[0])
+local b = tonumber(ARGV[1])
+return {a, b, a * b}
+EOF
+}
+
+varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test.lua",
+            period=0,
+            type=lua,
+            max_engines=32,
+            max_cycles=10,
+            min_gc_cycles=8);
+            type=lua,
+            max_engines=32,
+            max_cycles=10,
+            min_gc_cycles=8);
+    }
+
+    sub vcl_deliver {
+        script.init();
+        script.push("6");
+        script.push("7");
+        script.execute();
+        set resp.http.result1-is-table = script.result_is_table();
+        set resp.http.result1-table-length = script.get_table_result_length();
+        set resp.http.result1-table-value-0 = script.get_table_result_value(0);
+        set resp.http.result1-table-value-0-is-number = script.table_result_is_number(0);
+        set resp.http.result1-table-value-1 = script.get_table_result_value(1);
+        set resp.http.result1-table-value-1-is-number = script.table_result_is_number(1);
+        set resp.http.result1-table-value-2 = script.get_table_result_value(2);
+        set resp.http.result1-table-value-2-is-number = script.table_result_is_number(2);
+        script.free_result();
+
+        script.init({"
+            assert(1 < 0)
+        "});
+        script.execute();
+        set resp.http.result2-is-error = script.result_is_error();
+        script.free_result();
+
+        script.init({"
+            return nil
+        "});
+        script.execute();
+        set resp.http.result3-is-nil = script.result_is_nil();
+        script.free_result();
+
+        script.init({"
+            return true
+        "});
+        script.execute();
+        set resp.http.result4-is-boolean = script.result_is_boolean();
+        set resp.http.result4-boolean-value = script.get_boolean_result();
+        set resp.http.result4-value = script.get_result();
+        script.free_result();
+
+        script.init({"
+            return 4.2
+        "});
+        script.execute();
+        set resp.http.result5-is-number = script.result_is_number();
+        set resp.http.result5-decimal-value = script.get_decimal_result();
+        set resp.http.result5-integer-value = script.get_integer_result();
+        set resp.http.result5-value = script.get_result();
+        script.free_result();
+
+        script.init({"
+            return 'foo'
+        "});
+        script.execute();
+        set resp.http.result6-is-string = script.result_is_string();
+        set resp.http.result6-string-value = script.get_string_result();
+        set resp.http.result6-value = script.get_result();
+        script.free_result();
+
+        script.init({"
+            return 'foo'
+        "});
+        script.execute();
+        script.free_result();
+
+        script.init();
+        script.push("2.5");
+        script.push("4.0");
+        script.execute();
+        set resp.http.result8-is-table = script.result_is_table();
+        set resp.http.result8-table-length = script.get_table_result_length();
+        set resp.http.result8-table-value-0 = script.get_table_result_value(0);
+        set resp.http.result8-table-value-0-is-number = script.table_result_is_number(0);
+        set resp.http.result8-table-value-1 = script.get_table_result_value(1);
+        set resp.http.result8-table-value-1-is-number = script.table_result_is_number(1);
+        set resp.http.result8-table-value-2 = script.get_table_result_value(2);
+        set resp.http.result8-table-value-2-is-number = script.table_result_is_number(2);
+        script.free_result();
+
+        script.init({"
+            if (varnish.get_header("X-Req-Log", "req")) ~= nil then
+                varnish.log(varnish.get_header("X-Req-Log", "req"))
+            end
+            if varnish.get_header("X-Obj-Log", "obj") ~= nil then
+                varnish.log(varnish.get_header("X-Obj-Log", "obj"))
+            end
+            if varnish.get_header("X-Unavailable-Header", "req") == nil then
+                varnish.log("X-Unavailable-Header is not defined")
+            end
+            varnish.set_header("X-Set-Header", "set-value", "resp")
+        "});
+        script.execute();
+        script.free_result();
+
+        script.init({"
+            return varnish.get_header("X-Error", "bereq")
+        "});
+        script.execute();
+        script.free_result();
+
+        script.init({"
+            xxx
+        "});
+        script.execute();
+        script.free_result();
+
+        set resp.http.stats = script.stats();
+        set resp.http.engines-total = script.counter("engines.total");
+        set resp.http.engines-dropped-cycles = script.counter("engines.dropped.cycles");
+        set resp.http.workers-blocked = script.counter("workers.blocked");
+        set resp.http.executions-total = script.counter("executions.total");
+        set resp.http.executions-unknown = script.counter("executions.unknown");
+        set resp.http.executions-failed = script.counter("executions.failed");
+        set resp.http.executions-gc = script.counter("executions.gc");
+    }
+} -start
+
+logexpect l1 -v v1 -g raw {
+    expect * * VCL_Log "Hello world from the request!"
+    expect * * VCL_Log "Hello world from the object!"
+    expect * * VCL_Log "X-Unavailable-Header is not defined"
+    expect * * VCL_Error {varnish\.get_header\(\) called over unavailable 'bereq' object.}
+} -start
+
+client c1 {
+    txreq -hdr "X-Req-Log: Hello world from the request!"
+    rxresp
+
+    expect resp.http.result1-is-table == "true"
+    expect resp.http.result1-table-length == "3"
+    expect resp.http.result1-table-value-0 == "6"
+    expect resp.http.result1-table-value-0-is-number == "true"
+    expect resp.http.result1-table-value-1 == "7"
+    expect resp.http.result1-table-value-1-is-number == "true"
+    expect resp.http.result1-table-value-2 == "42"
+    expect resp.http.result1-table-value-2-is-number == "true"
+
+    expect resp.http.result2-is-error == "true"
+
+    expect resp.http.result3-is-nil == "true"
+
+    expect resp.http.result4-is-boolean == "true"
+    expect resp.http.result4-boolean-value == "true"
+    expect resp.http.result4-value == "true"
+
+    expect resp.http.result5-is-number == "true"
+    expect resp.http.result5-decimal-value == "4.200"
+    expect resp.http.result5-integer-value == "4"
+    expect resp.http.result5-value == "4.2"
+
+    expect resp.http.result6-is-string == "true"
+    expect resp.http.result6-string-value == "foo"
+    expect resp.http.result6-value == "foo"
+
+    expect resp.http.result8-is-table == "true"
+    expect resp.http.result8-table-length == "3"
+    expect resp.http.result8-table-value-0 == "2.5"
+    expect resp.http.result8-table-value-0-is-number == "true"
+    expect resp.http.result8-table-value-1 == "4"
+    expect resp.http.result8-table-value-1-is-number == "true"
+    expect resp.http.result8-table-value-2 == "10"
+    expect resp.http.result8-table-value-2-is-number == "true"
+
+    expect resp.http.X-Set-Header == "set-value"
+
+    expect resp.http.engines-total == "2"
+    expect resp.http.engines-dropped-cycles == "1"
+    expect resp.http.workers-blocked == "0"
+    expect resp.http.executions-total == "12"
+    expect resp.http.executions-unknown == "9"
+    expect resp.http.executions-failed == "3"
+    expect resp.http.executions-gc == "1"
+} -run
+
+logexpect l1 -wait
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0

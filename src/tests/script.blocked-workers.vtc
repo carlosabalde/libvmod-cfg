@@ -29,9 +29,10 @@ varnish v1 -vcl+backend {
         new script = cfg.script(
             "file://${tmp}/test.lua",
             period=0,
-            lua_max_engines=1,
-            lua_max_cycles=0,
-            lua_min_gc_cycles=8,
+            type=lua,
+            max_engines=1,
+            max_cycles=0,
+            min_gc_cycles=8,
             lua_load_os_lib=true);
     }
 

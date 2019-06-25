@@ -17,8 +17,12 @@ libvmod_cfg_la_LIBADD = $(CURL_LIBS) $(LUA_LIBS)
 libvmod_cfg_la_SOURCES = \
 	ini.c ini.h \
 	cJSON.c cJSON.h \
+	duktape.c duktape.h duk_config.h \
 	helpers.c helpers.h \
 	remote.c remote.h \
+	script_helpers.c script_helpers.h \
+	script_javascript.c script_javascript.h \
+	script_lua.c script_lua.h \
 	variables.c variables.h \
 	vmod_cfg.c \
 	vmod_cfg_env.c \
