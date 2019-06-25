@@ -186,9 +186,10 @@ $Object script(
     STRING location="",
     STRING backup="",
     INT period=60,
-    INT lua_max_engines=128,
-    INT lua_max_cycles=0,
-    INT lua_min_gc_cycles=100,
+    ENUM { lua, javascript } type="lua",
+    INT max_engines=128,
+    INT max_cycles=0,
+    INT min_gc_cycles=100,
     INT lua_gc_step_size=100,
     BOOL lua_remove_loadfile_function=1,
     BOOL lua_remove_dotfile_function=1,
@@ -208,18 +209,17 @@ Arguments
     script implementation. If not provided, the script implementation should be
     provided to the ``.init()`` method.
 
-    backup: when this option is used, you have to specify where to save the
-    backup file.
+    engine: type of scripting engine to be used.
 
-    lua_max_engines: the VMOD creates one pool of scripting engines per VCL
+    max_engines: the VMOD creates one pool of scripting engines per VCL
     object. This option sets the maximum number of engines in each pool. All
     Varnish worker threads using the same object will share engines in these
     pools. Pools are not shared between VCL objects.
 
-    lua_max_cycles: discard scripting engines after this number of script
+    max_cycles: discard scripting engines after this number of script
     executions (0 means disabling periodical discards).
 
-    lua_min_gc_cycles: call to the scripting engine garbage collector after
+    min_gc_cycles: call to the scripting engine garbage collector after
     this number of script executions.
 
     lua_gc_step_size: scripting engines implement incremental garbage
@@ -283,6 +283,11 @@ Return value
     TRUE if a previously executed script using ``.execute()`` returned
     a nil value.
 
+$Method BOOL .result_is_null(PRIV_TASK)
+
+Description
+    Alias of ``.result_is_nil()``.
+
 $Method BOOL .result_is_boolean(PRIV_TASK)
 
 Return value
@@ -306,6 +311,11 @@ $Method BOOL .result_is_table(PRIV_TASK)
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     an table value.
+
+$Method BOOL .result_is_array(PRIV_TASK)
+
+Description
+    Alias of ``.result_is_table()``.
 
 $Method STRING .get_result(PRIV_TASK)
 
@@ -345,6 +355,11 @@ Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns the number of elements in that table.
 
+$Method INT .get_array_result_length(PRIV_TASK)
+
+Description
+    Alias of ``.get_table_result_length()``.
+
 $Method BOOL .table_result_is_error(PRIV_TASK, INT index)
 
 Arguments
@@ -353,6 +368,11 @@ Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns TRUE if the nth element in that table is
     an error value (nested tables are not supported).
+
+$Method BOOL .array_result_is_error(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_error()``.
 
 $Method BOOL .table_result_is_nil(PRIV_TASK, INT index)
 
@@ -363,6 +383,11 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a nil value (nested tables are not supported).
 
+$Method BOOL .array_result_is_null(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_nil()``.
+
 $Method BOOL .table_result_is_boolean(PRIV_TASK, INT index)
 
 Arguments
@@ -371,6 +396,11 @@ Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns TRUE if the nth element in that table is
     a boolean value (nested tables are not supported).
+
+$Method BOOL .array_result_is_boolean(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_boolean()``.
 
 $Method BOOL .table_result_is_number(PRIV_TASK, INT index)
 
@@ -381,6 +411,11 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a number value (nested tables are not supported).
 
+$Method BOOL .array_result_is_number(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_number()``.
+
 $Method BOOL .table_result_is_string(PRIV_TASK, INT index)
 
 Arguments
@@ -389,6 +424,11 @@ Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns TRUE if the nth element in that table is
     a string value (nested tables are not supported).
+
+$Method BOOL .array_result_is_string(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_string()``.
 
 $Method BOOL .table_result_is_table(PRIV_TASK, INT index)
 
@@ -399,6 +439,11 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a table value (nested tables are not supported).
 
+$Method BOOL .array_result_is_array(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.table_result_is_table()``.
+
 $Method STRING .get_table_result_value(PRIV_TASK, INT index)
 
 Arguments
@@ -407,6 +452,11 @@ Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns a string representation of the nth element
     in that table (nested table are not supported).
+
+$Method STRING .get_array_result_value(PRIV_TASK, INT index)
+
+Description
+    Alias of ``.get_table_result_value()``.
 
 $Method VOID .free_result(PRIV_TASK)
 
