@@ -5,8 +5,11 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include "vtree.h"
+
 #include "duktape.h"
 #include "remote.h"
+#include "helpers.h"
 
 enum ENGINE_TYPE {
     ENGINE_TYPE_LUA,
