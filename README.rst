@@ -348,7 +348,14 @@ MIT's implementation of the JSON parser by Max Bruckner has been borrowed from t
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.c
 * https://github.com/DaveGamble/cJSON/blob/master/cJSON.h
 
-MIT's implementation of the JavaScript engine by Sami Vaarala has been built using the `Duktape project <https://github.com/svaarala/duktape/>`_.
+MIT's implementation of the JavaScript engine by Sami Vaarala has been built using the `Duktape project <https://github.com/svaarala/duktape/>`_:
+
+::
+
+    $ python tools/configure.py \
+          --output-directory /tmp/duktape \
+          --source-directory src-input \
+          --config-metadata config
 
 BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnishcache/varnish-cache>`_:
 
