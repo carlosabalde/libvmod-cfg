@@ -37,6 +37,7 @@ get_javascript_engine_used_memory(engine_t * engine)
 {
     AN(engine->type == ENGINE_TYPE_JAVASCRIPT);
 
+    // See: https://github.com/svaarala/duktape/issues/2130.
     return 0;
 }
 
@@ -120,45 +121,47 @@ post_execute(
             return 1;
 
         case DUK_TYPE_OBJECT:
-            result->nvalues = 0;
-            while (1) {
-                if (!duk_get_prop_index(engine->ctx.D, -1, result->nvalues)) {
-                    duk_pop(engine->ctx.D);
-                    break;
-                }
-                switch (duk_get_type(engine->ctx.D, -1)) {
-                    case DUK_TYPE_UNDEFINED:
-                    case DUK_TYPE_NULL:
-                        STORE_NIL(result->values[result->nvalues]);
-                        break;
-                    case DUK_TYPE_BOOLEAN:
-                        STORE_BOOLEAN(result->values[result->nvalues]);
-                        break;
-                    case DUK_TYPE_NUMBER:
-                        STORE_NUMBER(result->values[result->nvalues]);
-                        break;
-                    case DUK_TYPE_STRING:
-                        STORE_STRING(result->values[result->nvalues]);
-                        break;
-                    case DUK_TYPE_OBJECT:
-                        result->values[result->nvalues].type = RESULT_VALUE_TYPE_TABLE;
-                        break;
-                    default:
+            if (duk_is_array(engine->ctx.D, -1)) {
+                int length = duk_get_length(engine->ctx.D, -1);
+                for (result->nvalues = 0; result->nvalues < length; result->nvalues++) {
+                    if (result->nvalues == MAX_RESULT_VALUES) {
                         LOG(ctx, LOG_ERR,
-                            "Got invalid JavaScript script result object value (script=%s, type=%d)",
-                            script->name, duk_get_type(engine->ctx.D, -1));
-                        STORE_ERROR(result->values[result->nvalues]);
+                            "Failed to store JavaScript object value (script=%s, length=%d, limit=%d)",
+                            script->name, length, MAX_RESULT_VALUES);
                         break;
-
+                    }
+                    duk_get_prop_index(engine->ctx.D, -1, result->nvalues);
+                    switch (duk_get_type(engine->ctx.D, -1)) {
+                        case DUK_TYPE_UNDEFINED:
+                        case DUK_TYPE_NULL:
+                            STORE_NIL(result->values[result->nvalues]);
+                            break;
+                        case DUK_TYPE_BOOLEAN:
+                            STORE_BOOLEAN(result->values[result->nvalues]);
+                            break;
+                        case DUK_TYPE_NUMBER:
+                            STORE_NUMBER(result->values[result->nvalues]);
+                            break;
+                        case DUK_TYPE_STRING:
+                            STORE_STRING(result->values[result->nvalues]);
+                            break;
+                        case DUK_TYPE_OBJECT:
+                            result->values[result->nvalues].type = RESULT_VALUE_TYPE_TABLE;
+                            break;
+                        default:
+                            LOG(ctx, LOG_ERR,
+                                "Got invalid JavaScript script result array value (script=%s, index=%d, type=%d)",
+                                script->name, result->nvalues, duk_get_type(engine->ctx.D, -1));
+                            STORE_ERROR(result->values[result->nvalues]);
+                            break;
+                    }
+                    duk_pop(engine->ctx.D);
                 }
-                duk_pop(engine->ctx.D);
-                result->nvalues++;
-                if (result->nvalues == MAX_RESULT_VALUES) {
-                    LOG(ctx, LOG_ERR,
-                        "Failed to store JavaScript object value (script=%s, limit=%d)",
-                        script->name, MAX_RESULT_VALUES);
-                    break;
-                }
+            } else {
+                LOG(ctx, LOG_ERR,
+                    "Got invalid JavaScript script result object value (script=%s, type=%d)",
+                    script->name, duk_get_type(engine->ctx.D, -1));
+                STORE_ERROR(result->values[result->nvalues]);
             }
             return 1;
 
@@ -568,7 +571,7 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     AN(result);
 
     // Add support for varnish._ctx, varnish._script, varnish.log(), etc.
-    duk_idx_t idx = duk_push_array(result);
+    duk_idx_t idx = duk_push_object(result);
     duk_push_c_function(result, varnish_log_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, idx, "log");
     duk_push_c_function(result, varnish_get_header_javascript_command, DUK_VARARGS);

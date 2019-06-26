@@ -149,8 +149,8 @@ post_execute(
                         break;
                     default:
                         LOG(ctx, LOG_ERR,
-                            "Got invalid Lua script result table value (script=%s, type=%d)",
-                            script->name, lua_type(engine->ctx.L, -1));
+                            "Got invalid Lua script result table value (script=%s, index=%d, type=%d)",
+                            script->name, result->nvalues, lua_type(engine->ctx.L, -1));
                         STORE_ERROR(result->values[result->nvalues]);
                         break;
 
