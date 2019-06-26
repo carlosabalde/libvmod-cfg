@@ -59,7 +59,7 @@ pre_execute(
 
     struct vsb *vsb = VSB_new_auto();
     AN(vsb);
-    AZ(VSB_printf(vsb, "function %s() {\n%s\n}", name, code));
+    AZ(VSB_printf(vsb, "function %s() {\n'use strict';\n%s\n}", name, code));
     AZ(VSB_finish(vsb));
 
     if (!duk_peval_lstring(engine->ctx.D, VSB_data(vsb), VSB_len(vsb))) {
@@ -566,7 +566,9 @@ static duk_context *
 new_context(VRT_CTX, struct vmod_cfg_script *script)
 {
     // Create base context.
-    // Beware unlike Lua, no sandboxing at all is enforced for Duktape engines.
+    // Beware unlike Lua, no sandboxing at all (except forcing strict mode in
+    // order to avoid most common mistakes like creation of implicit globals)
+    // is enforced for Duktape engines.
     duk_context *result = duk_create_heap_default();
     AN(result);
 
