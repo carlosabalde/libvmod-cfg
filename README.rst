@@ -88,7 +88,7 @@ import cfg;
         INT min_gc_cycles=100,
         INT lua_gc_step_size=100,
         BOOL lua_remove_loadfile_function=1,
-        BOOL lua_remove_dofile_function=1,
+        BOOL lua_remove_dotfile_function=1,
         BOOL lua_load_package_lib=0,
         BOOL lua_load_io_lib=0,
         BOOL lua_load_os_lib=0,
