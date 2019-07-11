@@ -4,7 +4,8 @@
 #include "helpers.h"
 
 vmod_state_t vmod_state = {
-    .locks.refs = 0,
+    .refs = 0,
+    .libs.lua = NULL,
     .locks.vsc_seg = NULL,
     .locks.script = NULL
 };
