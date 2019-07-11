@@ -6,8 +6,11 @@
 #include <syslog.h>
 
 typedef struct vmod_state {
+    unsigned refs;
     struct {
-        unsigned refs;
+        void *lua;
+    } libs;
+    struct {
         struct vsc_seg *vsc_seg;
         struct VSC_lck *script;
     } locks;
