@@ -406,19 +406,17 @@ enable_lua_protections(lua_State *L)
     // This function should be the last to be called in the scripting engine
     // initialization sequence!
     const char *protections =
-        "local dbg=debug\n"
-        "\n"
         "-- http://metalua.luaforge.net/src/lib/strict.lua.html\n"
         "setmetatable(_G, {\n"
         "  __index = function(table, key)\n"
-        "    if dbg.getinfo(2) and dbg.getinfo(2, 'S').what ~= 'C' then\n"
+        "    if debug.getinfo(2) and debug.getinfo(2, 'S').what ~= 'C' then\n"
         "      error('Script attempted to access nonexistent global variable \\'' .. tostring(key) .. '\\'')\n"
         "    end\n"
         "    return rawget(table, key)\n"
         "  end,\n"
         "  __newindex = function(table, key, value)\n"
-        "    if dbg.getinfo(2) then\n"
-        "      local w = dbg.getinfo(2, 'S').what\n"
+        "    if debug.getinfo(2) then\n"
+        "      local w = debug.getinfo(2, 'S').what\n"
         "      if w ~= 'main' and w ~= 'C' then\n"
         "        error('Script attempted to create global variable \\'' .. tostring(key) .. '\\'')\n"
         "      end\n"
@@ -442,8 +440,7 @@ enable_lua_protections(lua_State *L)
         "end\n"
         "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
         "\n"
-        "readonly_table = nil\n"
-        "debug = nil\n";
+        "readonly_table = nil\n";
     AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
     AZ(lua_pcall(L, 0, 0, 0));
 }
@@ -686,9 +683,11 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     load_lua_libs(script, result);
     remove_unsupported_lua_functions(script, result);
 
-    // Add support for varnish._ctx, varnish._script, varnish._error_handler(),
-    // varnish.log(), etc.
+    // Add support for varnish.shared, varnish._ctx, varnish._script,
+    // varnish._error_handler(), varnish.log(), etc.
     lua_newtable(result);
+    lua_newtable(result);
+    lua_setfield(result, -2, "shared");
     lua_pushcfunction(result, varnish_log_lua_command);
     lua_setfield(result, -2, "log");
     lua_pushcfunction(result, varnish_get_header_lua_command);
@@ -708,11 +707,10 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     // information about the caller, that's what makes sense from the point of
     // view of the user debugging a script.
     char *error_handler =
-        "local dbg = debug\n"
         "varnish._error_handler = function(error)\n"
-        "  local i = dbg.getinfo(2, 'nSl')\n"
+        "  local i = debug.getinfo(2, 'nSl')\n"
         "  if i and i.what == 'C' then\n"
-        "    i = dbg.getinfo(3, 'nSl')\n"
+        "    i = debug.getinfo(3, 'nSl')\n"
         "  end\n"
         "  if i then\n"
         "    return i.source .. ':' .. i.currentline .. ': ' .. error\n"

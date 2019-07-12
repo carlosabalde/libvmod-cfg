@@ -573,8 +573,11 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     duk_context *result = duk_create_heap_default();
     AN(result);
 
-    // Add support for varnish._ctx, varnish._script, varnish.log(), etc.
+    // Add support for varnish.shared, varnish._ctx, varnish._script,
+    // varnish.log(), etc.
     duk_idx_t idx = duk_push_object(result);
+    duk_push_object(result);
+    duk_put_prop_string(result, idx, "shared");
     duk_push_c_function(result, varnish_log_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, idx, "log");
     duk_push_c_function(result, varnish_get_header_javascript_command, DUK_VARARGS);
