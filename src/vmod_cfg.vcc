@@ -190,6 +190,7 @@ $Object script(
     INT max_engines=128,
     INT max_cycles=0,
     INT min_gc_cycles=100,
+    BOOL enable_sandboxing=1,
     INT lua_gc_step_size=100,
     BOOL lua_remove_loadfile_function=1,
     BOOL lua_remove_dotfile_function=1,
@@ -221,6 +222,11 @@ Arguments
 
     min_gc_cycles: call to the scripting engine garbage collector after
     this number of script executions.
+
+    enable_sandboxing: enforce best-effort sandboxing in order  to avoid most
+    common mistakes like creation of implicit globals. Beware this should be
+    disabled for complex scripts if global (i.e. per scripting engine)
+    data-sharing is needed.
 
     lua_gc_step_size: scripting engines implement incremental garbage
     collection (see ``LUA_GCSTEP`` in ``lua_gc()``). This parameter controls
