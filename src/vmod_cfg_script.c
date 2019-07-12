@@ -70,7 +70,7 @@ vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
     VCL_STRING location, VCL_STRING backup, VCL_INT period, VCL_ENUM type,
     VCL_INT max_engines, VCL_INT max_cycles,
-    VCL_INT min_gc_cycles, VCL_INT lua_gc_step_size,
+    VCL_INT min_gc_cycles, VCL_BOOL enable_sandboxing, VCL_INT lua_gc_step_size,
     VCL_BOOL lua_remove_loadfile_function, VCL_BOOL lua_remove_dotfile_function,
     VCL_BOOL lua_load_package_lib, VCL_BOOL lua_load_io_lib, VCL_BOOL lua_load_os_lib,
     VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
@@ -107,6 +107,7 @@ vmod_script__init(
         instance->max_engines = max_engines;
         instance->max_cycles = max_cycles;
         instance->min_gc_cycles = min_gc_cycles;
+        instance->enable_sandboxing = enable_sandboxing;
         if (strcmp(type, "lua") == 0) {
             instance->type = ENGINE_TYPE_LUA;
             instance->engine_cfg.lua.gc_step_size = lua_gc_step_size;
@@ -164,6 +165,7 @@ vmod_script__fini(struct vmod_cfg_script **script)
     instance->max_engines = 0;
     instance->max_cycles = 0;
     instance->min_gc_cycles = 0;
+    instance->enable_sandboxing = 0;
     if (instance->type == ENGINE_TYPE_LUA) {
         instance->engine_cfg.lua.gc_step_size = 0;
         instance->engine_cfg.lua.functions.loadfile = 0;

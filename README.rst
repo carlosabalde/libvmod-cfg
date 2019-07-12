@@ -5,7 +5,7 @@
 
 VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
-Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; (4) Lua 5.1 scripts; and (5) ECMAScript (i.e. JavaScript) scripts are supported. Remote files can be accessed via HTTP or HTTPS. Execution of Lua scripts using LuaJIT is solid and it has been extensively tested in highly trafficked environments. However, JavaScript execution does not enforce any sandboxing at all (except forcing strict mode in order to avoid most common mistakes like creation of implicit globals) and it still needs to be seriously benchmarked.
+Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files containing collections of pattern matching rules; (4) Lua 5.1 scripts; and (5) ECMAScript (i.e. JavaScript) scripts are supported. Remote files can be accessed via HTTP or HTTPS.
 
 Wondering why I created this VMOD? How it could make your life easier? I wrote a blog post with some answers: `Moving logic to the caching edge (and back) <https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back>`_.
 
@@ -83,6 +83,7 @@ import cfg;
         INT max_engines=128,
         INT max_cycles=0,
         INT min_gc_cycles=100,
+        BOOL enable_sandboxing=1,
         INT lua_gc_step_size=100,
         BOOL lua_remove_loadfile_function=1,
         BOOL lua_remove_dotfile_function=1,

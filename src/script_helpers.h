@@ -109,6 +109,7 @@ struct vmod_cfg_script {
     unsigned max_engines;
     unsigned max_cycles;
     unsigned min_gc_cycles;
+    unsigned enable_sandboxing;
     union {
         struct {
             unsigned gc_step_size;

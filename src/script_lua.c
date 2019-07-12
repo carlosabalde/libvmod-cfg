@@ -725,7 +725,9 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
 
     // Protect accesses to global variables, set global 'varnish' table as
     // read only, disable the 'debug' library, etc.
-    enable_lua_protections(result);
+    if (script->enable_sandboxing) {
+        enable_lua_protections(result);
+    }
 
     // Done!
     return result;
