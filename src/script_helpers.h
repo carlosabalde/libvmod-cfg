@@ -9,6 +9,7 @@
 
 #include "duktape.h"
 #include "remote.h"
+#include "variables.h"
 #include "helpers.h"
 
 enum ENGINE_TYPE {
@@ -153,6 +154,11 @@ struct vmod_cfg_script {
         } regexps;
 
         struct {
+            unsigned n;
+            variables_t list;
+        } variables;
+
+        struct {
             struct {
                 // Number of created scripting engines.
                 unsigned total;
@@ -214,5 +220,15 @@ const char *varnish_regsub_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
     const char *regexp, const char *sub, unsigned cache, unsigned all,
     const char **error);
+
+const char *varnish_shared_get_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key,
+    unsigned locked);
+void varnish_shared_set_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
+    unsigned locked);
+void varnish_shared_delete_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key,
+    unsigned locked);
 
 #endif
