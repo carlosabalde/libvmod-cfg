@@ -137,6 +137,8 @@ vmod_script__init(
         VTAILQ_INIT(&instance->state.engines.busy);
         instance->state.regexps.n = 0;
         VRBT_INIT(&instance->state.regexps.list);
+        instance->state.variables.n = 0;
+        VRBT_INIT(&instance->state.variables.list);
         memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
         script_check(ctx, instance, 1);
@@ -197,6 +199,13 @@ vmod_script__fini(struct vmod_cfg_script **script)
         CHECK_OBJ_NOTNULL(regexp, REGEXP_MAGIC);
         VRBT_REMOVE(regexps, &instance->state.regexps.list, regexp);
         free_regexp(regexp);
+    }
+    instance->state.variables.n = 0;
+    variable_t *variable, *variable_tmp;
+    VRBT_FOREACH_SAFE(variable, variables, &instance->state.variables.list, variable_tmp) {
+        CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
+        VRBT_REMOVE(variables, &instance->state.variables.list, variable);
+        free_variable(variable);
     }
     memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
@@ -560,6 +569,9 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
           "\"regexps\": {"
             "\"current\": %d"
           "},"
+          "\"variables\": {"
+            "\"current\": %d"
+          "},"
           "\"workers\": {"
               "\"blocked\": %d"
           "},"
@@ -575,6 +587,7 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
         engines_memory(ctx, script, 1),
         script->state.stats.engines.dropped.cycles,
         script->state.regexps.n,
+        script->state.variables.n,
         script->state.stats.workers.blocked,
         script->state.stats.executions.total,
         script->state.stats.executions.unknown,
@@ -601,6 +614,8 @@ vmod_script_counter(VRT_CTX, struct vmod_cfg_script *script, VCL_STRING name)
         return script->state.stats.engines.dropped.cycles;
     } else if (strcmp(name, "regexps.current") == 0) {
         return script->state.regexps.n;
+    } else if (strcmp(name, "variables.current") == 0) {
+        return script->state.variables.n;
     } else if (strcmp(name, "workers.blocked") == 0) {
         return script->state.stats.workers.blocked;
     } else if (strcmp(name, "executions.total") == 0) {

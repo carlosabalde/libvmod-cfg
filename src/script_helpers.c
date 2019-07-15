@@ -509,3 +509,83 @@ varnish_set_header_command(
 /******************************************************************************
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
+
+const char *
+varnish_shared_get_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key,
+    unsigned locked)
+{
+    const char *result = NULL;
+    unsigned fail = 0;
+
+    if (!locked) {
+        AZ(pthread_rwlock_rdlock(&script->state.rwlock));
+    } else {
+        Lck_AssertHeld(&script->state.mutex);
+    }
+
+    variable_t *variable = find_variable(&script->state.variables.list, key);
+    if (variable != NULL) {
+        result = WS_Copy(ctx->ws, variable->value, -1);
+        fail = result == NULL;
+    }
+
+    if (!locked) {
+        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+    }
+
+    if (fail) {
+        FAIL_WS(ctx, NULL);
+    }
+
+    return result;
+}
+
+void
+varnish_shared_set_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
+    unsigned locked)
+{
+    if (!locked) {
+        AZ(pthread_rwlock_wrlock(&script->state.rwlock));
+    } else {
+        Lck_AssertHeld(&script->state.mutex);
+    }
+
+    variable_t *variable = find_variable(&script->state.variables.list, key);
+    if (variable == NULL) {
+        variable = new_variable(key, strlen(key), value);
+        AZ(VRBT_INSERT(variables, &script->state.variables.list, variable));
+        script->state.variables.n++;
+    } else {
+        free((void *) variable->value);
+        variable->value = strdup(value);
+        AN(variable->value);
+    }
+
+    if (!locked) {
+        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+    }
+}
+
+void
+varnish_shared_delete_command(
+    VRT_CTX, struct vmod_cfg_script *script, const char *key,
+    unsigned locked)
+{
+    if (!locked) {
+        AZ(pthread_rwlock_wrlock(&script->state.rwlock));
+    } else {
+        Lck_AssertHeld(&script->state.mutex);
+    }
+
+    variable_t *variable = find_variable(&script->state.variables.list, key);
+    if (variable != NULL) {
+        VRBT_REMOVE(variables, &script->state.variables.list, variable);
+        script->state.variables.n--;
+    }
+
+    if (!locked) {
+        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+    }
+}
