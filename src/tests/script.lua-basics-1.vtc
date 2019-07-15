@@ -1,4 +1,4 @@
-varnishtest "Test basics for JavaScript script"
+varnishtest "Test basics for Lua script 1"
 
 server s1 {
    rxreq
@@ -6,10 +6,10 @@ server s1 {
 } -repeat 1 -start
 
 shell {
-    cat > "${tmp}/test.js" <<'EOF'
-var a = parseFloat(ARGV[0])
-var b = parseFloat(ARGV[1])
-return [a, b, a * b]
+    cat > "${tmp}/test.lua" <<'EOF'
+local a = tonumber(ARGV[0])
+local b = tonumber(ARGV[1])
+return {a, b, a * b}
 EOF
 }
 
@@ -18,9 +18,9 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
 
     sub vcl_init {
         new script = cfg.script(
-            "file://${tmp}/test.js",
+            "file://${tmp}/test.lua",
             period=0,
-            type=javascript,
+            type=lua,
             max_engines=32,
             max_cycles=10,
             min_gc_cycles=8);
@@ -52,14 +52,14 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
         script.free_result();
 
         script.init({"
-            throw 'error'
+            assert(1 < 0)
         "});
         script.execute();
         set resp.http.result2-is-error = script.result_is_error();
         script.free_result();
 
         script.init({"
-            return null
+            return nil
         "});
         script.execute();
         set resp.http.result3-is-nil = script.result_is_nil();
@@ -114,22 +114,22 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
         script.free_result();
 
         script.init({"
-            if ((varnish.get_header("X-Req-Log", "req")) != null) {
-                varnish.log(varnish.get_header("X-Req-Log", "req"));
-            }
-            if (varnish.get_header("X-Obj-Log", "obj") != null) {
-                varnish.log(varnish.get_header("X-Obj-Log", "obj"));
-            }
-            if (varnish.get_header("X-Unavailable-Header", "req") == null) {
-                varnish.log("X-Unavailable-Header is not defined");
-            }
-            varnish.set_header("X-Set-Header", "set-value", "resp");
+            if (varnish.get_header('X-Req-Log', 'req')) ~= nil then
+                varnish.log(varnish.get_header('X-Req-Log', 'req'))
+            end
+            if varnish.get_header('X-Obj-Log', 'obj') ~= nil then
+                varnish.log(varnish.get_header('X-Obj-Log', 'obj'))
+            end
+            if varnish.get_header('X-Unavailable-Header', 'req') == nil then
+                varnish.log('X-Unavailable-Header is not defined')
+            end
+            varnish.set_header('X-Set-Header', 'set-value', 'resp')
         "});
         script.execute();
         script.free_result();
 
         script.init({"
-            return varnish.get_header("X-Error", "bereq")
+            return varnish.get_header('X-Error', 'bereq')
         "});
         script.execute();
         script.free_result();
