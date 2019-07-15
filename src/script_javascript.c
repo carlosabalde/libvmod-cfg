@@ -730,7 +730,7 @@ varnish_shared_eval_javascript_command(duk_context *D)
         Lck_AssertHeld(&script->state.mutex);
     }
 
-    // Execute function and leave result o error message on top
+    // Execute function and leave result or error message on top
     // of the stack.
     unsigned error = duk_pcall(D, 0) != DUK_EXEC_SUCCESS;
 
