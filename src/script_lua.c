@@ -371,7 +371,7 @@ varnish_log_lua_command(lua_State *L)
 {
     // Extract input arguments.
     int argc = lua_gettop(L);
-    if (argc < 1) {
+    if (argc != 1) {
         lua_pushstring(L, "varnish.log() requires one argument.");
         lua_error(L);
     }
@@ -573,6 +573,201 @@ varnish_regsuball_lua_command(lua_State *L)
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
 
+// Extract value from 'varnish.shared._locked'.
+#define GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, where) \
+    do { \
+        lua_getglobal(L, "varnish"); \
+        AN(lua_istable(L, -1)); \
+        lua_getfield(L, -1, "shared"); \
+        AN(lua_istable(L, -1)); \
+        lua_getfield(L, -1, "_locked"); \
+        AN(lua_isboolean(L, -1)); \
+        where = lua_toboolean(L, -1); \
+        lua_pop(L, 3); \
+    } while (0)
+
+// Update value in 'varnish.shared._locked'.
+#define SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, value) \
+    do { \
+        lua_getglobal(L, "varnish"); \
+        AN(lua_istable(L, -1)); \
+        lua_getfield(L, -1, "shared"); \
+        AN(lua_istable(L, -1)); \
+        lua_pushboolean (L, value); \
+        lua_setfield(L, -2, "_locked"); \
+        lua_pop(L, 2); \
+    } while (0)
+
+static int
+varnish_shared_get_lua_command(lua_State *L)
+{
+    // Initializations.
+    const char *result = NULL;
+
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc != 1) {
+        lua_pushstring(L, "varnish.shared.get() requires one argument.");
+        lua_error(L);
+    }
+    const char *key = lua_tostring(L, -1);
+
+    // Check input arguments.
+    if (key != NULL && strlen(key) > 0) {
+        // Execute 'locked = varnish.shared._locked'.
+        unsigned locked;
+        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+
+        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+        struct vmod_cfg_script *script;
+        GET_VARNISH_TABLE_SCRIPT(L, script);
+
+        // Execute command.
+        result = varnish_shared_get_command(ctx, script, key, locked);
+    }
+
+    // Done!
+    lua_pushstring(L, result);
+    return 1;
+}
+
+static int
+varnish_shared_set_lua_command(lua_State *L)
+{
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc != 2) {
+        lua_pushstring(L, "varnish.shared.set() requires two arguments.");
+        lua_error(L);
+    }
+    const char *key = lua_tostring(L, -2);
+    const char *value = lua_tostring(L, -1);
+
+    // Check input arguments.
+    if (key != NULL && strlen(key) > 0 &&
+        value != NULL && strlen(value) > 0) {
+        // Execute 'locked = varnish.shared._locked'.
+        unsigned locked;
+        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+
+        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+        struct vmod_cfg_script *script;
+        GET_VARNISH_TABLE_SCRIPT(L, script);
+
+        // Execute command.
+        varnish_shared_set_command(ctx, script, key, value, locked);
+    }
+
+    // Done!
+    return 0;
+}
+
+static int
+varnish_shared_delete_lua_command(lua_State *L)
+{
+    // Extract input arguments.
+    int argc = lua_gettop(L);
+    if (argc != 1) {
+        lua_pushstring(L, "varnish.shared.delete() requires one argument.");
+        lua_error(L);
+    }
+    const char *key = lua_tostring(L, -1);
+
+    // Check input arguments.
+    if (key != NULL && strlen(key) > 0) {
+        // Execute 'locked = varnish.shared._locked'.
+        unsigned locked;
+        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+
+        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        VRT_CTX;
+        GET_VARNISH_TABLE_CTX(L, ctx);
+        struct vmod_cfg_script *script;
+        GET_VARNISH_TABLE_SCRIPT(L, script);
+
+        // Execute command.
+        varnish_shared_delete_command(ctx, script, key, locked);
+    }
+
+    // Done!
+    return 0;
+}
+
+static int
+varnish_shared_eval_lua_command(lua_State *L)
+{
+    // Check input arguments.
+    int argc = lua_gettop(L);
+    if (argc != 1) {
+        lua_pushstring(L, "varnish.shared.eval() requires one argument.");
+        lua_error(L);
+    }
+    if (!lua_isfunction(L, -1)) {
+        lua_pushstring(L, "varnish.shared.eval() requires a function argument.");
+        lua_error(L);
+    }
+
+    // Execute 'locked = varnish.shared._locked'.
+    unsigned locked;
+    GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+
+    // Execute 'script = varnish._script'.
+    struct vmod_cfg_script *script;
+    GET_VARNISH_TABLE_SCRIPT(L, script);
+
+    // Get lock if needed.
+    if (!locked) {
+        Lck_Lock(&script->state.mutex);
+        SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, 1);
+    } else {
+        Lck_AssertHeld(&script->state.mutex);
+    }
+
+    // Execute function and leave result o error message on top
+    // of the stack.
+    unsigned error = lua_pcall(L, 0, 1, 0) != 0;
+
+    // Release lock if needed.
+    if (!locked) {
+        SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, 0);
+        Lck_Unlock(&script->state.mutex);
+    }
+
+    // Done!
+    if (error) {
+        lua_error(L);
+    }
+    return 1;
+}
+
+static const char *varnish_shared_incr_lua_command =
+    "varnish.shared.incr = function(key, increment)\n"
+    "  local key = key\n"
+    "  local increment = tonumber(increment)\n"
+    "  if increment == nil then\n"
+    "    increment = 0\n"
+    "  end\n"
+    "  \n"
+    "  return varnish.shared.eval(function()\n"
+    "    local value = tonumber(varnish.shared.get(key))\n"
+    "    if value == nil then\n"
+    "      value = increment\n"
+    "    else\n"
+    "      value = value + increment\n"
+    "    end\n"
+    "    \n"
+    "    varnish.shared.set(key, value)\n"
+    "    return value\n"
+    "  end)\n"
+    "end\n";
+
+#undef GET_VARNISH_SHARED_TABLE_LOCKED_FIELD
+#undef SET_VARNISH_SHARED_TABLE_LOCKED_FIELD
+
 #undef GET_VARNISH_TABLE_FOO_FIELD
 #undef GET_VARNISH_TABLE_CTX
 #undef GET_VARNISH_TABLE_SCRIPT
@@ -673,7 +868,7 @@ enable_lua_protections(lua_State *L)
         "     __metatable = false\n"
         "   });\n"
         "end\n"
-        "varnish.shared = readonly_table(varnish.shared, {})\n"
+        "varnish.shared = readonly_table(varnish.shared, {_locked = true})\n"
         "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
         "\n"
         "readonly_table = nil\n";
@@ -712,6 +907,25 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_pushcfunction(result, varnish_regsuball_lua_command);
     lua_setfield(result, -2, "regsuball");
     lua_setglobal(result, "varnish");
+
+    // Add support for varnish.shared.* commands.
+    lua_getglobal(result, "varnish");
+    AN(lua_istable(result, -1));
+    lua_getfield(result, -1, "shared");
+    AN(lua_istable(result, -1));
+    lua_pushboolean (result, 0);
+    lua_setfield(result, -2, "_locked");
+    lua_pushcfunction(result, varnish_shared_get_lua_command);
+    lua_setfield(result, -2, "get");
+    lua_pushcfunction(result, varnish_shared_set_lua_command);
+    lua_setfield(result, -2, "set");
+    lua_pushcfunction(result, varnish_shared_delete_lua_command);
+    lua_setfield(result, -2, "delete");
+    lua_pushcfunction(result, varnish_shared_eval_lua_command);
+    lua_setfield(result, -2, "eval");
+    lua_pop(result, 2);
+    AZ(luaL_loadbuffer(result, varnish_shared_incr_lua_command, strlen(varnish_shared_incr_lua_command), "@varnish_shared_incr_command"));
+    AZ(lua_pcall(result, 0, 0, 0));
 
     // Add a helper function for error reporting.
     // Note that when the error is in the C function we want to report the
