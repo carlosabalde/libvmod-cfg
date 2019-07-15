@@ -438,6 +438,7 @@ enable_lua_protections(lua_State *L)
         "     __metatable = false\n"
         "   });\n"
         "end\n"
+        "varnish.shared = readonly_table(varnish.shared, {})\n"
         "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
         "\n"
         "readonly_table = nil\n";
@@ -683,9 +684,11 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     load_lua_libs(script, result);
     remove_unsupported_lua_functions(script, result);
 
-    // Add support for varnish.shared, varnish._ctx, varnish._script,
-    // varnish._error_handler(), varnish.log(), etc.
+    // Add support for varnish.engine, varnish.shared, varnish._ctx,
+    // varnish._script, varnish._error_handler(), varnish.log(), etc.
     lua_newtable(result);
+    lua_newtable(result);
+    lua_setfield(result, -2, "engine");
     lua_newtable(result);
     lua_setfield(result, -2, "shared");
     lua_pushcfunction(result, varnish_log_lua_command);
