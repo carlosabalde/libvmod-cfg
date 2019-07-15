@@ -727,7 +727,7 @@ varnish_shared_eval_lua_command(lua_State *L)
         Lck_AssertHeld(&script->state.mutex);
     }
 
-    // Execute function and leave result o error message on top
+    // Execute function and leave result or error message on top
     // of the stack.
     unsigned error = lua_pcall(L, 0, 1, 0) != 0;
 
