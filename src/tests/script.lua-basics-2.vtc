@@ -1,0 +1,88 @@
+ varnishtest "Test basics for Lua script 2"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.lua" <<'EOF'
+EOF
+}
+
+varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test.lua",
+            period=0,
+            type=lua);
+    }
+
+    sub vcl_deliver {
+       script.init({"
+            varnish.engine.foo = 42
+            varnish.shared.set('bar', 314)
+            varnish.shared.incr('bar', 10)
+            varnish.shared.eval(function()
+                local value = varnish.shared.incr('bar', -4)
+                varnish.shared.set('baz', value)
+            end)
+        "});
+        script.execute();
+        script.free_result();
+
+        script.init({"
+            varnish.shared.eval(function()
+                varnish.shared.eval(function()
+                    varnish.shared.eval(function()
+                        varnish.shared.incr('baz', -6);
+                        error('error')
+                    end)
+                end)
+            end)
+
+            return 42
+        "});
+        script.execute();
+        set resp.http.result2-is-error = script.result_is_error();
+        script.free_result();
+
+        script.init({"
+            return {
+                varnish.engine.foo,
+                varnish.shared.get('bar'),
+                varnish.shared.get('baz'),
+                varnish.shared.get('qux'),
+            }
+        "});
+        script.execute();
+        set resp.http.result3-table-value-0 = script.get_table_result_value(0);
+        set resp.http.result3-table-value-1 = script.get_table_result_value(1);
+        set resp.http.result3-table-value-2 = script.get_table_result_value(2);
+        set resp.http.result3-table-value-3 = script.get_table_result_value(3);
+        script.free_result();
+
+        set resp.http.stats = script.stats();
+        set resp.http.variables-current = script.counter("variables.current");
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+
+    expect resp.http.result2-is-error == "true"
+
+    expect resp.http.result3-table-value-0 == "42"
+    expect resp.http.result3-table-value-1 == "320"
+    expect resp.http.result3-table-value-2 == "314"
+    expect resp.http.result3-table-value-3 == ""
+
+    expect resp.http.variables-current == "2"
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
