@@ -331,7 +331,7 @@ done:
 }
 
 /******************************************************************************
- * HELPERS.
+ * VARNISH.* COMMANDS.
  *****************************************************************************/
 
 // Extract field from 'varnish.field'. Both 'varnish' table and user data are
@@ -562,9 +562,17 @@ varnish_regsuball_javascript_command(duk_context *D)
     return varnish_regsub_javascript_command(D, 1);
 }
 
+/******************************************************************************
+ * VARNISH.SHARED.* COMMANDS.
+ *****************************************************************************/
+
 #undef GET_VARNISH_OBJECT_FOO_FIELD
 #undef GET_VARNISH_OBJECT_CTX
 #undef GET_VARNISH_OBJECT_SCRIPT
+
+/******************************************************************************
+ * HELPERS.
+ *****************************************************************************/
 
 static duk_context *
 new_context(VRT_CTX, struct vmod_cfg_script *script)

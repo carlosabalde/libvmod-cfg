@@ -343,108 +343,8 @@ done:
 }
 
 /******************************************************************************
- * HELPERS.
+ * VARNISH.* COMMANDS.
  *****************************************************************************/
-
-static void
-load_lua_lib(lua_State *L, const char *name, lua_CFunction f)
-{
-#if LUA_VERSION_NUM >= 502
-    luaL_requiref(L, name, f, 1);
-    lua_pop(L, 1);
-#else
-    lua_pushcfunction(L, f);
-    lua_pushstring(L, name);
-    lua_call(L, 1, 0);
-#endif
-}
-
-static void
-load_lua_libs(struct vmod_cfg_script *script, lua_State *L)
-{
-#if LUA_VERSION_NUM >= 502
-    load_lua_lib(L, "_G", luaopen_base);
-#else
-    load_lua_lib(L, "", luaopen_base);
-#endif
-    load_lua_lib(L, LUA_TABLIBNAME, luaopen_table);
-    load_lua_lib(L, LUA_STRLIBNAME, luaopen_string);
-    load_lua_lib(L, LUA_MATHLIBNAME, luaopen_math);
-    load_lua_lib(L, LUA_DBLIBNAME, luaopen_debug);
-    if (script->engine_cfg.lua.libraries.package) {
-        load_lua_lib(L, LUA_LOADLIBNAME, luaopen_package);
-    }
-    if (script->engine_cfg.lua.libraries.io) {
-        load_lua_lib(L, LUA_IOLIBNAME, luaopen_io);
-    }
-    if (script->engine_cfg.lua.libraries.os) {
-        load_lua_lib(L, LUA_OSLIBNAME, luaopen_os);
-    }
-}
-
-static void
-remove_unsupported_lua_function(lua_State *L, const char *name)
-{
-    lua_pushnil(L);
-    lua_setglobal(L, name);
-}
-
-static void
-remove_unsupported_lua_functions(struct vmod_cfg_script *script, lua_State *L)
-{
-    if (!script->engine_cfg.lua.functions.loadfile) {
-        remove_unsupported_lua_function(L, "loadfile");
-    }
-    if (!script->engine_cfg.lua.functions.dotfile) {
-        remove_unsupported_lua_function(L, "dotfile");
-    }
-}
-
-static void
-enable_lua_protections(lua_State *L)
-{
-    // This function should be the last to be called in the scripting engine
-    // initialization sequence!
-    const char *protections =
-        "-- http://metalua.luaforge.net/src/lib/strict.lua.html\n"
-        "setmetatable(_G, {\n"
-        "  __index = function(table, key)\n"
-        "    if debug.getinfo(2) and debug.getinfo(2, 'S').what ~= 'C' then\n"
-        "      error('Script attempted to access nonexistent global variable \\'' .. tostring(key) .. '\\'')\n"
-        "    end\n"
-        "    return rawget(table, key)\n"
-        "  end,\n"
-        "  __newindex = function(table, key, value)\n"
-        "    if debug.getinfo(2) then\n"
-        "      local w = debug.getinfo(2, 'S').what\n"
-        "      if w ~= 'main' and w ~= 'C' then\n"
-        "        error('Script attempted to create global variable \\'' .. tostring(key) .. '\\'')\n"
-        "      end\n"
-        "    end\n"
-        "    rawset(table, key, value)\n"
-        "  end\n"
-        " });\n"
-        "\n"
-        "-- http://lua-users.org/wiki/ReadOnlyTables\n"
-        "local function readonly_table(table, exceptions)\n"
-        "   return setmetatable({}, {\n"
-        "     __index = table,\n"
-        "     __newindex = function(table, key, value)\n"
-        "         if not exceptions[key] then\n"
-        "           error('Script attempted to modify read-only table')\n"
-        "         end\n"
-        "         rawset(table, key, value)\n"
-        "     end,\n"
-        "     __metatable = false\n"
-        "   });\n"
-        "end\n"
-        "varnish.shared = readonly_table(varnish.shared, {})\n"
-        "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
-        "\n"
-        "readonly_table = nil\n";
-    AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
-    AZ(lua_pcall(L, 0, 0, 0));
-}
 
 // Extract field from 'varnish.field'. Both 'varnish' table and user data are
 // pushed into the stack and the removed.
@@ -669,9 +569,117 @@ varnish_regsuball_lua_command(lua_State *L)
     return varnish_regsub_lua_command(L, 1);
 }
 
+/******************************************************************************
+ * VARNISH.SHARED.* COMMANDS.
+ *****************************************************************************/
+
 #undef GET_VARNISH_TABLE_FOO_FIELD
 #undef GET_VARNISH_TABLE_CTX
 #undef GET_VARNISH_TABLE_SCRIPT
+
+/******************************************************************************
+ * HELPERS.
+ *****************************************************************************/
+
+static void
+load_lua_lib(lua_State *L, const char *name, lua_CFunction f)
+{
+#if LUA_VERSION_NUM >= 502
+    luaL_requiref(L, name, f, 1);
+    lua_pop(L, 1);
+#else
+    lua_pushcfunction(L, f);
+    lua_pushstring(L, name);
+    lua_call(L, 1, 0);
+#endif
+}
+
+static void
+load_lua_libs(struct vmod_cfg_script *script, lua_State *L)
+{
+#if LUA_VERSION_NUM >= 502
+    load_lua_lib(L, "_G", luaopen_base);
+#else
+    load_lua_lib(L, "", luaopen_base);
+#endif
+    load_lua_lib(L, LUA_TABLIBNAME, luaopen_table);
+    load_lua_lib(L, LUA_STRLIBNAME, luaopen_string);
+    load_lua_lib(L, LUA_MATHLIBNAME, luaopen_math);
+    load_lua_lib(L, LUA_DBLIBNAME, luaopen_debug);
+    if (script->engine_cfg.lua.libraries.package) {
+        load_lua_lib(L, LUA_LOADLIBNAME, luaopen_package);
+    }
+    if (script->engine_cfg.lua.libraries.io) {
+        load_lua_lib(L, LUA_IOLIBNAME, luaopen_io);
+    }
+    if (script->engine_cfg.lua.libraries.os) {
+        load_lua_lib(L, LUA_OSLIBNAME, luaopen_os);
+    }
+}
+
+static void
+remove_unsupported_lua_function(lua_State *L, const char *name)
+{
+    lua_pushnil(L);
+    lua_setglobal(L, name);
+}
+
+static void
+remove_unsupported_lua_functions(struct vmod_cfg_script *script, lua_State *L)
+{
+    if (!script->engine_cfg.lua.functions.loadfile) {
+        remove_unsupported_lua_function(L, "loadfile");
+    }
+    if (!script->engine_cfg.lua.functions.dotfile) {
+        remove_unsupported_lua_function(L, "dotfile");
+    }
+}
+
+static void
+enable_lua_protections(lua_State *L)
+{
+    // This function should be the last to be called in the scripting engine
+    // initialization sequence!
+    const char *protections =
+        "-- http://metalua.luaforge.net/src/lib/strict.lua.html\n"
+        "setmetatable(_G, {\n"
+        "  __index = function(table, key)\n"
+        "    if debug.getinfo(2) and debug.getinfo(2, 'S').what ~= 'C' then\n"
+        "      error('Script attempted to access nonexistent global variable \\'' .. tostring(key) .. '\\'')\n"
+        "    end\n"
+        "    return rawget(table, key)\n"
+        "  end,\n"
+        "  __newindex = function(table, key, value)\n"
+        "    if debug.getinfo(2) then\n"
+        "      local w = debug.getinfo(2, 'S').what\n"
+        "      if w ~= 'main' and w ~= 'C' then\n"
+        "        error('Script attempted to create global variable \\'' .. tostring(key) .. '\\'')\n"
+        "      end\n"
+        "    end\n"
+        "    rawset(table, key, value)\n"
+        "  end\n"
+        " });\n"
+        "\n"
+        "-- http://lua-users.org/wiki/ReadOnlyTables\n"
+        "local function readonly_table(table, exceptions)\n"
+        "   return setmetatable({}, {\n"
+        "     __index = table,\n"
+        "     __newindex = function(table, key, value)\n"
+        "         if not exceptions[key] then\n"
+        "           error('Script attempted to modify read-only table')\n"
+        "         end\n"
+        "         rawset(table, key, value)\n"
+        "     end,\n"
+        "     __metatable = false\n"
+        "   });\n"
+        "end\n"
+        "varnish.shared = readonly_table(varnish.shared, {})\n"
+        "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
+        "\n"
+        "readonly_table = nil\n";
+    AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
+    AZ(lua_pcall(L, 0, 0, 0));
+}
 
 static lua_State *
 new_context(VRT_CTX, struct vmod_cfg_script *script)
