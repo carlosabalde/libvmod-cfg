@@ -520,6 +520,14 @@ vmod_script_free_result(
     get_task_state(ctx, 1);
 }
 
+VCL_VOID
+vmod_script_clear_task_variables(
+    VRT_CTX, struct vmod_cfg_script *script)
+{
+    task_state_t *state = get_task_state(ctx, 0);
+    reset_task_state(state, 1, 1);
+}
+
 static uint64_t
 engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 {

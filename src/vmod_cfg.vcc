@@ -492,6 +492,17 @@ Description
     this will be handled automatically during the next call to ``.init()``
     using the same object.
 
+$Method VOID .clear_task_variables()
+
+Description
+    This is a temporary workaround required to use shared variables with
+    ``task`` scope. Due to Varnish 4.1 limitations, ``PRIV_TASK`` is not
+    available for VMOD objects. That means variables associated to the
+    task need to be manually cleared when a new frontend or backend
+    request starts (i.e. ``req.restarts == 0`` or ``bereq.retries == 0``)
+    before doing any operation related with shared variables. Otherwise
+    crashes are expected.
+
 $Method STRING .stats()
 
 Description

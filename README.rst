@@ -128,6 +128,8 @@ import cfg;
 
     Method VOID .free_result()
 
+    $Method VOID .clear_task_variables()
+
     Method STRING .stats()
     Method INT .counter(STRING name)
 

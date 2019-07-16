@@ -21,6 +21,10 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
     }
 
     sub vcl_deliver {
+        if (req.restarts == 0) {
+            script.clear_task_variables();
+        }
+
         if (req.http.id == "1") {
             script.init({"
                 varnish.engine.foo = 42
