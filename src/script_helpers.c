@@ -513,12 +513,12 @@ varnish_set_header_command(
 const char *
 varnish_shared_get_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned locked)
+    unsigned is_locked)
 {
     const char *result = NULL;
     unsigned fail = 0;
 
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_rdlock(&script->state.rwlock));
     } else {
         Lck_AssertHeld(&script->state.mutex);
@@ -530,7 +530,7 @@ varnish_shared_get_command(
         fail = result == NULL;
     }
 
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_unlock(&script->state.rwlock));
     }
 
@@ -544,9 +544,9 @@ varnish_shared_get_command(
 void
 varnish_shared_set_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
-    unsigned locked)
+    unsigned is_locked)
 {
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_wrlock(&script->state.rwlock));
     } else {
         Lck_AssertHeld(&script->state.mutex);
@@ -563,7 +563,7 @@ varnish_shared_set_command(
         AN(variable->value);
     }
 
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_unlock(&script->state.rwlock));
     }
 }
@@ -571,9 +571,9 @@ varnish_shared_set_command(
 void
 varnish_shared_delete_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned locked)
+    unsigned is_locked)
 {
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_wrlock(&script->state.rwlock));
     } else {
         Lck_AssertHeld(&script->state.mutex);
@@ -585,7 +585,7 @@ varnish_shared_delete_command(
         script->state.variables.n--;
     }
 
-    if (!locked) {
+    if (!is_locked) {
         AZ(pthread_rwlock_unlock(&script->state.rwlock));
     }
 }
