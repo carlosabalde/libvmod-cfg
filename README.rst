@@ -395,10 +395,10 @@ should be started with the right environment variables properly configured
                 if headers:get(':status') == '200' then
                     local info = json.decode(stream:get_body_as_string())
                     city = info.city or '?'
-                    varnish.engine.client:set(ARGV[0], city, 'EX', 600)
                 else
                     city = '?'
                 end
+                varnish.engine.client:set(ARGV[0], city, 'EX', 600)
             end
 
             varnish.set_header(
