@@ -15,6 +15,10 @@
 #include "variables.h"
 #include "helpers.h"
 
+// Required lock ordering to avoid deadlocks:
+//   1. vmod_cfg_script->state.mutex.
+//   2. vmod_cfg_script->state.rwlock.
+
 enum ENGINE_TYPE {
     ENGINE_TYPE_LUA,
     ENGINE_TYPE_JAVASCRIPT,
@@ -226,12 +230,12 @@ const char *varnish_regsub_command(
 
 const char *varnish_shared_get_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned locked);
+    unsigned is_locked);
 void varnish_shared_set_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
-    unsigned locked);
+    unsigned is_locked);
 void varnish_shared_delete_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned locked);
+    unsigned is_locked);
 
 #endif

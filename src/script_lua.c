@@ -573,28 +573,28 @@ varnish_regsuball_lua_command(lua_State *L)
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
 
-// Extract value from 'varnish.shared._locked'.
-#define GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, where) \
+// Extract value from 'varnish.shared._is_locked'.
+#define GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, where) \
     do { \
         lua_getglobal(L, "varnish"); \
         AN(lua_istable(L, -1)); \
         lua_getfield(L, -1, "shared"); \
         AN(lua_istable(L, -1)); \
-        lua_getfield(L, -1, "_locked"); \
+        lua_getfield(L, -1, "_is_locked"); \
         AN(lua_isboolean(L, -1)); \
         where = lua_toboolean(L, -1); \
         lua_pop(L, 3); \
     } while (0)
 
-// Update value in 'varnish.shared._locked'.
-#define SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, value) \
+// Update value in 'varnish.shared._is_locked'.
+#define SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, value) \
     do { \
         lua_getglobal(L, "varnish"); \
         AN(lua_istable(L, -1)); \
         lua_getfield(L, -1, "shared"); \
         AN(lua_istable(L, -1)); \
         lua_pushboolean (L, value); \
-        lua_setfield(L, -2, "_locked"); \
+        lua_setfield(L, -2, "_is_locked"); \
         lua_pop(L, 2); \
     } while (0)
 
@@ -614,9 +614,9 @@ varnish_shared_get_lua_command(lua_State *L)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -625,7 +625,7 @@ varnish_shared_get_lua_command(lua_State *L)
         GET_VARNISH_TABLE_SCRIPT(L, script);
 
         // Execute command.
-        result = varnish_shared_get_command(ctx, script, key, locked);
+        result = varnish_shared_get_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -648,9 +648,9 @@ varnish_shared_set_lua_command(lua_State *L)
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
         value != NULL && strlen(value) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -659,7 +659,7 @@ varnish_shared_set_lua_command(lua_State *L)
         GET_VARNISH_TABLE_SCRIPT(L, script);
 
         // Execute command.
-        varnish_shared_set_command(ctx, script, key, value, locked);
+        varnish_shared_set_command(ctx, script, key, value, is_locked);
     }
 
     // Done!
@@ -679,9 +679,9 @@ varnish_shared_delete_lua_command(lua_State *L)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -690,7 +690,7 @@ varnish_shared_delete_lua_command(lua_State *L)
         GET_VARNISH_TABLE_SCRIPT(L, script);
 
         // Execute command.
-        varnish_shared_delete_command(ctx, script, key, locked);
+        varnish_shared_delete_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -711,18 +711,18 @@ varnish_shared_eval_lua_command(lua_State *L)
         lua_error(L);
     }
 
-    // Execute 'locked = varnish.shared._locked'.
-    unsigned locked;
-    GET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, locked);
+    // Execute 'is_locked = varnish.shared._is_locked'.
+    unsigned is_locked;
+    GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
     // Execute 'script = varnish._script'.
     struct vmod_cfg_script *script;
     GET_VARNISH_TABLE_SCRIPT(L, script);
 
     // Get lock if needed.
-    if (!locked) {
+    if (!is_locked) {
         Lck_Lock(&script->state.mutex);
-        SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, 1);
+        SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 1);
     } else {
         Lck_AssertHeld(&script->state.mutex);
     }
@@ -732,8 +732,8 @@ varnish_shared_eval_lua_command(lua_State *L)
     unsigned error = lua_pcall(L, 0, 1, 0) != 0;
 
     // Release lock if needed.
-    if (!locked) {
-        SET_VARNISH_SHARED_TABLE_LOCKED_FIELD(L, 0);
+    if (!is_locked) {
+        SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 0);
         Lck_Unlock(&script->state.mutex);
     }
 
@@ -765,8 +765,8 @@ static const char *varnish_shared_incr_lua_command =
     "  end)\n"
     "end\n";
 
-#undef GET_VARNISH_SHARED_TABLE_LOCKED_FIELD
-#undef SET_VARNISH_SHARED_TABLE_LOCKED_FIELD
+#undef GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
+#undef SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
 
 #undef GET_VARNISH_TABLE_FOO_FIELD
 #undef GET_VARNISH_TABLE_CTX
@@ -868,7 +868,7 @@ enable_lua_protections(lua_State *L)
         "     __metatable = false\n"
         "   });\n"
         "end\n"
-        "varnish.shared = readonly_table(varnish.shared, {_locked = true})\n"
+        "varnish.shared = readonly_table(varnish.shared, {_is_locked = true})\n"
         "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
         "\n"
         "readonly_table = nil\n";
@@ -914,7 +914,7 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_getfield(result, -1, "shared");
     AN(lua_istable(result, -1));
     lua_pushboolean (result, 0);
-    lua_setfield(result, -2, "_locked");
+    lua_setfield(result, -2, "_is_locked");
     lua_pushcfunction(result, varnish_shared_get_lua_command);
     lua_setfield(result, -2, "get");
     lua_pushcfunction(result, varnish_shared_set_lua_command);

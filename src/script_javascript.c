@@ -566,28 +566,28 @@ varnish_regsuball_javascript_command(duk_context *D)
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
 
-// Extract value from 'varnish.shared._locked'.
-#define GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, where) \
+// Extract value from 'varnish.shared._is_locked'.
+#define GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, where) \
     do { \
         duk_get_global_string(D, "varnish"); \
         AN(duk_is_object(D, -1)); \
         duk_get_prop_string(D, -1, "shared"); \
         AN(duk_is_object(D, -1)); \
-        duk_get_prop_string(D, -1, DUK_HIDDEN_SYMBOL("_locked")); \
+        duk_get_prop_string(D, -1, DUK_HIDDEN_SYMBOL("_is_locked")); \
         AN(duk_is_boolean(D, -1)); \
         where = duk_get_boolean(D, -1); \
         duk_pop_3(D); \
     } while (0)
 
-// Update value in 'varnish.shared._locked'.
-#define SET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, value) \
+// Update value in 'varnish.shared._is_locked'.
+#define SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, value) \
     do { \
         duk_get_global_string(D, "varnish"); \
         AN(duk_is_object(D, -1)); \
         duk_get_prop_string(D, -1, "shared"); \
         AN(duk_is_object(D, -1)); \
         duk_push_boolean (D, value); \
-        duk_put_prop_string(D, -2, DUK_HIDDEN_SYMBOL("_locked")); \
+        duk_put_prop_string(D, -2, DUK_HIDDEN_SYMBOL("_is_locked")); \
         duk_pop_2(D); \
     } while (0)
 
@@ -609,9 +609,9 @@ varnish_shared_get_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -620,7 +620,7 @@ varnish_shared_get_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_SCRIPT(D, script);
 
         // Execute command.
-        result = varnish_shared_get_command(ctx, script, key, locked);
+        result = varnish_shared_get_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -645,9 +645,9 @@ varnish_shared_set_javascript_command(duk_context *D)
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
         value != NULL && strlen(value) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -656,7 +656,7 @@ varnish_shared_set_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_SCRIPT(D, script);
 
         // Execute command.
-        varnish_shared_set_command(ctx, script, key, value, locked);
+        varnish_shared_set_command(ctx, script, key, value, is_locked);
     }
 
     // Done!
@@ -678,9 +678,9 @@ varnish_shared_delete_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'locked = varnish.shared._locked'.
-        unsigned locked;
-        GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, locked);
+        // Execute 'is_locked = varnish.shared._is_locked'.
+        unsigned is_locked;
+        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
 
         // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
         VRT_CTX;
@@ -689,7 +689,7 @@ varnish_shared_delete_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_SCRIPT(D, script);
 
         // Execute command.
-        varnish_shared_delete_command(ctx, script, key, locked);
+        varnish_shared_delete_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -714,18 +714,18 @@ varnish_shared_eval_javascript_command(duk_context *D)
             "varnish.shared.eval() requires a function argument.");
     }
 
-    // Execute 'locked = varnish.shared._locked'.
-    unsigned locked;
-    GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, locked);
+    // Execute 'is_locked = varnish.shared._is_locked'.
+    unsigned is_locked;
+    GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
 
     // Execute 'script = varnish._script'.
     struct vmod_cfg_script *script;
     GET_VARNISH_OBJECT_SCRIPT(D, script);
 
     // Get lock if needed.
-    if (!locked) {
+    if (!is_locked) {
         Lck_Lock(&script->state.mutex);
-        SET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, 1);
+        SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 1);
     } else {
         Lck_AssertHeld(&script->state.mutex);
     }
@@ -735,8 +735,8 @@ varnish_shared_eval_javascript_command(duk_context *D)
     unsigned error = duk_pcall(D, 0) != DUK_EXEC_SUCCESS;
 
     // Release lock if needed.
-    if (!locked) {
-        SET_VARNISH_SHARED_OBJECT_LOCKED_FIELD(D, 0);
+    if (!is_locked) {
+        SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 0);
         Lck_Unlock(&script->state.mutex);
     }
 
@@ -768,8 +768,8 @@ static const char *varnish_shared_incr_javascript_command =
     "  })\n"
     "}\n";
 
-#undef GET_VARNISH_SHARED_OBJECT_LOCKED_FIELD
-#undef SET_VARNISH_SHARED_OBJECT_LOCKED_FIELD
+#undef GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
+#undef SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
 
 #undef GET_VARNISH_OBJECT_FOO_FIELD
 #undef GET_VARNISH_OBJECT_CTX
@@ -813,7 +813,7 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     duk_get_prop_string(result, -1, "shared");
     AN(duk_is_object(result, -1));
     duk_push_boolean(result, 0);
-    duk_put_prop_string(result, -2, DUK_HIDDEN_SYMBOL("_locked"));
+    duk_put_prop_string(result, -2, DUK_HIDDEN_SYMBOL("_is_locked"));
     duk_push_c_function(result, varnish_shared_get_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, -2, "get");
     duk_push_c_function(result, varnish_shared_set_javascript_command, DUK_VARARGS);
