@@ -142,6 +142,8 @@ new_task_state()
 void
 reset_task_state(task_state_t *state)
 {
+    VRBT_INIT(&state->variables);
+
     state->execution.code = NULL;
     state->execution.argc = -1;
     memset(&state->execution.argv[0], 0, sizeof(state->execution.argv));
@@ -512,8 +514,8 @@ varnish_set_header_command(
 
 const char *
 varnish_shared_get_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned is_locked)
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked)
 {
     const char *result = NULL;
     unsigned fail = 0;
@@ -541,7 +543,8 @@ varnish_shared_get_command(
 
 void
 varnish_shared_set_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, const char *value, enum VARIABLE_SCOPE scope,
     unsigned is_locked)
 {
     if (!is_locked) {
@@ -550,7 +553,7 @@ varnish_shared_set_command(
 
     variable_t *variable = find_variable(&script->state.variables.list, key);
     if (variable == NULL) {
-        variable = new_variable(key, strlen(key), value);
+        variable = new_global_variable(key, strlen(key), value);
         AZ(VRBT_INSERT(variables, &script->state.variables.list, variable));
         script->state.variables.n++;
     } else {
@@ -566,8 +569,8 @@ varnish_shared_set_command(
 
 void
 varnish_shared_unset_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned is_locked)
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked)
 {
     if (!is_locked) {
         AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
