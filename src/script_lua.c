@@ -423,7 +423,8 @@ varnish_get_header_lua_command(lua_State *L)
     }
 
     // Check input arguments.
-    if (name != NULL && strlen(name) > 0) {
+    if (name != NULL && strlen(name) > 0 &&
+        where != NULL && strlen(where) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
@@ -462,7 +463,8 @@ varnish_set_header_lua_command(lua_State *L)
 
     // Check input arguments.
     if (name != NULL && strlen(name) > 0 &&
-        value != NULL && strlen(value) > 0) {
+        value != NULL && strlen(value) > 0 &&
+        where != NULL && strlen(where) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
@@ -630,7 +632,8 @@ varnish_shared_get_lua_command(lua_State *L)
     }
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0) {
+    if (key != NULL && strlen(key) > 0 &&
+        scope != NULL && strlen(scope) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
@@ -673,7 +676,8 @@ varnish_shared_set_lua_command(lua_State *L)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
-        value != NULL && strlen(value) > 0) {
+        value != NULL && strlen(value) > 0 &&
+        scope != NULL && strlen(scope) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
@@ -713,7 +717,8 @@ varnish_shared_unset_lua_command(lua_State *L)
     }
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0) {
+    if (key != NULL && strlen(key) > 0 &&
+        scope != NULL && strlen(scope) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
