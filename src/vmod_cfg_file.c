@@ -100,7 +100,7 @@ file_parse_ini_handler(void *c, const char *section, const char *name, const cha
 
     variable_t *variable = find_variable(ctx->variables, buffer);
     if (variable == NULL) {
-        variable = new_variable(buffer, strlen(buffer), value);
+        variable = new_global_variable(buffer, strlen(buffer), value);
         AZ(VRBT_INSERT(variables, ctx->variables, variable));
     } else {
         variable->value = realloc(
@@ -146,7 +146,7 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsign
             "Remote successfully parsed (file=%s, location=%s, is_backup=%d, format=ini)",
             file->name, file->remote->location.raw, is_backup);
     } else {
-        flush_variables(file_parse_ctx.variables);
+        flush_global_variables(file_parse_ctx.variables);
         free((void *) file_parse_ctx.variables);
 
         LOG(ctx, LOG_ERR,
@@ -191,7 +191,7 @@ file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
     }
 
     if (value != NULL) {
-        variable_t *variable = new_variable(name, strlen(name), value);
+        variable_t *variable = new_global_variable(name, strlen(name), value);
         AZ(VRBT_INSERT(variables, ctx->variables, variable));
         if (item->type == cJSON_Number) {
             free((void *) value);
@@ -289,7 +289,7 @@ file_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
         file->state.variables = variables;
         AZ(pthread_rwlock_unlock(&file->state.rwlock));
 
-        flush_variables(old);
+        flush_global_variables(old);
         free((void *) old);
 
         result = 1;
@@ -386,7 +386,7 @@ vmod_file__fini(struct vmod_cfg_file **file)
     FREE_STRING(value_delimiter);
     instance->parse = NULL;
     AZ(pthread_rwlock_destroy(&instance->state.rwlock));
-    flush_variables(instance->state.variables);
+    flush_global_variables(instance->state.variables);
     free((void *) instance->state.variables);
     instance->state.variables = NULL;
 
