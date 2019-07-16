@@ -664,7 +664,7 @@ varnish_shared_set_javascript_command(duk_context *D)
 }
 
 static duk_ret_t
-varnish_shared_delete_javascript_command(duk_context *D)
+varnish_shared_unset_javascript_command(duk_context *D)
 {
     // Extract input arguments.
     int argc = duk_get_top(D);
@@ -672,7 +672,7 @@ varnish_shared_delete_javascript_command(duk_context *D)
         (void) duk_error(
             D,
             DUK_ERR_TYPE_ERROR,
-            "varnish.shared.delete() requires one argument.");
+            "varnish.shared.unset() requires one argument.");
     }
     const char *key = duk_safe_to_string(D, -1);
 
@@ -689,7 +689,7 @@ varnish_shared_delete_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_SCRIPT(D, script);
 
         // Execute command.
-        varnish_shared_delete_command(ctx, script, key, is_locked);
+        varnish_shared_unset_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -816,8 +816,8 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     duk_put_prop_string(result, -2, "get");
     duk_push_c_function(result, varnish_shared_set_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, -2, "set");
-    duk_push_c_function(result, varnish_shared_delete_javascript_command, DUK_VARARGS);
-    duk_put_prop_string(result, -2, "delete");
+    duk_push_c_function(result, varnish_shared_unset_javascript_command, DUK_VARARGS);
+    duk_put_prop_string(result, -2, "unset");
     duk_push_c_function(result, varnish_shared_eval_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, -2, "eval");
     duk_pop_2(result);

@@ -555,7 +555,7 @@ varnish_shared_set_command(
 }
 
 void
-varnish_shared_delete_command(
+varnish_shared_unset_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
     unsigned is_locked)
 {

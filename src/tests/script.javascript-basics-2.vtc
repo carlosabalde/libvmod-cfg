@@ -28,7 +28,8 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             varnish.shared.eval(function() {
                 var value = varnish.shared.incr('bar', -4);
                 varnish.shared.set('baz', value);
-            })
+            });
+            varnish.shared.set('qux', 27182);
         "});
         script.execute();
         script.free_result();
@@ -50,12 +51,13 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
         script.free_result();
 
         script.init({"
+            varnish.shared.unset('qux')
             return [
                 varnish.engine.foo,
                 varnish.shared.get('bar'),
                 varnish.shared.get('baz'),
                 varnish.shared.get('qux'),
-            ];
+            ]
         "});
         script.execute();
         set resp.http.result3-table-value-0 = script.get_table_result_value(0);
