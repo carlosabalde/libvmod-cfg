@@ -134,33 +134,38 @@ new_task_state()
     ALLOC_OBJ(result, TASK_STATE_MAGIC);
     AN(result);
 
-    reset_task_state(result);
+    reset_task_state(result, 1, 1);
 
     return result;
 }
 
 void
-reset_task_state(task_state_t *state)
+reset_task_state(
+    task_state_t *state, unsigned reset_variables, unsigned reset_execution)
 {
-    VRBT_INIT(&state->variables);
+    if (reset_variables) {
+        VRBT_INIT(&state->variables);
+    }
 
-    state->execution.code = NULL;
-    state->execution.argc = -1;
-    memset(&state->execution.argv[0], 0, sizeof(state->execution.argv));
-    memset(&state->execution.result, 0, sizeof(state->execution.result));
-    state->execution.result.nvalues = -1;
+    if (reset_execution) {
+        state->execution.code = NULL;
+        state->execution.argc = -1;
+        memset(&state->execution.argv[0], 0, sizeof(state->execution.argv));
+        memset(&state->execution.result, 0, sizeof(state->execution.result));
+        state->execution.result.nvalues = -1;
+    }
 }
 
 void
 free_task_state(task_state_t *state)
 {
-    reset_task_state(state);
+    reset_task_state(state, 1, 1);
 
     FREE_OBJ(state);
 }
 
 task_state_t *
-get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset)
+get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution)
 {
     task_state_t *result = NULL;
 
@@ -173,8 +178,8 @@ get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset)
         CHECK_OBJ(result, TASK_STATE_MAGIC);
     }
 
-    if (reset) {
-        reset_task_state(result);
+    if (reset_execution) {
+        reset_task_state(result, 0, 1);
     }
 
     return result;
@@ -515,27 +520,50 @@ varnish_set_header_command(
 const char *
 varnish_shared_get_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked)
+    const char *key, const char *scope, unsigned is_locked)
 {
+    AN(ctx->ws);
+
     const char *result = NULL;
-    unsigned fail = 0;
 
-    if (!is_locked) {
-        AZ(pthread_rwlock_rdlock(&script->state.variables.rwlock));
-    }
+    if (strcmp(scope, "task") == 0 ||
+        strcmp(scope, "global") == 0 ||
+        strcmp(scope, "all") == 0) {
+        unsigned done = 0;
 
-    variable_t *variable = find_variable(&script->state.variables.list, key);
-    if (variable != NULL) {
-        result = WS_Copy(ctx->ws, variable->value, -1);
-        fail = result == NULL;
-    }
+        // Task scope.
+        if (strcmp(scope, "task") == 0 || strcmp(scope, "all") == 0) {
+            variable_t *variable = find_variable(&state->variables, key);
+            if (variable != NULL) {
+                // Is not required to duplicate the returned value. The value
+                // was already allocated in the thread workspace when setting
+                // the value in the scope of the task.
+                result = variable->value;
+                done = 1;
+            }
+        }
 
-    if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
-    }
+        // Global scope.
+        if (!done && (strcmp(scope, "global") == 0 || strcmp(scope, "all") == 0)) {
+            unsigned fail = 0;
+            if (!is_locked) {
+                AZ(pthread_rwlock_rdlock(&script->state.variables.rwlock));
+            }
 
-    if (fail) {
-        FAIL_WS(ctx, NULL);
+            variable_t *variable = find_variable(&script->state.variables.list, key);
+            if (variable != NULL) {
+                result = WS_Copy(ctx->ws, variable->value, -1);
+                fail = result == NULL;
+            }
+
+            if (!is_locked) {
+                AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
+            }
+
+            if (fail) {
+                FAIL_WS(ctx, NULL);
+            }
+        }
     }
 
     return result;
@@ -544,45 +572,91 @@ varnish_shared_get_command(
 void
 varnish_shared_set_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, const char *value, enum VARIABLE_SCOPE scope,
+    const char *key, const char *value, const char *scope,
     unsigned is_locked)
 {
-    if (!is_locked) {
-        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
-    }
+    AN(ctx->ws);
 
-    variable_t *variable = find_variable(&script->state.variables.list, key);
-    if (variable == NULL) {
-        variable = new_global_variable(key, strlen(key), value);
-        AZ(VRBT_INSERT(variables, &script->state.variables.list, variable));
-        script->state.variables.n++;
-    } else {
-        free((void *) variable->value);
-        variable->value = strdup(value);
-        AN(variable->value);
-    }
+    if (strcmp(scope, "task") == 0 ||
+        strcmp(scope, "global") == 0) {
+        // Task scope.
+        if (strcmp(scope, "task") == 0) {
+            variable_t *variable = find_variable(&state->variables, key);
+            if (variable == NULL) {
+                variable = (void *)WS_Alloc(ctx->ws, sizeof(variable_t));
+                if (variable == NULL) {
+                    FAIL_WS(ctx, );
+                }
+                variable->magic = VARIABLE_MAGIC;
+                variable->name = WS_Copy(ctx->ws, key, -1);
+                if (variable->name == NULL) {
+                    FAIL_WS(ctx, );
+                }
+                AZ(VRBT_INSERT(variables, &state->variables, variable));
+            }
 
-    if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
+            variable->value = WS_Copy(ctx->ws, value, -1);
+            if (variable->value == NULL) {
+                FAIL_WS(ctx, );
+            }
+
+        // Global scope.
+        } else {
+            if (!is_locked) {
+                AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
+            }
+
+            variable_t *variable = find_variable(&script->state.variables.list, key);
+            if (variable == NULL) {
+                variable = new_global_variable(key, strlen(key), value);
+                AZ(VRBT_INSERT(variables, &script->state.variables.list, variable));
+                script->state.variables.n++;
+            } else {
+                free((void *) variable->value);
+                variable->value = strdup(value);
+                AN(variable->value);
+            }
+
+            if (!is_locked) {
+                AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
+            }
+        }
     }
 }
 
 void
 varnish_shared_unset_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked)
+    const char *key, const char *scope, unsigned is_locked)
 {
-    if (!is_locked) {
-        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
-    }
+    AN(ctx->ws);
 
-    variable_t *variable = find_variable(&script->state.variables.list, key);
-    if (variable != NULL) {
-        VRBT_REMOVE(variables, &script->state.variables.list, variable);
-        script->state.variables.n--;
-    }
+    if (strcmp(scope, "task") == 0 ||
+        strcmp(scope, "global") == 0 ||
+        strcmp(scope, "all") == 0) {
+        // Task scope.
+        if (strcmp(scope, "task") == 0 || strcmp(scope, "all") == 0) {
+            variable_t *variable = find_variable(&state->variables, key);
+            if (variable != NULL) {
+                VRBT_REMOVE(variables, &state->variables, variable);
+            }
+        }
 
-    if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
+        // Global scope.
+        if (strcmp(scope, "global") == 0 || strcmp(scope, "all") == 0) {
+            if (!is_locked) {
+                AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
+            }
+
+            variable_t *variable = find_variable(&script->state.variables.list, key);
+            if (variable != NULL) {
+                VRBT_REMOVE(variables, &script->state.variables.list, variable);
+                script->state.variables.n--;
+            }
+
+            if (!is_locked) {
+                AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
+            }
+        }
     }
 }
