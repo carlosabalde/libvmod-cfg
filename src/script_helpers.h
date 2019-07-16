@@ -25,12 +25,6 @@ enum ENGINE_TYPE {
     ENGINE_TYPE_JAVASCRIPT,
 };
 
-enum VARIABLE_SCOPE {
-    VARIABLE_SCOPE_TASK,
-    VARIABLE_SCOPE_GLOBAL,
-    VARIABLE_SCOPE_ALL,
-};
-
 // regexp_t & regexps_t.
 
 typedef struct regexp {
@@ -211,9 +205,10 @@ void unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine);
 const char *new_function_name(const char *code);
 
 task_state_t *new_task_state();
-void reset_task_state(task_state_t *state);
+void reset_task_state(
+    task_state_t *state, unsigned reset_variables, unsigned reset_execution);
 void free_task_state(task_state_t *state);
-task_state_t *get_task_state(VRT_CTX, unsigned reset);
+task_state_t *get_task_state(VRT_CTX, unsigned reset_execution);
 
 engine_t *new_engine(enum ENGINE_TYPE type, void *ctx);
 void free_engine(engine_t *engine);
@@ -241,13 +236,13 @@ const char *varnish_regsub_command(
 
 const char *varnish_shared_get_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked);
+    const char *key, const char *scope, unsigned is_locked);
 void varnish_shared_set_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, const char *value, enum VARIABLE_SCOPE scope,
+    const char *key, const char *value, const char *scope,
     unsigned is_locked);
 void varnish_shared_unset_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
-    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked);
+    const char *key, const char *scope, unsigned is_locked);
 
 #endif
