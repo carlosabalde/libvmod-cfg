@@ -3,7 +3,7 @@
 server s1 {
    rxreq
    txresp
-} -repeat 1 -start
+} -repeat 2 -start
 
 shell {
     cat > "${tmp}/test.js" <<'EOF'
@@ -21,50 +21,68 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
     }
 
     sub vcl_deliver {
-       script.init({"
-            varnish.engine.foo = 42;
-            varnish.shared.set('bar', 314);
-            varnish.shared.incr('bar', 10);
-            varnish.shared.eval(function() {
-                var value = varnish.shared.incr('bar', -4);
-                varnish.shared.set('baz', value);
-            });
-            varnish.shared.set('qux', 27182);
-        "});
-        script.execute();
-        script.free_result();
+        if (req.http.id == "1") {
+            script.init({"
+                varnish.engine.foo = 42;
+                varnish.shared.set('bar', 314, 'global');
+                varnish.shared.incr('bar', 10, 'global');
+                varnish.shared.eval(function() {
+                    var value = varnish.shared.incr('bar', -4, 'global');
+                    varnish.shared.set('baz', value, 'global');
+                });
+                varnish.shared.set('qux', 100, 'task');
+                varnish.shared.set('qux', 27182, 'global');
+            "});
+            script.execute();
+            script.free_result();
 
-        script.init({"
-            varnish.shared.eval(function() {
+            script.init({"
                 varnish.shared.eval(function() {
                     varnish.shared.eval(function() {
-                        varnish.shared.incr('baz', -6);
-                        throw 'error';
+                        varnish.shared.eval(function() {
+                            varnish.shared.incr('baz', -6, 'global');
+                            throw 'error';
+                        });
                     });
                 });
-            });
 
-            return 42;
-        "});
-        script.execute();
-        set resp.http.result2-is-error = script.result_is_error();
-        script.free_result();
+                return 42;
+            "});
+            script.execute();
+            set resp.http.result2-is-error = script.result_is_error();
+            script.free_result();
 
-        script.init({"
-            varnish.shared.unset('qux')
-            return [
-                varnish.engine.foo,
-                varnish.shared.get('bar'),
-                varnish.shared.get('baz'),
-                varnish.shared.get('qux'),
-            ]
-        "});
-        script.execute();
-        set resp.http.result3-table-value-0 = script.get_table_result_value(0);
-        set resp.http.result3-table-value-1 = script.get_table_result_value(1);
-        set resp.http.result3-table-value-2 = script.get_table_result_value(2);
-        set resp.http.result3-table-value-3 = script.get_table_result_value(3);
-        script.free_result();
+            script.init({"
+                varnish.shared.unset('qux', 'global')
+                return [
+                    varnish.engine.foo,
+                    varnish.shared.get('bar', 'global'),
+                    varnish.shared.get('baz', 'global'),
+                    varnish.shared.get('qux', 'global') === null,
+                    varnish.shared.get('qux', 'all'),
+                ];
+            "});
+            script.execute();
+            set resp.http.result3-table-value-0 = script.get_table_result_value(0);
+            set resp.http.result3-table-value-1 = script.get_table_result_value(1);
+            set resp.http.result3-table-value-2 = script.get_table_result_value(2);
+            set resp.http.result3-table-value-3 = script.get_table_result_value(3);
+            set resp.http.result3-table-value-4 = script.get_table_result_value(4);
+            script.free_result();
+
+        } elsif (req.http.id == "2") {
+            script.init({"
+                varnish.shared.unset('baz', 'all');
+                return [
+                    varnish.shared.get('bar', 'all'),
+                    varnish.shared.get('qux', 'all') === null,
+                ];
+            "});
+            script.execute();
+            set resp.http.result1-table-value-0 = script.get_table_result_value(0);
+            set resp.http.result1-table-value-1 = script.get_table_result_value(1);
+            script.free_result();
+        }
 
         set resp.http.stats = script.stats();
         set resp.http.variables-current = script.counter("variables.current");
@@ -72,7 +90,7 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
 } -start
 
 client c1 {
-    txreq
+    txreq -hdr "id: 1"
     rxresp
 
     expect resp.http.result2-is-error == "true"
@@ -80,11 +98,20 @@ client c1 {
     expect resp.http.result3-table-value-0 == "42"
     expect resp.http.result3-table-value-1 == "320"
     expect resp.http.result3-table-value-2 == "314"
-    expect resp.http.result3-table-value-3 == ""
+    expect resp.http.result3-table-value-3 == "true"
+    expect resp.http.result3-table-value-4 == "100"
 
     expect resp.http.variables-current == "2"
+
+    txreq -hdr "id: 2"
+    rxresp
+
+    expect resp.http.result1-table-value-0 == "320"
+    expect resp.http.result1-table-value-1 == "true"
+
+    expect resp.http.variables-current == "1"
 } -run
 
-varnish v1 -expect client_req == 1
+varnish v1 -expect client_req == 2
 
 varnish v1 -expect MGT.child_panic == 0
