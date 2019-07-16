@@ -617,11 +617,17 @@ varnish_shared_get_lua_command(lua_State *L)
 
     // Extract input arguments.
     int argc = lua_gettop(L);
-    if (argc != 1) {
+    if (argc < 1) {
         lua_pushstring(L, "varnish.shared.get() requires one argument.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -1);
+    const char *key = lua_tostring(L, -1 * argc);
+    const char *scope;
+    if (argc >= 2) {
+        scope = lua_tostring(L, -1 * argc + 1);
+    } else {
+        scope = "all";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
@@ -639,7 +645,7 @@ varnish_shared_get_lua_command(lua_State *L)
         GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        result = varnish_shared_get_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
+        result = varnish_shared_get_command(ctx, script, state, key, scope, is_locked);
     }
 
     // Done!
@@ -652,12 +658,18 @@ varnish_shared_set_lua_command(lua_State *L)
 {
     // Extract input arguments.
     int argc = lua_gettop(L);
-    if (argc != 2) {
+    if (argc < 2) {
         lua_pushstring(L, "varnish.shared.set() requires two arguments.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -2);
-    const char *value = lua_tostring(L, -1);
+    const char *key = lua_tostring(L, -1 * argc);
+    const char *value = lua_tostring(L, -1 * argc + 1);
+    const char *scope;
+    if (argc >= 3) {
+        scope = lua_tostring(L, -1 * argc + 2);
+    } else {
+        scope = "task";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
@@ -676,7 +688,7 @@ varnish_shared_set_lua_command(lua_State *L)
         GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        varnish_shared_set_command(ctx, script, state, key, value, VARIABLE_SCOPE_GLOBAL, is_locked);
+        varnish_shared_set_command(ctx, script, state, key, value, scope, is_locked);
     }
 
     // Done!
@@ -688,11 +700,17 @@ varnish_shared_unset_lua_command(lua_State *L)
 {
     // Extract input arguments.
     int argc = lua_gettop(L);
-    if (argc != 1) {
+    if (argc < 1) {
         lua_pushstring(L, "varnish.shared.unset() requires one argument.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -1);
+    const char *key = lua_tostring(L, -1 * argc);
+    const char *scope;
+    if (argc >= 2) {
+        scope = lua_tostring(L, -1 * argc + 1);
+    } else {
+        scope = "all";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
@@ -710,7 +728,7 @@ varnish_shared_unset_lua_command(lua_State *L)
         GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        varnish_shared_unset_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
+        varnish_shared_unset_command(ctx, script, state, key, scope, is_locked);
     }
 
     // Done!
@@ -763,7 +781,7 @@ varnish_shared_eval_lua_command(lua_State *L)
 }
 
 static const char *varnish_shared_incr_lua_command =
-    "varnish.shared.incr = function(key, increment)\n"
+    "varnish.shared.incr = function(key, increment, scope)\n"
     "  local key = key\n"
     "  local increment = tonumber(increment)\n"
     "  if increment == nil then\n"
@@ -771,14 +789,14 @@ static const char *varnish_shared_incr_lua_command =
     "  end\n"
     "  \n"
     "  return varnish.shared.eval(function()\n"
-    "    local value = tonumber(varnish.shared.get(key))\n"
+    "    local value = tonumber(varnish.shared.get(key, scope))\n"
     "    if value == nil then\n"
     "      value = increment\n"
     "    else\n"
     "      value = value + increment\n"
     "    end\n"
     "    \n"
-    "    varnish.shared.set(key, value)\n"
+    "    varnish.shared.set(key, value, scope)\n"
     "    return value\n"
     "  end)\n"
     "end\n";

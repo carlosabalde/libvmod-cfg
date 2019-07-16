@@ -610,13 +610,19 @@ varnish_shared_get_javascript_command(duk_context *D)
 
     // Extract input arguments.
     int argc = duk_get_top(D);
-    if (argc != 1) {
+    if (argc < 1) {
         (void) duk_error(
             D,
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.get() requires one argument.");
     }
-    const char *key = duk_safe_to_string(D, -1);
+    const char *key = duk_safe_to_string(D, -1 * argc);
+    const char *scope;
+    if (argc >= 2) {
+        scope = duk_safe_to_string(D, -1 * argc + 1);
+    } else {
+        scope = "all";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
@@ -634,7 +640,7 @@ varnish_shared_get_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_STATE(D, state);
 
         // Execute command.
-        result = varnish_shared_get_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
+        result = varnish_shared_get_command(ctx, script, state, key, scope, is_locked);
     }
 
     // Done!
@@ -647,14 +653,20 @@ varnish_shared_set_javascript_command(duk_context *D)
 {
     // Extract input arguments.
     int argc = duk_get_top(D);
-    if (argc != 2) {
+    if (argc < 2) {
         (void) duk_error(
             D,
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.set() requires two arguments.");
     }
-    const char *key = duk_safe_to_string(D, -2);
-    const char *value = duk_safe_to_string(D, -1);
+    const char *key = duk_safe_to_string(D, -1 * argc);
+    const char *value = duk_safe_to_string(D, -1 * argc + 1);
+    const char *scope;
+    if (argc >= 3) {
+        scope = duk_safe_to_string(D, -1 * argc + 2);
+    } else {
+        scope = "task";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
@@ -673,7 +685,7 @@ varnish_shared_set_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_STATE(D, state);
 
         // Execute command.
-        varnish_shared_set_command(ctx, script, state, key, value, VARIABLE_SCOPE_GLOBAL, is_locked);
+        varnish_shared_set_command(ctx, script, state, key, value, scope, is_locked);
     }
 
     // Done!
@@ -685,13 +697,19 @@ varnish_shared_unset_javascript_command(duk_context *D)
 {
     // Extract input arguments.
     int argc = duk_get_top(D);
-    if (argc != 1) {
+    if (argc < 1) {
         (void) duk_error(
             D,
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.unset() requires one argument.");
     }
-    const char *key = duk_safe_to_string(D, -1);
+    const char *key = duk_safe_to_string(D, -1 * argc);
+    const char *scope;
+    if (argc >= 2) {
+        scope = duk_safe_to_string(D, -1 * argc + 1);
+    } else {
+        scope = "all";
+    }
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
@@ -709,7 +727,7 @@ varnish_shared_unset_javascript_command(duk_context *D)
         GET_VARNISH_OBJECT_STATE(D, state);
 
         // Execute command.
-        varnish_shared_unset_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
+        varnish_shared_unset_command(ctx, script, state, key, scope, is_locked);
     }
 
     // Done!
@@ -766,7 +784,7 @@ varnish_shared_eval_javascript_command(duk_context *D)
 }
 
 static const char *varnish_shared_incr_javascript_command =
-    "varnish.shared.incr = function(key, increment) {\n"
+    "varnish.shared.incr = function(key, increment, scope) {\n"
     "  var key = key;\n"
     "  var increment = parseInt(increment)\n"
     "  if (isNaN(increment)) {\n"
@@ -774,14 +792,14 @@ static const char *varnish_shared_incr_javascript_command =
     "  }\n"
     "  \n"
     "  return varnish.shared.eval(function() {\n"
-    "    var value = parseInt(varnish.shared.get(key));\n"
+    "    var value = parseInt(varnish.shared.get(key, scope));\n"
     "    if (isNaN(value)) {\n"
     "      value = increment;\n"
     "    } else {\n"
     "      value += increment;\n"
     "    }\n"
     "    \n"
-    "    varnish.shared.set(key, value);\n"
+    "    varnish.shared.set(key, value, scope);\n"
     "    return value;\n"
     "  })\n"
     "}\n";
