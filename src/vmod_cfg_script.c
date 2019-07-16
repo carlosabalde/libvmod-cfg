@@ -128,15 +128,16 @@ vmod_script__init(
             WRONG("Illegal type value.");
         }
         Lck_New(&instance->state.mutex, vmod_state.locks.script);
-        AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));
         instance->state.function.code = NULL;
         instance->state.function.name = NULL;
         AZ(pthread_cond_init(&instance->state.engines.cond, NULL));
         instance->state.engines.n = 0;
         VTAILQ_INIT(&instance->state.engines.free);
         VTAILQ_INIT(&instance->state.engines.busy);
+        AZ(pthread_rwlock_init(&instance->state.regexps.rwlock, NULL));
         instance->state.regexps.n = 0;
         VRBT_INIT(&instance->state.regexps.list);
+        AZ(pthread_rwlock_init(&instance->state.variables.rwlock, NULL));
         instance->state.variables.n = 0;
         VRBT_INIT(&instance->state.variables.list);
         memset(&instance->state.stats, 0, sizeof(instance->state.stats));
@@ -180,7 +181,6 @@ vmod_script__fini(struct vmod_cfg_script **script)
     instance->api.get_engine_stack_size = NULL;
     instance->api.execute = NULL;
     Lck_Delete(&instance->state.mutex);
-    AZ(pthread_rwlock_destroy(&instance->state.rwlock));
     if (instance->state.function.code != NULL) {
         free((void *) instance->state.function.code);
         instance->state.function.code = NULL;
@@ -193,6 +193,7 @@ vmod_script__fini(struct vmod_cfg_script **script)
     instance->state.engines.n = 0;
     flush_engines(&instance->state.engines.free);
     flush_engines(&instance->state.engines.busy);
+    AZ(pthread_rwlock_destroy(&instance->state.regexps.rwlock));
     instance->state.regexps.n = 0;
     regexp_t *regexp, *regexp_tmp;
     VRBT_FOREACH_SAFE(regexp, regexps, &instance->state.regexps.list, regexp_tmp) {
@@ -200,6 +201,7 @@ vmod_script__fini(struct vmod_cfg_script **script)
         VRBT_REMOVE(regexps, &instance->state.regexps.list, regexp);
         free_regexp(regexp);
     }
+    AZ(pthread_rwlock_destroy(&instance->state.variables.rwlock));
     instance->state.variables.n = 0;
     variable_t *variable, *variable_tmp;
     VRBT_FOREACH_SAFE(variable, variables, &instance->state.variables.list, variable_tmp) {
@@ -554,8 +556,9 @@ engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 VCL_STRING
 vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
 {
+    AZ(pthread_rwlock_rdlock(&script->state.variables.rwlock));
+    AZ(pthread_rwlock_rdlock(&script->state.regexps.rwlock));
     Lck_Lock(&script->state.mutex);
-    AZ(pthread_rwlock_rdlock(&script->state.rwlock));
     char *result = WS_Printf(ctx->ws,
         "{"
           "\"engines\": {"
@@ -593,8 +596,9 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
         script->state.stats.executions.unknown,
         script->state.stats.executions.failed,
         script->state.stats.executions.gc);
-    AZ(pthread_rwlock_unlock(&script->state.rwlock));
     Lck_Unlock(&script->state.mutex);
+    AZ(pthread_rwlock_unlock(&script->state.regexps.rwlock));
+    AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     if (result == NULL) {
         FAIL_WS(ctx, NULL);
     }

@@ -724,10 +724,8 @@ varnish_shared_eval_javascript_command(duk_context *D)
 
     // Get lock if needed.
     if (!is_locked) {
-        Lck_Lock(&script->state.mutex);
+        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
         SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 1);
-    } else {
-        Lck_AssertHeld(&script->state.mutex);
     }
 
     // Execute function and leave result or error message on top
@@ -737,7 +735,7 @@ varnish_shared_eval_javascript_command(duk_context *D)
     // Release lock if needed.
     if (!is_locked) {
         SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 0);
-        Lck_Unlock(&script->state.mutex);
+        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 
     // Done!
