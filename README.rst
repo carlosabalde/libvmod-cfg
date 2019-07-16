@@ -325,11 +325,11 @@ Access to variables
 ADVANCED SCRIPTING
 ==================
 
-The original goal of this VMOD was providing efficient strategies to parametrize
+The original goal of this VMOD was offering efficient strategies to parametrize
 VCL behavior based on information provided by external local or remote data
 sources. That evolved from environment variables and configuration JSON / INI
 files, to simple Lua / JavaScript programs executed in local interpreters
-embedded in the Varnish core. All these strategies, specially the one based on
+embedded in the Varnish Cache core. All these strategies, specially the one based on
 INI files and the one based on Lua scripts interpreted by LuaJIT, have been
 successfully and extensively tested in several highly trafficked environments.
 
@@ -347,7 +347,7 @@ Next you can see a simple useless example showing the power of the VMOD.
 Beware it assumes a local Redis Server running and it depends on the
 ``http``, ``redis-lua`` and ``lua-cjson`` rocks. As well, beware Varnish
 should be started with the right environment variables properly configured
-(i.e. ``eval `luarocks path``).
+(i.e. ``eval `luarocks path```).
 
 ::
 
