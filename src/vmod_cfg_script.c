@@ -26,7 +26,7 @@ script_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
     CAST_OBJ_NOTNULL(script, ptr, VMOD_CFG_SCRIPT_MAGIC);
 
     const char *name = NULL;
-    if (script->api.execute(ctx, script, contents, &name, 0, NULL, NULL, 0, 1)) {
+    if (script->api.execute(ctx, script, NULL, contents, &name, 0, NULL, NULL, 0, 1)) {
         LOG(ctx, LOG_INFO,
             "Remote successfully compiled (script=%s, location=%s, is_backup=%d, function=%s, code=%.80s...)",
             script->name, script->remote->location.raw, is_backup, name, contents);
@@ -205,12 +205,7 @@ vmod_script__fini(struct vmod_cfg_script **script)
     }
     AZ(pthread_rwlock_destroy(&instance->state.variables.rwlock));
     instance->state.variables.n = 0;
-    variable_t *variable, *variable_tmp;
-    VRBT_FOREACH_SAFE(variable, variables, &instance->state.variables.list, variable_tmp) {
-        CHECK_OBJ_NOTNULL(variable, VARIABLE_MAGIC);
-        VRBT_REMOVE(variables, &instance->state.variables.list, variable);
-        free_variable(variable);
-    }
+    flush_global_variables(&instance->state.variables.list);
     memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
     FREE_OBJ(instance);
@@ -301,7 +296,7 @@ vmod_script_execute(
 
         // Execute the script.
         if (!script->api.execute(
-                ctx,  script, code, &name,
+                ctx,  script, state, code, &name,
                 state->execution.argc, state->execution.argv,
                 &state->execution.result, gc_collect, flush_jemalloc_tcache)) {
             LOG(ctx, LOG_ERR,

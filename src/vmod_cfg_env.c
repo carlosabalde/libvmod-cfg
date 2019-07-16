@@ -25,11 +25,11 @@ struct vmod_cfg_env {
 static void
 load_env(VRT_CTX, struct vmod_cfg_env *env)
 {
-    flush_variables(&env->variables);
+    flush_global_variables(&env->variables);
     for (int i = 0; environ[i]; i++) {
         char *ptr = strchr(environ[i], '=');
         if (ptr != NULL) {
-            variable_t *variable = new_variable(environ[i], ptr - environ[i], ptr + 1);
+            variable_t *variable = new_global_variable(environ[i], ptr - environ[i], ptr + 1);
             AZ(VRBT_INSERT(variables, &env->variables, variable));
         }
     }
@@ -66,7 +66,7 @@ vmod_env__fini(struct vmod_cfg_env **env)
 
     free((void *) instance->name);
     instance->name = NULL;
-    flush_variables(&instance->variables);
+    flush_global_variables(&instance->variables);
 
     FREE_OBJ(instance);
 

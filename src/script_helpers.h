@@ -25,6 +25,12 @@ enum ENGINE_TYPE {
     ENGINE_TYPE_JAVASCRIPT,
 };
 
+enum VARIABLE_SCOPE {
+    VARIABLE_SCOPE_TASK,
+    VARIABLE_SCOPE_GLOBAL,
+    VARIABLE_SCOPE_ALL,
+};
+
 // regexp_t & regexps_t.
 
 typedef struct regexp {
@@ -92,6 +98,9 @@ typedef struct task_state {
     unsigned magic;
     #define TASK_STATE_MAGIC 0x803118dd
 
+    // Allocated in workspace.
+    variables_t variables;
+
     struct {
         // Allocated in workspace: code, argv[] & result.
         const char *code;
@@ -137,7 +146,7 @@ struct vmod_cfg_script {
         engine_t *(*new_engine)(VRT_CTX, struct vmod_cfg_script *script);
         int (*get_engine_used_memory)(engine_t *engine);
         int (*get_engine_stack_size)(engine_t *engine);
-        unsigned (*execute)(VRT_CTX, struct vmod_cfg_script *script, const char *code, const char **name, int argc, const char *argv[], result_t *result, unsigned gc_collect, unsigned flush_jemalloc_tcache);
+        unsigned (*execute)(VRT_CTX, struct vmod_cfg_script *script, task_state_t *state, const char *code, const char **name, int argc, const char *argv[], result_t *result, unsigned gc_collect, unsigned flush_jemalloc_tcache);
     } api;
 
     struct {
@@ -231,13 +240,14 @@ const char *varnish_regsub_command(
     const char **error);
 
 const char *varnish_shared_get_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned is_locked);
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked);
 void varnish_shared_set_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, const char *value, enum VARIABLE_SCOPE scope,
     unsigned is_locked);
 void varnish_shared_unset_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *key,
-    unsigned is_locked);
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *key, enum VARIABLE_SCOPE scope, unsigned is_locked);
 
 #endif

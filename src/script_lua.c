@@ -184,9 +184,9 @@ post_execute(
 
 unsigned
 execute_lua(
-    VRT_CTX, struct vmod_cfg_script *script, const char *code, const char **name,
-    int argc, const char *argv[], result_t *result, unsigned gc_collect,
-    unsigned flush_jemalloc_tcache)
+    VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
+    const char *code, const char **name, int argc, const char *argv[],
+    result_t *result, unsigned gc_collect, unsigned flush_jemalloc_tcache)
 {
     // Initializations.
     unsigned success = 0;
@@ -202,15 +202,9 @@ execute_lua(
     engine_t *engine = lock_engine(ctx, script);
     AN(engine);
 
-    // Push 'varnish' table and Varnish context into the stack. Then execute
-    // 'varnish._ctx = ctx', keeping the 'varnish' table in the top of the
-    // stack. Same for 'varnish._script = script'.
+    // Push 'varnish' table into the stack.
     lua_getglobal(engine->ctx.L, "varnish");
     AN(lua_istable(engine->ctx.L, -1));
-    lua_pushlightuserdata(engine->ctx.L, (struct vrt_ctx *) ctx);
-    lua_setfield(engine->ctx.L, -2, "_ctx");
-    lua_pushlightuserdata(engine->ctx.L, (struct vmod_cfg_script *) script);
-    lua_setfield(engine->ctx.L, -2, "_script");
 
     // Push the value of 'varnish._error_handler' into the stack. This will
     // keep the 'varnish' table in the stack, just under the the error handler
@@ -251,8 +245,18 @@ execute_lua(
 
     if (result != NULL) {
         // Assertions.
+        AN(state);
         AN(argv);
         AN(result);
+
+        // Execute 'varnish._ctx = ctx', 'varnish._script = script' and
+        // 'varnish._state = state'.
+        lua_pushlightuserdata(engine->ctx.L, (struct vrt_ctx *) ctx);
+        lua_setfield(engine->ctx.L, -4, "_ctx");
+        lua_pushlightuserdata(engine->ctx.L, (struct vmod_cfg_script *) script);
+        lua_setfield(engine->ctx.L, -4, "_script");
+        lua_pushlightuserdata(engine->ctx.L, (task_state_t *) state);
+        lua_setfield(engine->ctx.L, -4, "_state");
 
         // Populate 'ARGV' table accordingly to the input arguments.
         lua_newtable(engine->ctx.L);
@@ -283,6 +287,15 @@ execute_lua(
 
         // Remove the function result and the error handler from the stack.
         lua_pop(engine->ctx.L, 2);
+
+        // Execute 'varnish._ctx = nil', 'varnish._script = nil' and
+        // 'varnish._state = nil'.
+        lua_pushnil(engine->ctx.L);
+        lua_setfield(engine->ctx.L, -2, "_ctx");
+        lua_pushnil(engine->ctx.L);
+        lua_setfield(engine->ctx.L, -2, "_script");
+        lua_pushnil(engine->ctx.L);
+        lua_setfield(engine->ctx.L, -2, "_state");
     } else {
         // Everything looks correct. Full execution is not required: simply
         // remove function to be executed & error handler from the stack.
@@ -294,12 +307,7 @@ done:
     // Current state of the stack at this point (top to bottom):
     //   - 'varnish' table.
 
-    // Execute 'varnish._ctx = nil' and 'varnish._script = nil', then
-    // remove 'varnish' table from the stack.
-    lua_pushnil(engine->ctx.L);
-    lua_setfield(engine->ctx.L, -2, "_ctx");
-    lua_pushnil(engine->ctx.L);
-    lua_setfield(engine->ctx.L, -2, "_script");
+    // Remove 'varnish' table from the stack.
     lua_pop(engine->ctx.L, 1);
 
     // Update stats.
@@ -365,6 +373,9 @@ done:
 
 #define GET_VARNISH_TABLE_SCRIPT(L, where) \
     GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
+
+#define GET_VARNISH_TABLE_STATE(L, where) \
+    GET_VARNISH_TABLE_FOO_FIELD(L, "_state", where, TASK_STATE_MAGIC)
 
 static int
 varnish_log_lua_command(lua_State *L)
@@ -618,14 +629,17 @@ varnish_shared_get_lua_command(lua_State *L)
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
+        // 'state = varnish._state'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
         struct vmod_cfg_script *script;
         GET_VARNISH_TABLE_SCRIPT(L, script);
+        task_state_t *state;
+        GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        result = varnish_shared_get_command(ctx, script, key, is_locked);
+        result = varnish_shared_get_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
     }
 
     // Done!
@@ -652,14 +666,17 @@ varnish_shared_set_lua_command(lua_State *L)
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
+        // 'state = varnish._state'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
         struct vmod_cfg_script *script;
         GET_VARNISH_TABLE_SCRIPT(L, script);
+        task_state_t *state;
+        GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        varnish_shared_set_command(ctx, script, key, value, is_locked);
+        varnish_shared_set_command(ctx, script, state, key, value, VARIABLE_SCOPE_GLOBAL, is_locked);
     }
 
     // Done!
@@ -683,14 +700,17 @@ varnish_shared_unset_lua_command(lua_State *L)
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
+        // 'state = varnish._state'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
         struct vmod_cfg_script *script;
         GET_VARNISH_TABLE_SCRIPT(L, script);
+        task_state_t *state;
+        GET_VARNISH_TABLE_STATE(L, state);
 
         // Execute command.
-        varnish_shared_unset_command(ctx, script, key, is_locked);
+        varnish_shared_unset_command(ctx, script, state, key, VARIABLE_SCOPE_GLOBAL, is_locked);
     }
 
     // Done!
@@ -769,6 +789,7 @@ static const char *varnish_shared_incr_lua_command =
 #undef GET_VARNISH_TABLE_FOO_FIELD
 #undef GET_VARNISH_TABLE_CTX
 #undef GET_VARNISH_TABLE_SCRIPT
+#undef GET_VARNISH_TABLE_STATE
 
 /******************************************************************************
  * HELPERS.
@@ -867,7 +888,7 @@ enable_lua_protections(lua_State *L)
         "   });\n"
         "end\n"
         "varnish.shared = readonly_table(varnish.shared, {_is_locked = true})\n"
-        "varnish = readonly_table(varnish, {_ctx = true, _script = true})\n"
+        "varnish = readonly_table(varnish, {_ctx = true, _script = true, _state = true})\n"
         "\n"
         "readonly_table = nil\n";
     AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
