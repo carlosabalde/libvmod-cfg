@@ -667,12 +667,12 @@ varnish_shared_set_lua_command(lua_State *L)
 }
 
 static int
-varnish_shared_delete_lua_command(lua_State *L)
+varnish_shared_unset_lua_command(lua_State *L)
 {
     // Extract input arguments.
     int argc = lua_gettop(L);
     if (argc != 1) {
-        lua_pushstring(L, "varnish.shared.delete() requires one argument.");
+        lua_pushstring(L, "varnish.shared.unset() requires one argument.");
         lua_error(L);
     }
     const char *key = lua_tostring(L, -1);
@@ -690,7 +690,7 @@ varnish_shared_delete_lua_command(lua_State *L)
         GET_VARNISH_TABLE_SCRIPT(L, script);
 
         // Execute command.
-        varnish_shared_delete_command(ctx, script, key, is_locked);
+        varnish_shared_unset_command(ctx, script, key, is_locked);
     }
 
     // Done!
@@ -917,8 +917,8 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_setfield(result, -2, "get");
     lua_pushcfunction(result, varnish_shared_set_lua_command);
     lua_setfield(result, -2, "set");
-    lua_pushcfunction(result, varnish_shared_delete_lua_command);
-    lua_setfield(result, -2, "delete");
+    lua_pushcfunction(result, varnish_shared_unset_lua_command);
+    lua_setfield(result, -2, "unset");
     lua_pushcfunction(result, varnish_shared_eval_lua_command);
     lua_setfield(result, -2, "eval");
     lua_pop(result, 2);

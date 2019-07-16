@@ -233,7 +233,7 @@ const char *varnish_shared_get_command(
 void varnish_shared_set_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key, const char *value,
     unsigned is_locked);
-void varnish_shared_delete_command(
+void varnish_shared_unset_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *key,
     unsigned is_locked);
 
