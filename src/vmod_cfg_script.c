@@ -529,10 +529,10 @@ vmod_script_free_result(
 static uint64_t
 engines_memory(VRT_CTX, struct vmod_cfg_script *script, unsigned is_locked)
 {
-    if (is_locked) {
-        Lck_AssertHeld(&script->state.mutex);
-    } else {
+    if (!is_locked) {
         Lck_Lock(&script->state.mutex);
+    } else {
+        Lck_AssertHeld(&script->state.mutex);
     }
 
     engine_t *iengine;
