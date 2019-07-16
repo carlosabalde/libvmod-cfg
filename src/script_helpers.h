@@ -16,8 +16,9 @@
 #include "helpers.h"
 
 // Required lock ordering to avoid deadlocks:
-//   1. vmod_cfg_script->state.mutex.
-//   2. vmod_cfg_script->state.rwlock.
+//   1. vmod_cfg_script->state.variables.rwlock.
+//   2. vmod_cfg_script->state.regexps.rwlock.
+//   3. vmod_cfg_script->state.mutex.
 
 enum ENGINE_TYPE {
     ENGINE_TYPE_LUA,
@@ -141,7 +142,6 @@ struct vmod_cfg_script {
 
     struct {
         struct lock mutex;
-        pthread_rwlock_t rwlock;
 
         struct {
             const char *code;
@@ -156,11 +156,13 @@ struct vmod_cfg_script {
         } engines;
 
         struct {
+            pthread_rwlock_t rwlock;
             unsigned n;
             regexps_t list;
         } regexps;
 
         struct {
+            pthread_rwlock_t rwlock;
             unsigned n;
             variables_t list;
         } variables;

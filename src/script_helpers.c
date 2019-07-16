@@ -283,12 +283,12 @@ init_regexp(
     if (cache) {
         regexp_t search_regexp;
         search_regexp.text = regexp;
-        AZ(pthread_rwlock_rdlock(&script->state.rwlock));
+        AZ(pthread_rwlock_rdlock(&script->state.regexps.rwlock));
         regexp_t *cached_regexp = VRBT_FIND(regexps, &script->state.regexps.list, &search_regexp);
         if (cached_regexp != NULL) {
             result = cached_regexp->vre;
         }
-        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+        AZ(pthread_rwlock_unlock(&script->state.regexps.rwlock));
     }
 
     // Not using the cache / Not found? Compile the regexp.
@@ -306,7 +306,7 @@ init_regexp(
         // Cache result?
         } else if (cache) {
             regexp_t *a_regexp = new_regexp(regexp, result);
-            AZ(pthread_rwlock_wrlock(&script->state.rwlock));
+            AZ(pthread_rwlock_wrlock(&script->state.regexps.rwlock));
             regexp_t *cached_regexp = VRBT_FIND(regexps, &script->state.regexps.list, a_regexp);
             if (cached_regexp == NULL) {
                 AZ(VRBT_INSERT(regexps, &script->state.regexps.list, a_regexp));
@@ -315,7 +315,7 @@ init_regexp(
                 free_regexp(a_regexp);
                 result = cached_regexp->vre;
             }
-            AZ(pthread_rwlock_unlock(&script->state.rwlock));
+            AZ(pthread_rwlock_unlock(&script->state.regexps.rwlock));
         }
     }
 
@@ -513,9 +513,7 @@ varnish_shared_get_command(
     const char *result = NULL;
 
     if (!is_locked) {
-        AZ(pthread_rwlock_rdlock(&script->state.rwlock));
-    } else {
-        Lck_AssertHeld(&script->state.mutex);
+        AZ(pthread_rwlock_rdlock(&script->state.variables.rwlock));
     }
 
     variable_t *variable = find_variable(&script->state.variables.list, key);
@@ -525,7 +523,7 @@ varnish_shared_get_command(
     }
 
     if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 
     return result;
@@ -537,9 +535,7 @@ varnish_shared_set_command(
     unsigned is_locked)
 {
     if (!is_locked) {
-        AZ(pthread_rwlock_wrlock(&script->state.rwlock));
-    } else {
-        Lck_AssertHeld(&script->state.mutex);
+        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
     }
 
     variable_t *variable = find_variable(&script->state.variables.list, key);
@@ -554,7 +550,7 @@ varnish_shared_set_command(
     }
 
     if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 }
 
@@ -564,9 +560,7 @@ varnish_shared_delete_command(
     unsigned is_locked)
 {
     if (!is_locked) {
-        AZ(pthread_rwlock_wrlock(&script->state.rwlock));
-    } else {
-        Lck_AssertHeld(&script->state.mutex);
+        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
     }
 
     variable_t *variable = find_variable(&script->state.variables.list, key);
@@ -576,6 +570,6 @@ varnish_shared_delete_command(
     }
 
     if (!is_locked) {
-        AZ(pthread_rwlock_unlock(&script->state.rwlock));
+        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 }

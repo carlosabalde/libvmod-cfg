@@ -721,10 +721,8 @@ varnish_shared_eval_lua_command(lua_State *L)
 
     // Get lock if needed.
     if (!is_locked) {
-        Lck_Lock(&script->state.mutex);
+        AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
         SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 1);
-    } else {
-        Lck_AssertHeld(&script->state.mutex);
     }
 
     // Execute function and leave result or error message on top
@@ -734,7 +732,7 @@ varnish_shared_eval_lua_command(lua_State *L)
     // Release lock if needed.
     if (!is_locked) {
         SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 0);
-        Lck_Unlock(&script->state.mutex);
+        AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 
     // Done!
