@@ -22,7 +22,7 @@ variablecmp(const variable_t *v1, const variable_t *v2)
 VRBT_GENERATE(variables, variable, tree, variablecmp);
 
 variable_t *
-new_variable(const char *name, size_t len, const char *value)
+new_global_variable(const char *name, size_t len, const char *value)
 {
     variable_t *result;
     ALLOC_OBJ(result, VARIABLE_MAGIC);
@@ -38,7 +38,7 @@ new_variable(const char *name, size_t len, const char *value)
 }
 
 void
-free_variable(variable_t *variable)
+free_global_variable(variable_t *variable)
 {
     free((void *) variable->name);
     variable->name = NULL;
@@ -49,6 +49,21 @@ free_variable(variable_t *variable)
     FREE_OBJ(variable);
 }
 
+void
+flush_global_variables(variables_t *variables)
+{
+    variable_t *ivariable, *ivariable_tmp;
+    VRBT_FOREACH_SAFE(ivariable, variables, variables, ivariable_tmp) {
+        CHECK_OBJ_NOTNULL(ivariable, VARIABLE_MAGIC);
+        VRBT_REMOVE(variables, variables, ivariable);
+        free_global_variable(ivariable);
+    }
+}
+
+/******************************************************************************
+ * HELPERS.
+ *****************************************************************************/
+
 variable_t *
 find_variable(variables_t *variables, const char *name)
 {
@@ -56,21 +71,6 @@ find_variable(variables_t *variables, const char *name)
     variable.name = name;
     return VRBT_FIND(variables, variables, &variable);
 }
-
-void
-flush_variables(variables_t *variables)
-{
-    variable_t *ivariable, *ivariable_tmp;
-    VRBT_FOREACH_SAFE(ivariable, variables, variables, ivariable_tmp) {
-        CHECK_OBJ_NOTNULL(ivariable, VARIABLE_MAGIC);
-        VRBT_REMOVE(variables, variables, ivariable);
-        free_variable(ivariable);
-    }
-}
-
-/******************************************************************************
- * HELPERS.
- *****************************************************************************/
 
 unsigned
 is_set_variable(VRT_CTX, variables_t *variables, const char *name)
