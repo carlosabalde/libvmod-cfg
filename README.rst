@@ -322,6 +322,110 @@ Access to variables
         "server": "ACME"
     }
 
+ADVANCED SCRIPTING
+==================
+
+The original goal of this VMOD was providing efficient strategies to parametrize
+VCL behavior based on information provided by external local or remote data
+sources. That evolved from environment variables and configuration JSON / INI
+files, to simple Lua / JavaScript programs executed in local interpreters
+embedded in the Varnish core. All these strategies, specially the one based on
+INI files and the one based on Lua scripts interpreted by LuaJIT, have been
+successfully and extensively tested in several highly trafficked environments.
+
+At some point the VMOD evolved towards a more general framework useful to
+execute arbitrarily complex Lua and JavaScript programs. Somehow something
+similar to OpenRestry in the Nginx arena. For example, using the cfg VMOD you
+can write crazy Lua-flavoured VCL. That includes loading any rocks
+you might need, facilities to safely share state among execution engines or among
+Varnish threads, etc. Used with caution, this allows you to go beyond the
+limits of VCL as a language and help you to model complex logic in the
+caching layer. Of course, you can also use the VMOD to shoot yourself in
+the foot.
+
+Next you can see a simple useless example showing the power of the VMOD.
+Beware it assumes a local Redis Server running and it depends on the
+``http``, ``redis-lua`` and ``lua-cjson`` rocks. As well, beware Varnish
+should be started with the right environment variables properly configured
+(i.e. ``eval `luarocks path``).
+
+::
+
+    ...
+
+    sub vcl_init {
+        ...
+
+        new script = cfg.script(
+            "/dev/null",
+            period=0,
+            type=lua,
+            lua_remove_loadfile_function=false,
+            lua_load_package_lib=true,
+            lua_load_io_lib=true,
+            lua_load_os_lib=true);
+    }
+
+    sub vcl_deliver {
+        ...
+
+        script.init({"
+            local http = require 'http.request'
+            local redis = require 'redis'
+            local json = require 'cjson'
+
+            if varnish.engine.client == nil then
+                varnish.engine.client = redis.connect('127.0.0.1', 6379)
+                assert(varnish.engine.client ~= nil)
+            end
+
+            local status, city = pcall(
+                varnish.engine.client.get, varnish.engine.client, ARGV[0])
+            if not status then
+                varnish.engine.client = nil
+                error(city)
+            end
+
+            local hit = city ~= nil
+
+            if not hit then
+                varnish.shared.incr('api-requests', 1, 'global')
+                local url = 'https://ipapi.co/' .. ARGV[0] .. '/json/'
+                local headers, stream = http.new_from_uri(url):go()
+                if headers:get(':status') == '200' then
+                    local info = json.decode(stream:get_body_as_string())
+                    city = info.city or '?'
+                    varnish.engine.client:set(ARGV[0], city, 'EX', 600)
+                else
+                    city = '?'
+                end
+            end
+
+            varnish.set_header(
+                'X-Script-Redis-Hit',
+                hit and 'true' or 'false',
+                'resp')
+
+            varnish.set_header(
+                'X-Script-City',
+                city,
+                'resp')
+
+            varnish.set_header(
+                'X-Script-Executions-Counter',
+                varnish.shared.incr('executions', 1, 'global'),
+                'resp')
+
+            varnish.set_header(
+                'X-Script-API-Requests-Counter',
+                varnish.shared.get('api-requests', 'global'),
+                'resp')
+        "});
+        script.push(client.ip);
+        script.execute();
+        script.free_result();
+    }
+
 INSTALLATION
 ============
 
