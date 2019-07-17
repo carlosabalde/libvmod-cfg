@@ -6,11 +6,11 @@
   function serialize(value) {
     var t = typeof value;
 
-    if (t === 'number') {
+    if (t == 'number') {
       return 'n:' + value;
-    } else if (t === 'string') {
+    } else if (t == 'string') {
       return 's:' + value;
-    } else if (t === 'boolean') {
+    } else if (t == 'boolean') {
       return 'b:' + (value ? '1' : '0');
     }
 
@@ -24,11 +24,11 @@
       var head = value.substring(0, 2);
       var body = value.substring(2);
 
-      if (head === 'n:') {
+      if (head == 'n:') {
         result = Number(body);
-      } else if (head === 's:') {
+      } else if (head == 's:') {
         result = body;
-      } else if (head === 'b:') {
+      } else if (head == 'b:') {
         result = body == '1';
       }
     }
