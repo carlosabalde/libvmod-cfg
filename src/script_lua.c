@@ -416,16 +416,14 @@ varnish_get_header_lua_command(lua_State *L)
         lua_error(L);
     }
     const char *name = lua_tostring(L, -1 * argc);
-    const char *where;
+    const char *where = NULL;
     if (argc >= 2) {
         where = lua_tostring(L, -1 * argc + 1);
-    } else {
-        where = "req";
     }
+    where = where ? where : "req";
 
     // Check input arguments.
-    if (name != NULL && strlen(name) > 0 &&
-        where != NULL && strlen(where) > 0) {
+    if (name != NULL && strlen(name) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
@@ -455,17 +453,15 @@ varnish_set_header_lua_command(lua_State *L)
     }
     const char *name = lua_tostring(L, -1 * argc);
     const char *value = lua_tostring(L, -1 * argc + 1);
-    const char *where;
+    const char *where = NULL;
     if (argc >= 3) {
         where = lua_tostring(L, -1 * argc + 2);
-    } else {
-        where = "req";
     }
+    where = where ? where : "req";
 
     // Check input arguments.
     if (name != NULL && strlen(name) > 0 &&
-        value != NULL && strlen(value) > 0 &&
-        where != NULL && strlen(where) > 0) {
+        value != NULL && strlen(value) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_TABLE_CTX(L, ctx);
@@ -625,16 +621,14 @@ varnish_shared_get_lua_command(lua_State *L)
         lua_error(L);
     }
     const char *key = lua_tostring(L, -1 * argc);
-    const char *scope;
+    const char *scope = NULL;
     if (argc >= 2) {
         scope = lua_tostring(L, -1 * argc + 1);
-    } else {
-        scope = "all";
     }
+    scope = scope ? scope : "all";
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+    if (key != NULL && strlen(key) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
@@ -668,17 +662,15 @@ varnish_shared_set_lua_command(lua_State *L)
     }
     const char *key = lua_tostring(L, -1 * argc);
     const char *value = lua_tostring(L, -1 * argc + 1);
-    const char *scope;
+    const char *scope = NULL;
     if (argc >= 3) {
         scope = lua_tostring(L, -1 * argc + 2);
-    } else {
-        scope = "task";
     }
+    scope = scope ? scope : "task";
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
-        value != NULL && strlen(value) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+        value != NULL) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
@@ -710,16 +702,14 @@ varnish_shared_unset_lua_command(lua_State *L)
         lua_error(L);
     }
     const char *key = lua_tostring(L, -1 * argc);
-    const char *scope;
+    const char *scope = NULL;
     if (argc >= 2) {
         scope = lua_tostring(L, -1 * argc + 1);
-    } else {
-        scope = "all";
     }
+    scope = scope ? scope : "all";
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+    if (key != NULL && strlen(key) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
