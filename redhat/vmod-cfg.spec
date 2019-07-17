@@ -8,7 +8,7 @@ Group: System Environment/Daemons
 Source0: libvmod-cfg.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires: varnish >= 6.2.0, libcurl, luajit
-BuildRequires: make, python-docutils, varnish >= 6.2.0, varnish-devel >= 6.2.0, libcurl-devel, luajit-devel, jemalloc-devel
+BuildRequires: make, python-docutils, varnish >= 6.2.0, varnish-devel >= 6.2.0, libcurl-devel, luajit-devel, jemalloc-devel, vim-common
 
 %description
 Config VMOD for Varnish
