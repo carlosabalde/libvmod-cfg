@@ -25,6 +25,7 @@ addons:
     - lua5.1
     - luajit
     - python-docutils
+    - vim-common
 
 before_install:
   - wget --no-check-certificate https://varnish-cache.org/_downloads/varnish-4.1.10.tgz
