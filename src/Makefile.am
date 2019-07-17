@@ -21,8 +21,8 @@ libvmod_cfg_la_SOURCES = \
 	helpers.c helpers.h \
 	remote.c remote.h \
 	script_helpers.c script_helpers.h \
-	script_javascript.c script_javascript.h \
-	script_lua.c script_lua.h \
+	script_javascript.c script_javascript.h script_javascript_helpers.h \
+	script_lua.c script_lua.h script_lua_helpers.h \
 	variables.c variables.h \
 	vmod_cfg.c \
 	vmod_cfg_env.c \
