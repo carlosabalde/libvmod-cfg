@@ -21,22 +21,80 @@ end
 -- VARNISH.SHARED HELPERS
 -------------------------------------------------------------------------------
 
-varnish.shared.incr = function(key, increment, scope)
-  local key = key
-  local increment = tonumber(increment)
-  if increment == nil then
-    increment = 0
-  end
+(function(shared)
+  local function serialize(value)
+    local t = type(value)
 
-  return varnish.shared.eval(function()
-    local value = tonumber(varnish.shared.get(key, scope))
-    if value == nil then
-      value = increment
-    else
-      value = value + increment
+    if t == 'number' then
+      return 'n:' .. value
+    elseif t == 'string' then
+      return 's:' .. value
+    elseif t == 'boolean' then
+      return 'b:' .. (value and '1' or '0')
     end
 
-    varnish.shared.set(key, value, scope)
-    return value
-  end)
-end
+    error('Failed to serialize value (type=' .. t .. ')')
+  end
+
+  local function unserialize(value)
+    local result = nil
+
+    if string.len(value) >= 2 then
+      local head = string.sub(value, 1, 2)
+      local body = string.sub(value, 3)
+
+      if head == 'n:' then
+        result = tonumber(body)
+      elseif head == 's:' then
+        result = body
+      elseif head == 'b:' then
+        result = body == '1'
+      end
+    end
+
+    if result ~= nil then
+      return result
+    else
+      error('Failed to unserialize value (value=' .. value .. ')')
+    end
+  end
+
+  shared._get = shared.get
+  shared.get = function(key, scope)
+    local svalue = shared._get(key, scope)
+    if svalue ~= nil then
+      return unserialize(svalue)
+    else
+      return nil
+    end
+  end
+
+  shared._set = shared.set
+  shared.set = function(key, value, scope)
+    if value ~= nil then
+      shared._set(key, serialize(value), scope)
+    else
+      shared.unset(key, scope)
+    end
+  end
+
+  shared.incr = function(key, increment, scope)
+    local key = key
+    local increment = tonumber(increment)
+    if increment == nil then
+      increment = 0
+    end
+
+    return shared.eval(function()
+      local value = tonumber(shared.get(key, scope))
+      if value == nil then
+        value = increment
+      else
+        value = value + increment
+      end
+
+      shared.set(key, value, scope)
+      return value
+    end)
+  end
+end)(varnish.shared)

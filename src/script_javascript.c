@@ -377,7 +377,7 @@ varnish_log_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.log() requires one argument.");
     }
-    const char *message = duk_safe_to_string(D, -1);
+    const char *message = duk_to_string(D, -1);
 
     // Check input arguments.
     if (message != NULL) {
@@ -407,16 +407,15 @@ varnish_get_header_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.get_header() requires one argument.");
     }
-    const char *name = duk_safe_to_string(D, -1 * argc);
-    const char *where;
-    if (argc >= 2) {
-        where = duk_safe_to_string(D, -1 * argc + 1);
-    } else {
-        where = "req";
+    const char *name = duk_to_string(D, -1 * argc);
+    const char *where = NULL;
+    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
+        where = duk_to_string(D, -1 * argc + 1);
     }
+    where = where ? where : "req";
+
     // Check input arguments.
-    if (name != NULL && strlen(name) > 0 &&
-        where != NULL && strlen(where) > 0) {
+    if (name != NULL && strlen(name) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_OBJECT_CTX(D, ctx);
@@ -445,19 +444,17 @@ varnish_set_header_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.set_header() requires two arguments.");
     }
-    const char *name = duk_safe_to_string(D, -1 * argc);
-    const char *value = duk_safe_to_string(D, -1 * argc + 1);
-    const char *where;
-    if (argc >= 3) {
-        where = duk_safe_to_string(D, -1 * argc + 2);
-    } else {
-        where = "req";
+    const char *name = duk_to_string(D, -1 * argc);
+    const char *value = duk_to_string(D, -1 * argc + 1);
+    const char *where = NULL;
+    if (argc >= 3 && !duk_is_undefined(D, -1 * argc + 2)) {
+        where = duk_to_string(D, -1 * argc + 2);
     }
+    where = where ? where : "req";
 
     // Check input arguments.
     if (name != NULL && strlen(name) > 0 &&
-        value != NULL && strlen(value) > 0 &&
-        where != NULL && strlen(where) > 0) {
+        value != NULL && strlen(value) > 0) {
         // Execute 'ctx = varnish._ctx'.
         VRT_CTX;
         GET_VARNISH_OBJECT_CTX(D, ctx);
@@ -488,8 +485,8 @@ varnish_regmatch_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.regmatch() requires two arguments.");
     }
-    const char *string = duk_safe_to_string(D, -1 * argc);
-    const char *regexp = duk_safe_to_string(D, -1 * argc + 1);
+    const char *string = duk_to_string(D, -1 * argc);
+    const char *regexp = duk_to_string(D, -1 * argc + 1);
     unsigned cache;
     if (argc >= 3) {
         cache = duk_to_boolean(D, -1 * argc + 2);
@@ -532,9 +529,9 @@ varnish_regsub_javascript_command(duk_context *D, unsigned all)
             DUK_ERR_TYPE_ERROR,
             "varnish.regsub() & varnish.regsuball() require three arguments.");
     }
-    const char *string = duk_safe_to_string(D, -1 * argc);
-    const char *regexp = duk_safe_to_string(D, -1 * argc + 1);
-    const char *sub = duk_safe_to_string(D, -1 * argc + 2);
+    const char *string = duk_to_string(D, -1 * argc);
+    const char *regexp = duk_to_string(D, -1 * argc + 1);
+    const char *sub = duk_to_string(D, -1 * argc + 2);
     unsigned cache;
     if (argc >= 4) {
         cache = duk_to_boolean(D, -1 * argc + 3);
@@ -619,17 +616,15 @@ varnish_shared_get_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.get() requires one argument.");
     }
-    const char *key = duk_safe_to_string(D, -1 * argc);
-    const char *scope;
-    if (argc >= 2) {
-        scope = duk_safe_to_string(D, -1 * argc + 1);
-    } else {
-        scope = "all";
+    const char *key = duk_to_string(D, -1 * argc);
+    const char *scope = NULL;
+    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
+        scope = duk_to_string(D, -1 * argc + 1);
     }
+    scope = scope ? scope : "all";
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+    if (key != NULL && strlen(key) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
@@ -663,19 +658,17 @@ varnish_shared_set_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.set() requires two arguments.");
     }
-    const char *key = duk_safe_to_string(D, -1 * argc);
-    const char *value = duk_safe_to_string(D, -1 * argc + 1);
-    const char *scope;
-    if (argc >= 3) {
-        scope = duk_safe_to_string(D, -1 * argc + 2);
-    } else {
-        scope = "task";
+    const char *key = duk_to_string(D, -1 * argc);
+    const char *value = duk_to_string(D, -1 * argc + 1);
+    const char *scope = NULL;
+    if (argc >= 3 && !duk_is_undefined(D, -1 * argc + 2)) {
+        scope = duk_to_string(D, -1 * argc + 2);
     }
+    scope = scope ? scope : "task";
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
-        value != NULL && strlen(value) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+        value != NULL) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
@@ -708,17 +701,15 @@ varnish_shared_unset_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.unset() requires one argument.");
     }
-    const char *key = duk_safe_to_string(D, -1 * argc);
-    const char *scope;
-    if (argc >= 2) {
-        scope = duk_safe_to_string(D, -1 * argc + 1);
-    } else {
-        scope = "all";
+    const char *key = duk_to_string(D, -1 * argc);
+    const char *scope = NULL;
+    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
+        scope = duk_to_string(D, -1 * argc + 1);
     }
+    scope = scope ? scope : "all";
 
     // Check input arguments.
-    if (key != NULL && strlen(key) > 0 &&
-        scope != NULL && strlen(scope) > 0) {
+    if (key != NULL && strlen(key) > 0) {
         // Execute 'is_locked = varnish.shared._is_locked'.
         unsigned is_locked;
         GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
