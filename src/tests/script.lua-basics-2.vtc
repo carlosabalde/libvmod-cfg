@@ -74,6 +74,43 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             set resp.http.result3-table-value-4 = script.get_table_result_value(4);
             script.free_result();
 
+            script.init({"
+                varnish.shared.set('foo:42', 42)
+                varnish.shared.set('foo:3.14', 3.14)
+                varnish.shared.set('foo:', '')
+                varnish.shared.set('foo:foo', 'foo')
+                varnish.shared.set('foo:false', false)
+                varnish.shared.set('foo:true', true)
+                return {
+                    varnish.shared.get('foo:42'),
+                    type(varnish.shared.get('foo:42')),
+                    varnish.shared.get('foo:3.14'),
+                    type(varnish.shared.get('foo:3.14')),
+                    varnish.shared.get('foo:'),
+                    type(varnish.shared.get('foo:')),
+                    varnish.shared.get('foo:foo'),
+                    type(varnish.shared.get('foo:foo')),
+                    varnish.shared.get('foo:false'),
+                    type(varnish.shared.get('foo:false')),
+                    varnish.shared.get('foo:true'),
+                    type(varnish.shared.get('foo:true')),
+                }
+            "});
+            script.execute();
+            set resp.http.result4-table-value-0 = script.get_table_result_value(0);
+            set resp.http.result4-table-value-1 = script.get_table_result_value(1);
+            set resp.http.result4-table-value-2 = script.get_table_result_value(2);
+            set resp.http.result4-table-value-3 = script.get_table_result_value(3);
+            set resp.http.result4-table-value-4 = script.get_table_result_value(4);
+            set resp.http.result4-table-value-5 = script.get_table_result_value(5);
+            set resp.http.result4-table-value-6 = script.get_table_result_value(6);
+            set resp.http.result4-table-value-7 = script.get_table_result_value(7);
+            set resp.http.result4-table-value-8 = script.get_table_result_value(8);
+            set resp.http.result4-table-value-9 = script.get_table_result_value(9);
+            set resp.http.result4-table-value-10 = script.get_table_result_value(10);
+            set resp.http.result4-table-value-11 = script.get_table_result_value(11);
+            script.free_result();
+
         } elsif (req.http.id == "2") {
             script.init({"
                 varnish.shared.unset('baz', 'all')
@@ -104,6 +141,19 @@ client c1 {
     expect resp.http.result3-table-value-2 == "314"
     expect resp.http.result3-table-value-3 == "true"
     expect resp.http.result3-table-value-4 == "100"
+
+    expect resp.http.result4-table-value-0 == "42"
+    expect resp.http.result4-table-value-1 == "number"
+    expect resp.http.result4-table-value-2 == "3.14"
+    expect resp.http.result4-table-value-3 == "number"
+    expect resp.http.result4-table-value-4 == ""
+    expect resp.http.result4-table-value-5 == "string"
+    expect resp.http.result4-table-value-6 == "foo"
+    expect resp.http.result4-table-value-7 == "string"
+    expect resp.http.result4-table-value-8 == "false"
+    expect resp.http.result4-table-value-9 == "boolean"
+    expect resp.http.result4-table-value-10 == "true"
+    expect resp.http.result4-table-value-11 == "boolean"
 
     expect resp.http.variables-current == "2"
 
