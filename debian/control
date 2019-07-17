@@ -10,7 +10,8 @@ Build-Depends: debhelper (>= 7),
  libvarnishapi-dev (>= 6.0.0),
  libcurl4-gnutls-dev,
  libluajit-5.1-dev,
- libjemalloc-dev
+ libjemalloc-dev,
+ vim-common
 Standards-Version: 3.8.1
 
 Package: libvmod-cfg
