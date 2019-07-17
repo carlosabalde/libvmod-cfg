@@ -53,18 +53,10 @@ EXTRA_DIST = \
 	$(VMOD_TESTS)
 
 script_javascript_helpers.h: script_javascript_helpers.js
-	@( \
-		set -e; \
-		cd '$(abs_srcdir)'; \
-		xxd -i script_javascript_helpers.js script_javascript_helpers.h; \
-	)
+	@xxd -i script_javascript_helpers.js script_javascript_helpers.h
 
 script_lua_helpers.h: script_lua_helpers.lua
-	@( \
-		set -e; \
-		cd '$(abs_srcdir)'; \
-		xxd -i script_lua_helpers.lua script_lua_helpers.h; \
-	)
+	@xxd -i script_lua_helpers.lua script_lua_helpers.h
 
 clean-vmod-cfg:
 	rm -f vcc_cfg_if.c vcc_cfg_if.h
