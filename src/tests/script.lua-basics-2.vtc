@@ -12,7 +12,6 @@ EOF
 
 varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
     import ${vmod_cfg};
-    import std;
 
     sub vcl_init {
         new script = cfg.script(
