@@ -21,8 +21,8 @@ libvmod_cfg_la_SOURCES = \
 	helpers.c helpers.h \
 	remote.c remote.h \
 	script_helpers.c script_helpers.h \
-	script_javascript.c script_javascript.h script_javascript_helpers.h \
-	script_lua.c script_lua.h script_lua_helpers.h \
+	script_javascript_helpers.h script_javascript.c script_javascript.h \
+	script_lua_helpers.h script_lua.c script_lua.h \
 	variables.c variables.h \
 	vmod_cfg.c \
 	vmod_cfg_env.c \
@@ -61,15 +61,12 @@ CLEANFILES = \
 	$(builddir)/vcc_if.c \
 	$(builddir)/vcc_if.h \
 	$(builddir)/vmod_cfg.rst \
-	$(builddir)/vmod_cfg.man.rst
-
-# TODO: remove xxd-generated files from repo & integrate generation in the
-# build system.
+	$(builddir)/vmod_cfg.man.rst \
+	$(builddir)/script_javascript_helpers.h \
+	$(builddir)/script_lua_helpers.h
 
 script_javascript_helpers.h: script_javascript_helpers.js
-	xxd -i script_javascript_helpers.js script_javascript_helpers.h
+	@xxd -i script_javascript_helpers.js script_javascript_helpers.h
 
 script_lua_helpers.h: script_lua_helpers.lua
-	xxd -i script_lua_helpers.lua script_lua_helpers.h
-
-script-helpers: script_javascript_helpers.h script_lua_helpers.h
+	@xxd -i script_lua_helpers.lua script_lua_helpers.h
