@@ -12,6 +12,7 @@
 #include "vre.h"
 
 #include "script_javascript.h"
+#include "script_javascript_helpers.h"
 #include "helpers.h"
 
 static duk_context *new_context(VRT_CTX, struct vmod_cfg_script *script);
@@ -788,27 +789,6 @@ varnish_shared_eval_javascript_command(duk_context *D)
     return 1;
 }
 
-static const char *varnish_shared_incr_javascript_command =
-    "varnish.shared.incr = function(key, increment, scope) {\n"
-    "  var key = key;\n"
-    "  var increment = parseInt(increment)\n"
-    "  if (isNaN(increment)) {\n"
-    "    increment = 0;\n"
-    "  }\n"
-    "  \n"
-    "  return varnish.shared.eval(function() {\n"
-    "    var value = parseInt(varnish.shared.get(key, scope));\n"
-    "    if (isNaN(value)) {\n"
-    "      value = increment;\n"
-    "    } else {\n"
-    "      value += increment;\n"
-    "    }\n"
-    "    \n"
-    "    varnish.shared.set(key, value, scope);\n"
-    "    return value;\n"
-    "  })\n"
-    "}\n";
-
 #undef GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
 #undef SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
 
@@ -865,7 +845,12 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     duk_push_c_function(result, varnish_shared_eval_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, -2, "eval");
     duk_pop_2(result);
-    AZ(duk_peval_string(result, varnish_shared_incr_javascript_command));
+
+    // Add script helpers.
+    AZ(duk_peval_lstring(
+        result,
+        (const char *) &script_javascript_helpers_js,
+        script_javascript_helpers_js_len));
     duk_pop(result);
 
     // Done!
