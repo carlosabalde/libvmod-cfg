@@ -33,6 +33,7 @@ addons:
     - luajit
     - python-docutils
     - python-sphinx
+    - vim-common
 
 before_install:
   - git clone https://github.com/varnishcache/varnish-cache.git ./varnish
