@@ -51,6 +51,8 @@ $(top_srcdir)/src/tests/*.vtc: libvmod_cfg.la
 check: $(VMOD_TESTS)
 
 EXTRA_DIST = \
+	script_javascript_helpers.js \
+	script_lua_helpers.lua \
 	tests/runner.sh \
 	vmod_cfg.vcc \
 	$(VMOD_TESTS)
