@@ -14,6 +14,7 @@
 #include "vre.h"
 
 #include "script_lua.h"
+#include "script_lua_helpers.h"
 #include "helpers.h"
 
 static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
@@ -785,27 +786,6 @@ varnish_shared_eval_lua_command(lua_State *L)
     return 1;
 }
 
-static const char *varnish_shared_incr_lua_command =
-    "varnish.shared.incr = function(key, increment, scope)\n"
-    "  local key = key\n"
-    "  local increment = tonumber(increment)\n"
-    "  if increment == nil then\n"
-    "    increment = 0\n"
-    "  end\n"
-    "  \n"
-    "  return varnish.shared.eval(function()\n"
-    "    local value = tonumber(varnish.shared.get(key, scope))\n"
-    "    if value == nil then\n"
-    "      value = increment\n"
-    "    else\n"
-    "      value = value + increment\n"
-    "    end\n"
-    "    \n"
-    "    varnish.shared.set(key, value, scope)\n"
-    "    return value\n"
-    "  end)\n"
-    "end\n";
-
 #undef GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
 #undef SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
 
@@ -966,26 +946,13 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_pushcfunction(result, varnish_shared_eval_lua_command);
     lua_setfield(result, -2, "eval");
     lua_pop(result, 2);
-    AZ(luaL_loadbuffer(result, varnish_shared_incr_lua_command, strlen(varnish_shared_incr_lua_command), "@varnish_shared_incr_command"));
-    AZ(lua_pcall(result, 0, 0, 0));
 
-    // Add a helper function for error reporting.
-    // Note that when the error is in the C function we want to report the
-    // information about the caller, that's what makes sense from the point of
-    // view of the user debugging a script.
-    char *error_handler =
-        "varnish._error_handler = function(error)\n"
-        "  local i = debug.getinfo(2, 'nSl')\n"
-        "  if i and i.what == 'C' then\n"
-        "    i = debug.getinfo(3, 'nSl')\n"
-        "  end\n"
-        "  if i then\n"
-        "    return i.source .. ':' .. i.currentline .. ': ' .. error\n"
-        "  else\n"
-        "    return error\n"
-        "  end\n"
-        "end\n";
-    AZ(luaL_loadbuffer(result, error_handler, strlen(error_handler), "@varnish_error_handler"));
+    // Add script helpers.
+    AZ(luaL_loadbuffer(
+        result,
+        (const char *) &script_lua_helpers_lua,
+        script_lua_helpers_lua_len,
+        "@helpers"));
     AZ(lua_pcall(result, 0, 0, 0));
 
     // Protect accesses to global variables, set global 'varnish' table as

@@ -60,3 +60,14 @@ CLEANFILES = \
 	$(builddir)/vcc_if.h \
 	$(builddir)/vmod_cfg.rst \
 	$(builddir)/vmod_cfg.man.rst
+
+# TODO: remove xxd-generated files from repo & integrate generation in the
+# build system.
+
+script_javascript_helpers.h: script_javascript_helpers.js
+	xxd -i script_javascript_helpers.js script_javascript_helpers.h
+
+script_lua_helpers.h: script_lua_helpers.lua
+	xxd -i script_lua_helpers.lua script_lua_helpers.h
+
+script-helpers: script_javascript_helpers.h script_lua_helpers.h
