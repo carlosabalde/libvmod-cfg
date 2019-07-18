@@ -49,7 +49,6 @@ before_install:
 before_script:
   - ./autogen.sh
   - ./configure --prefix=/usr $CONFIGURE_FLAGS
-  - (cd src && make script_javascript_helpers.h script_lua_helpers.h)
   - make -j1
 
 script:
