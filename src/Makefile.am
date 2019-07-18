@@ -21,8 +21,8 @@ libvmod_cfg_la_SOURCES = \
 	helpers.c helpers.h \
 	remote.c remote.h \
 	script_helpers.c script_helpers.h \
-	script_javascript_helpers.h script_javascript.c script_javascript.h \
-	script_lua_helpers.h script_lua.c script_lua.h \
+	script_javascript.c script_javascript.h \
+	script_lua.c script_lua.h \
 	variables.c variables.h \
 	vmod_cfg.c \
 	vmod_cfg_env.c \
@@ -33,7 +33,9 @@ libvmod_cfg_la_SOURCES = \
 
 nodist_libvmod_cfg_la_SOURCES = \
 	vcc_if.c \
-	vcc_if.h
+	vcc_if.h \
+	script_javascript_helpers.h \
+	script_lua_helpers.h
 
 vmod_cfg.lo: vcc_if.c vcc_if.h
 
@@ -65,8 +67,12 @@ CLEANFILES = \
 	$(builddir)/script_javascript_helpers.h \
 	$(builddir)/script_lua_helpers.h
 
+script_javascript.c: script_javascript_helpers.h
+
 script_javascript_helpers.h: script_javascript_helpers.js
 	@xxd -i script_javascript_helpers.js script_javascript_helpers.h
+
+script_lua.c: script_lua_helpers.h
 
 script_lua_helpers.h: script_lua_helpers.lua
 	@xxd -i script_lua_helpers.lua script_lua_helpers.h
