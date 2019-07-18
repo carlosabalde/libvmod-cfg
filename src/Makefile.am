@@ -60,7 +60,7 @@ script_javascript_helpers.h: script_javascript_helpers.js
 	@( \
 		set -e; \
 		cd '$(srcdir)'; \
-		xxd -i script_javascript_helpers.js script_javascript_helpers.h; \
+		xxd -i script_javascript_helpers.js '$(builddir)/script_javascript_helpers.h'; \
 	)
 
 $(srcdir)/script_lua.c: script_lua_helpers.h
@@ -69,7 +69,7 @@ script_lua_helpers.h: script_lua_helpers.lua
 	@( \
 		set -e; \
 		cd '$(srcdir)'; \
-		xxd -i script_lua_helpers.lua script_lua_helpers.h; \
+		xxd -i script_lua_helpers.lua '$(builddir)/script_lua_helpers.h'; \
 	)
 
 clean-vmod-cfg:
