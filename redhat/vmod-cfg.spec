@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 1.11
+Version: 1.12
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,10 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Mon Jul 29 2019 Carlos Abalde <carlos.abalde@gmail.com> - 1.12-1.20190729
+- Added support for execution of ECMAScript scripts.
+- Added support for loading of arbitrary Lua extensions.
+- Added 'varnish.engine' & 'varnish.shared' helpers.
 * Mon May 27 2019 Carlos Abalde <carlos.abalde@gmail.com> - 1.11-1.20190527
 - Fixed error in check_remote() when backup file can't be opened.
 * Wed May 15 2019 Carlos Abalde <carlos.abalde@gmail.com> - 1.10-1.20190515

@@ -1,8 +1,10 @@
-libvmod-cfg (1.11-1) stable; urgency=low
+libvmod-cfg (1.12-1) stable; urgency=low
 
-  * Fixed error in check_remote() when backup file can't be opened
+  * Added support for execution of ECMAScript scripts
+  * Added support for loading of arbitrary Lua extensions
+  * Added 'varnish.engine' & 'varnish.shared' helpers
 
- -- Carlos Abalde <carlos.abalde@gmail.com>  Mon, 27 May 2019 16:00:00 +0200
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Mon, 29 Jul 2019 16:00:00 +0200
 
 libvmod-cfg (1.10-1) stable; urgency=low
 
