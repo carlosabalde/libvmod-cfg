@@ -1,3 +1,11 @@
+libvmod-cfg (5.8-1) stable; urgency=low
+
+  * Added support for execution of ECMAScript scripts
+  * Added support for loading of arbitrary Lua extensions
+  * Added 'varnish.engine' & 'varnish.shared' helpers
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Mon, 29 Jul 2019 16:00:00 +0200
+
 libvmod-cfg (5.7-1) stable; urgency=low
 
   * Fixed error in check_remote() when backup file can't be opened
