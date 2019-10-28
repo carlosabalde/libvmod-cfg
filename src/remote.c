@@ -182,10 +182,12 @@ check_remote(
                 if (backup != NULL) {
                     int rc = fputs(contents, backup);
                     if (rc < 0) {
-                        char buffer[256];
+                        // Not possible to use char buffer[256] +
+                        // strerror_r(rc, buffer, sizeof(buffer)) due to Linux Alpine
+                        // issue. See https://stackoverflow.com/questions/41953104/strerror-r-is-incorrectly-declared-on-alpine-linux.
                         LOG(ctx, LOG_ERR,
-                            "Failed to write backup file (location=%s, backup=%s, error=%s)",
-                            remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
+                            "Failed to write backup file (location=%s, backup=%s, error=%d)",
+                            remote->location.raw, remote->backup, rc);
                     } else {
                         LOG(ctx, LOG_INFO,
                             "Successfully write to backup file (location=%s, backup=%s)",
