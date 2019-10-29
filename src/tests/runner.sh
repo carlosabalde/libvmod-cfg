@@ -7,6 +7,7 @@ cleanup() {
 }
 
 TMP=`mktemp -d`
+chmod o+rwx "$TMP"
 
 unset  LIBVMOD_CFG_value
 export LIBVMOD_CFG_VALUE="hello world!"
