@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -182,12 +184,26 @@ check_remote(
                 if (backup != NULL) {
                     int rc = fputs(contents, backup);
                     if (rc < 0) {
-                        // Not possible to use char buffer[256] +
-                        // strerror_r(rc, buffer, sizeof(buffer)) due to Linux Alpine
-                        // issue. See https://stackoverflow.com/questions/41953104/strerror-r-is-incorrectly-declared-on-alpine-linux.
+                        // Not possible to use GNU strerror_r() due to Linux Alpine
+                        // issue. See:
+                        //   - https://stackoverflow.com/questions/41953104/strerror-r-is-incorrectly-declared-on-alpine-linux
+                        char buffer[256];
+#ifdef STRERROR_R_CHAR_P
                         LOG(ctx, LOG_ERR,
-                            "Failed to write backup file (location=%s, backup=%s, error=%d)",
-                            remote->location.raw, remote->backup, rc);
+                            "Failed to write backup file (location=%s, backup=%s, error=%s)",
+                            remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
+#else
+                        rc = strerror_r(rc, buffer, sizeof(buffer));
+                        if (rc == 0) {
+                            LOG(ctx, LOG_ERR,
+                                "Failed to write backup file (location=%s, backup=%s, error=%s)",
+                                remote->location.raw, remote->backup, buffer);
+                        } else {
+                            LOG(ctx, LOG_ERR,
+                                "Failed to write backup file (location=%s, backup=%s, error=%d)",
+                                remote->location.raw, remote->backup, rc);
+                        }
+#endif
                     } else {
                         LOG(ctx, LOG_INFO,
                             "Successfully write to backup file (location=%s, backup=%s)",
