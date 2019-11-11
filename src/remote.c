@@ -59,7 +59,7 @@ new_remote(
     } else if (strncmp(location, "http://", 7) == 0) {
         SET_LOCATION(url, 7);
     } else if (strncmp(location, "https://", 8) == 0) {
-        SET_LOCATION(url, 8);
+        SET_LOCATION(url, 0);
     } else {
         SET_LOCATION(path, 0);
     }
