@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-AC_INIT([libvmod-cfg], [5.8], [], [vmod-cfg])
+AC_INIT([libvmod-cfg], [5.9], [], [vmod-cfg])
 AC_COPYRIGHT([Copyright (c) 2016-2019 Carlos Abalde <carlos.abalde@gmail.com>])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/vmod_cfg.vcc)
