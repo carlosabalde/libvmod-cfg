@@ -27,7 +27,7 @@ static char *read_url(VRT_CTX, remote_t *remote);
         AN(result->field); \
     } while (0)
 
-#define SET_OPTINAL_STRING(value, field) \
+#define SET_OPTIONAL_STRING(value, field) \
     do { \
         if ((value != NULL) && (strlen(value) > 0)) { \
             SET_STRING(value, field); \
@@ -73,9 +73,9 @@ new_remote(
     result->curl.transfer_timeout = curl_transfer_timeout;
     result->curl.ssl_verify_peer = curl_ssl_verify_peer;
     result->curl.ssl_verify_host = curl_ssl_verify_host;
-    SET_OPTINAL_STRING(curl_ssl_cafile, curl.ssl_cafile);
-    SET_OPTINAL_STRING(curl_ssl_capath, curl.ssl_capath);
-    SET_OPTINAL_STRING(curl_proxy, curl.proxy);
+    SET_OPTIONAL_STRING(curl_ssl_cafile, curl.ssl_cafile);
+    SET_OPTIONAL_STRING(curl_ssl_capath, curl.ssl_capath);
+    SET_OPTIONAL_STRING(curl_proxy, curl.proxy);
     result->state.tst = 0;
     AZ(pthread_mutex_init(&result->state.mutex, NULL));
     result->state.reloading = 0;
@@ -84,7 +84,7 @@ new_remote(
 }
 
 #undef SET_STRING
-#undef SET_OPTINAL_STRING
+#undef SET_OPTIONAL_STRING
 #undef SET_LOCATION
 
 #define FREE_STRING(field) \
@@ -93,7 +93,7 @@ new_remote(
         remote->field = NULL; \
     } while (0)
 
-#define FREE_OPTINAL_STRING(field) \
+#define FREE_OPTIONAL_STRING(field) \
     do { \
         if (remote->field != NULL) { \
             FREE_STRING(field); \
@@ -111,9 +111,9 @@ free_remote(remote_t *remote)
     remote->curl.transfer_timeout = 0;
     remote->curl.ssl_verify_peer = 0;
     remote->curl.ssl_verify_host = 0;
-    FREE_OPTINAL_STRING(curl.ssl_cafile);
-    FREE_OPTINAL_STRING(curl.ssl_capath);
-    FREE_OPTINAL_STRING(curl.proxy);
+    FREE_OPTIONAL_STRING(curl.ssl_cafile);
+    FREE_OPTIONAL_STRING(curl.ssl_capath);
+    FREE_OPTIONAL_STRING(curl.proxy);
     remote->read = NULL;
     remote->state.tst = 0;
     AZ(pthread_mutex_destroy(&remote->state.mutex));
@@ -123,7 +123,7 @@ free_remote(remote_t *remote)
 }
 
 #undef FREE_STRING
-#undef FREE_OPTINAL_STRING
+#undef FREE_OPTIONAL_STRING
 
 /******************************************************************************
  * HELPERS.
