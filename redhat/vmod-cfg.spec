@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 8.0
+Version: 8.1
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,9 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Mon Nov 11 2019 Carlos Abalde <carlos.abalde@gmail.com> - 8.1-1.20191111
+- Fixed error in new_remote() when https URLs are used.
+- Added some Linux Alpine fixes.
 * Mon Sep 30 2019 Carlos Abalde <carlos.abalde@gmail.com> - 8.0-1.20190930
 - Migrated to Varnish Cache 6.3.x.
 * Mon Jul 29 2019 Carlos Abalde <carlos.abalde@gmail.com> - 7.3-1.20190729
