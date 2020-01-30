@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#ifndef HAVE_DECL_VRT_FLUSHTHREADCACHE
+#if HAVE_DECL_VRT_FLUSHTHREADCACHE == 0
 #ifdef JEMALLOC_TCACHE_FLUSH_ENABLED
     #include <jemalloc/jemalloc.h>
 #endif
@@ -342,7 +342,7 @@ done:
     // controlled.
 #ifdef JEMALLOC_TCACHE_FLUSH_ENABLED
     if (flush_jemalloc_tcache) {
-#ifdef HAVE_DECL_VRT_FLUSHTHREADCACHE
+#if HAVE_DECL_VRT_FLUSHTHREADCACHE == 1
         VRT_FlushThreadCache();
 #else
         AZ(mallctl("thread.tcache.flush", NULL, NULL, NULL, 0));
