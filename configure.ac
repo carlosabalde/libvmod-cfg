@@ -107,6 +107,11 @@ AX_CURLOPT_CHECK([CURLOPT_CONNECTTIMEOUT_MS])
 
 AC_FUNC_STRERROR_R
 
+save_CFLAGS="${CFLAGS}"
+CFLAGS="${CFLAGS} ${VARNISHAPI_CFLAGS}"
+AC_CHECK_DECLS([VRT_FlushThreadCache], [], [], [[#include <cache/cache.h>]])
+CFLAGS="${save_CFLAGS}"
+
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
