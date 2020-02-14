@@ -1,3 +1,9 @@
+libvmod-cfg (1.14-1) stable; urgency=low
+
+  * Add inspect() support for files, rules & scripts
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Fri, 14 Feb 2020 16:00:00 +0100
+
 libvmod-cfg (1.13-1) stable; urgency=low
 
   * Fixed error in new_remote() when https URLs are used
