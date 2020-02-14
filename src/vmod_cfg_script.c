@@ -222,6 +222,24 @@ vmod_script_reload(VRT_CTX, struct vmod_cfg_script *script)
 }
 
 VCL_VOID
+vmod_script_inspect(VRT_CTX, struct vmod_cfg_script *script)
+{
+    task_state_t *state = get_task_state(ctx, 0);
+
+    if (state->execution.code != NULL) {
+        if ((ctx->method == VCL_MET_SYNTH) ||
+            (ctx->method == VCL_MET_BACKEND_ERROR)) {
+            struct vsb *vsb = NULL;
+            CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
+            AZ(VSB_cat(vsb, state->execution.code));
+        }
+    } else if (script->remote != NULL) {
+        script_check(ctx, script, 0);
+        inspect_remote(ctx, script->remote);
+    }
+}
+
+VCL_VOID
 vmod_script_init(
     VRT_CTX, struct vmod_cfg_script *script,
     VCL_STRING code)

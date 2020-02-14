@@ -1,0 +1,51 @@
+varnishtest "Test .inspect() for rules"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.rules" <<'EOF'
+(?i)\.(?:jpg|png|svg)$ -> r1
+(?i)^foo/              -> r2
+
+^bar/                  ->
+    BAZ->r4
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new script = cfg.rules(
+            "file://${tmp}/test.rules",
+            period=0);
+    }
+
+    sub vcl_recv {
+        return (synth(200, "OK"));
+    }
+
+    sub vcl_synth {
+        set resp.http.Content-Type = "application/json";
+        script.inspect();
+        return (deliver);
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.body == {(?i)\.(?:jpg|png|svg)$ -> r1
+(?i)^foo/              -> r2
+
+^bar/                  ->
+    BAZ->r4
+}
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0

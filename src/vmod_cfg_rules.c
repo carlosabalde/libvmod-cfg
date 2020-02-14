@@ -288,6 +288,13 @@ vmod_rules_reload(VRT_CTX, struct vmod_cfg_rules *rules)
     return rules_check(ctx, rules, 1);
 }
 
+VCL_VOID
+vmod_rules_inspect(VRT_CTX, struct vmod_cfg_rules *rules)
+{
+    rules_check(ctx, rules, 0);
+    inspect_remote(ctx, rules->remote);
+}
+
 VCL_STRING
 vmod_rules_get(VRT_CTX, struct vmod_cfg_rules *rules, VCL_STRING value, VCL_STRING fallback)
 {

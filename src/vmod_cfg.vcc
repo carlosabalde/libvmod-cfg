@@ -10,7 +10,7 @@ $Module cfg 3 CFG VMOD
 DESCRIPTION
 ===========
 
-VMOD useful to access to contents of environment variables and  local or remote
+VMOD useful to access to contents of environment variables and local or remote
 configuration files from VCL.
 
 $Event event_function
@@ -26,9 +26,10 @@ Description
 $Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
-    stream: if enabled the JSON object will be streamed as a synthetic response.
+    stream: if enabled, the JSON object will be streamed as a synthetic
+    response.
 
-    prefix: if specified, the JSON object will only contains the variables that
+    prefix: if specified, the JSON object will only contain the variables that
     start with that prefix.
 Description
     Returns a string representation of a JSON object containing all variables.
@@ -127,7 +128,8 @@ Description
 $Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
-    stream: if enabled the JSON object will be streamed as a synthetic response.
+    stream: if enabled, the JSON object will be streamed as a synthetic
+    response.
 
     prefix: if specified, the JSON object will only contains the variables that
     start with that prefix.
@@ -139,6 +141,13 @@ Description
     a call to the ``synthetic`` VCL function with the JSON object as input.
     This highly reduces the amount of required workspace memory, specially for
     large JSON objects.
+
+$Method VOID .inspect()
+
+Description
+    This function may be called during ``vcl_synth`` or ``vcl_backend_error``
+    and it will behave as a call to the ``synthetic`` VCL function with current
+    contents of the file as input.
 
 $Method BOOL .is_set(STRING name)
 
@@ -183,6 +192,13 @@ $Method BOOL .reload()
 
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
+
+$Method VOID .inspect()
+
+Description
+    This function may be called during ``vcl_synth`` or ``vcl_backend_error``
+    and it will behave as a call to the ``synthetic`` VCL function with current
+    contents of the rules file as input.
 
 $Method STRING .get(STRING value, STRING fallback="")
 
@@ -270,6 +286,13 @@ $Method BOOL .reload()
 
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
+
+$Method VOID .inspect()
+
+Description
+    This function may be called during ``vcl_synth`` or ``vcl_backend_error``
+    and it will behave as a call to the ``synthetic`` VCL function with current
+    contents of the loaded script (inline script or file) as input.
 
 $Method VOID .init(STRING code="")
 

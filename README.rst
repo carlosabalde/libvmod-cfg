@@ -48,6 +48,7 @@ import cfg;
         STRING value_delimiter=";")
     Method BOOL .reload()
     Method STRING .dump(BOOL stream=0, STRING prefix="")
+    Method VOID .inspect()
 
     Method BOOL .is_set(STRING name)
     Method STRING .get(STRING name, STRING fallback="")
@@ -68,6 +69,7 @@ import cfg;
         STRING curl_ssl_capath="",
         STRING curl_proxy="")
     Method BOOL .reload()
+    Method VOID .inspect()
 
     Method STRING .get(STRING value, STRING fallback="")
 
@@ -98,6 +100,7 @@ import cfg;
         STRING curl_ssl_capath="",
         STRING curl_proxy="")
     Method BOOL .reload()
+    Method VOID .inspect()
 
     Method VOID .init(STRING code="")
     Method VOID .push(STRING arg)

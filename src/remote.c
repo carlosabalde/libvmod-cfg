@@ -9,6 +9,7 @@
 #include "vcl.h"
 #include "vrt.h"
 #include "cache/cache.h"
+#include "vsb.h"
 
 #include "helpers.h"
 #include "remote.h"
@@ -79,6 +80,7 @@ new_remote(
     result->state.tst = 0;
     AZ(pthread_mutex_init(&result->state.mutex, NULL));
     result->state.reloading = 0;
+    result->state.contents = NULL;
 
     return result;
 }
@@ -118,6 +120,7 @@ free_remote(remote_t *remote)
     remote->state.tst = 0;
     AZ(pthread_mutex_destroy(&remote->state.mutex));
     remote->state.reloading = 0;
+    FREE_OPTIONAL_STRING(state.contents);
 
     FREE_OBJ(remote);
 }
@@ -126,7 +129,7 @@ free_remote(remote_t *remote)
 #undef FREE_OPTIONAL_STRING
 
 /******************************************************************************
- * HELPERS.
+ * CHECK.
  *****************************************************************************/
 
 static unsigned
@@ -137,17 +140,29 @@ check_remote_backup(
     unsigned result = 0;
     char *contents = read_backup(ctx, remote);
 
-    if (contents != NULL) {
-        if ((result = (*callback)(ctx, ptr, contents, 1))) {
-            LOG(ctx, LOG_INFO,
-                "Settings loaded from backup (location=%s, backup=%s)",
-                remote->location.raw, remote->backup);
-        } else {
-            LOG(ctx, LOG_ERR,
-                "Failed to load backup file (location=%s, backup=%s)",
-                remote->location.raw, remote->backup);
+    if (contents != NULL && strlen(contents) > 0) {
+        result = (*callback)(ctx, ptr, contents, 1);
+    }
+
+    if (result) {
+        AZ(pthread_mutex_lock(&remote->state.mutex));
+        if (remote->state.contents != NULL) {
+            free((void *) remote->state.contents);
         }
-        free((void *) contents);
+        remote->state.contents = contents;
+        AZ(pthread_mutex_unlock(&remote->state.mutex));
+
+        LOG(ctx, LOG_INFO,
+            "Settings loaded from backup (location=%s, backup=%s)",
+            remote->location.raw, remote->backup);
+    } else {
+        if (contents != NULL) {
+            free((void *) contents);
+        }
+
+        LOG(ctx, LOG_ERR,
+            "Failed to load backup file (location=%s, backup=%s)",
+            remote->location.raw, remote->backup);
     }
 
     return result;
@@ -176,10 +191,20 @@ check_remote(
 
     if (force || winner) {
         char *contents = (*remote->read)(ctx, remote);
-        struct stat st;
-        if (contents != NULL) {
+
+        if (contents != NULL && strlen(contents) > 0) {
             result = (*callback)(ctx, ptr, contents, 0);
-            if (result && (remote->backup != NULL) && (strlen(contents) > 0)) {
+        }
+
+        if (result) {
+            AZ(pthread_mutex_lock(&remote->state.mutex));
+            if (remote->state.contents != NULL) {
+                free((void *) remote->state.contents);
+            }
+            remote->state.contents = contents;
+            AZ(pthread_mutex_unlock(&remote->state.mutex));
+
+            if (remote->backup != NULL) {
                 FILE *backup = fopen(remote->backup, "wb");
                 if (backup != NULL) {
                     int rc = fputs(contents, backup);
@@ -215,7 +240,14 @@ check_remote(
                         "Failed to open backup file (location=%s, backup=%s)",
                         remote->location.raw, remote->backup);
                 }
-            } else if (remote->backup != NULL) {
+            }
+        } else {
+            if (contents != NULL) {
+                free((void *) contents);
+            }
+
+            if (remote->backup != NULL) {
+                struct stat st;
                 if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
                     result = check_remote_backup(ctx, remote, callback, ptr);
                 } else {
@@ -223,15 +255,6 @@ check_remote(
                         "Backup file is empty or doesn't exist (location=%s, backup=%s)",
                         remote->location.raw, remote->backup);
                 }
-            }
-            free((void *) contents);
-        } else if (remote->backup != NULL) {
-            if ((stat(remote->backup, &st) == 0) && (st.st_size > 0)) {
-                result = check_remote_backup(ctx, remote, callback, ptr);
-            } else {
-                LOG(ctx, LOG_ERR,
-                    "Backup file is empty or doesn't exist (location=%s, backup=%s)",
-                    remote->location.raw, remote->backup);
             }
         }
 
@@ -251,6 +274,30 @@ check_remote(
 
     return result;
 }
+
+/******************************************************************************
+ * INSPECT.
+ *****************************************************************************/
+
+void
+inspect_remote(VRT_CTX, remote_t *remote)
+{
+    if ((ctx->method == VCL_MET_SYNTH) ||
+        (ctx->method == VCL_MET_BACKEND_ERROR)) {
+        struct vsb *vsb = NULL;
+        CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
+
+        AZ(pthread_mutex_lock(&remote->state.mutex));
+        if (remote->state.contents != NULL) {
+            AZ(VSB_cat(vsb, remote->state.contents));
+        }
+        AZ(pthread_mutex_unlock(&remote->state.mutex));
+    }
+}
+
+/******************************************************************************
+ * HELPERS.
+ *****************************************************************************/
 
 static char *
 read_file(VRT_CTX, remote_t *remote, const char *file)

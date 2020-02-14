@@ -1,0 +1,54 @@
+varnishtest "Test .inspect() for files"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.ini" <<'EOF'
+var: what a hell?
+variable: hell
+field1:
+field2: ""
+field3: Hello "\o/"! á
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
+
+    sub vcl_init {
+        new file = cfg.file(
+            "file://${tmp}/test.ini",
+            period=0,
+            format=ini,
+            name_delimiter=":",
+            value_delimiter=";");
+    }
+
+    sub vcl_recv {
+        return (synth(200, "OK"));
+    }
+
+    sub vcl_synth {
+        set resp.http.Content-Type = "application/json";
+        file.inspect();
+        return (deliver);
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.body == {var: what a hell?
+variable: hell
+field1:
+field2: ""
+field3: Hello "\o/"! á
+}
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0
