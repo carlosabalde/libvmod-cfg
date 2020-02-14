@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 5.9
+Version: 5.10
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,9 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Fri Feb 14 2020 Carlos Abalde <carlos.abalde@gmail.com> - 5.10-1.20200214
+- Add inspect() support for files, rules & scripts.
+- Add VRT_FlushThreadCache() support (Varnish Enterprise).
 * Mon Nov 11 2019 Carlos Abalde <carlos.abalde@gmail.com> - 5.9-1.20191111
 - Fixed error in new_remote() when https URLs are used.
 - Added some Linux Alpine fixes.
