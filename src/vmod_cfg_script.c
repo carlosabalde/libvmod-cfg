@@ -7,6 +7,7 @@
 
 #include "cache/cache.h"
 #include "vsb.h"
+#include "vcl.h"
 #include "vre.h"
 #include "vcc_cfg_if.h"
 
@@ -217,6 +218,25 @@ VCL_BOOL
 vmod_script_reload(VRT_CTX, struct vmod_cfg_script *script)
 {
     return script_check(ctx, script, 1);
+}
+
+VCL_VOID
+vmod_script_inspect(
+    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+{
+    task_state_t *state = get_task_state(ctx, task_priv, 0);
+
+    if (state->execution.code != NULL) {
+        if ((ctx->method == VCL_MET_SYNTH) ||
+            (ctx->method == VCL_MET_BACKEND_ERROR)) {
+            struct vsb *vsb = NULL;
+            CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
+            AZ(VSB_cat(vsb, state->execution.code));
+        }
+    } else if (script->remote != NULL) {
+        script_check(ctx, script, 0);
+        inspect_remote(ctx, script->remote);
+    }
 }
 
 VCL_VOID

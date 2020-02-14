@@ -415,6 +415,13 @@ vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream, VCL_STRING 
     return result;
 }
 
+VCL_VOID
+vmod_file_inspect(VRT_CTX, struct vmod_cfg_file *file)
+{
+    file_check(ctx, file, 0);
+    inspect_remote(ctx, file->remote);
+}
+
 VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {

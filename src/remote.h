@@ -27,6 +27,7 @@ typedef struct remote {
         time_t tst;
         pthread_mutex_t mutex;
         unsigned reloading;
+        const char *contents;
     } state;
 } remote_t;
 
@@ -40,5 +41,7 @@ void free_remote(remote_t *remote);
 unsigned check_remote(
     VRT_CTX, remote_t *remote, unsigned force,
     unsigned (*callback)(VRT_CTX, void *, char *, unsigned), void *ptr);
+
+void inspect_remote(VRT_CTX, remote_t *remote);
 
 #endif

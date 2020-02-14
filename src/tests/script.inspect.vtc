@@ -1,0 +1,65 @@
+varnishtest "Test .inspect() for scripts"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+shell {
+    cat > "${tmp}/test.js" <<'EOF'
+var a = parseFloat(ARGV[0])
+var b = parseFloat(ARGV[1])
+return [a, b, a * b]
+EOF
+}
+
+varnish v1 -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new script = cfg.script(
+            "file://${tmp}/test.js",
+            period=0,
+            type=javascript,
+            max_engines=32,
+            max_cycles=10,
+            min_gc_cycles=8);
+
+        new inline_script = cfg.script(
+            "",
+            period=0,
+            type=javascript);
+    }
+
+    sub vcl_recv {
+        return (synth(200, "OK"));
+    }
+
+    sub vcl_synth {
+        set resp.http.Content-Type = "application/json";
+        if (req.http.inline) {
+            inline_script.init("return null");
+            inline_script.inspect();
+        } else {
+            script.inspect();
+        }
+        return (deliver);
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.body == {var a = parseFloat(ARGV[0])
+var b = parseFloat(ARGV[1])
+return [a, b, a * b]
+}
+
+    txreq -hdr "inline: 1"
+    rxresp
+    expect resp.body == "return null"
+} -run
+
+varnish v1 -expect client_req == 2
+
+varnish v1 -expect MGT.child_panic == 0
