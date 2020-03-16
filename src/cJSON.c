@@ -90,7 +90,7 @@ CJSON_PUBLIC(char *) cJSON_GetStringValue(cJSON *item) {
 }
 
 /* This is a safeguard to prevent copy-pasters from using incompatible C and header files */
-#if (CJSON_VERSION_MAJOR != 1) || (CJSON_VERSION_MINOR != 7) || (CJSON_VERSION_PATCH != 11)
+#if (CJSON_VERSION_MAJOR != 1) || (CJSON_VERSION_MINOR != 7) || (CJSON_VERSION_PATCH != 12)
     #error cJSON.h and cJSON.c have different versions. Make sure that both have the same.
 #endif
 
@@ -516,7 +516,7 @@ static cJSON_bool print_number(const cJSON * const item, printbuffer * const out
         }
     }
 
-    /* sprintf failed or buffer overrun occured */
+    /* sprintf failed or buffer overrun occurred */
     if ((length < 0) || (length > (int)(sizeof(number_buffer) - 1)))
     {
         return false;
@@ -1567,7 +1567,7 @@ static cJSON_bool parse_object(cJSON * const item, parse_buffer * const input_bu
         buffer_skip_whitespace(input_buffer);
         if (!parse_string(current_item, input_buffer))
         {
-            goto fail; /* faile to parse name */
+            goto fail; /* failed to parse name */
         }
         buffer_skip_whitespace(input_buffer);
 
@@ -2719,6 +2719,8 @@ CJSON_PUBLIC(void) cJSON_Minify(char *json)
                 else if (json[1] == '*')
                 {
                     skip_multiline_comment(&json);
+                } else {
+                    json++;
                 }
                 break;
 
