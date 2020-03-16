@@ -4,6 +4,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#include <inttypes.h>
 
 #include "vtree.h"
 
@@ -170,28 +171,28 @@ struct vmod_cfg_script {
         struct {
             struct {
                 // Number of created scripting engines.
-                unsigned total;
+                uint64_t total;
                 // Number of scripting engines dropped.
                 struct {
-                    unsigned cycles;
+                    uint64_t cycles;
                 } dropped;
             } engines;
             struct {
                 // Number of times some worker thread was blocked waiting for
                 // a free scripting engine.
-                unsigned blocked;
+                uint64_t blocked;
             } workers;
             struct {
                 // Total number of executions (all of them, including failed
                 // ones and syntax checks).
-                unsigned total;
+                uint64_t total;
                 // Number of executions registering new functions in the
                 // scripting engine.
-                unsigned unknown;
+                uint64_t unknown;
                 // Number of failed executions.
-                unsigned failed;
+                uint64_t failed;
                 // Number of executions triggering the garbage collector.
-                unsigned gc;
+                uint64_t gc;
             } executions;
         } stats;
     } state;
