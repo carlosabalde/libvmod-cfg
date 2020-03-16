@@ -580,10 +580,10 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
         "{"
           "\"engines\": {"
             "\"current\": %d,"
-            "\"total\": %d,"
+            "\"total\": %" PRIu64 ","
             "\"memory\": %" PRIu64 ","
             "\"dropped\": {"
-              "\"cycles\": %d"
+              "\"cycles\": %" PRIu64
             "}"
           "},"
           "\"regexps\": {"
@@ -593,13 +593,13 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
             "\"current\": %d"
           "},"
           "\"workers\": {"
-              "\"blocked\": %d"
+              "\"blocked\": %" PRIu64
           "},"
           "\"executions\": {"
-            "\"total\": %d,"
-            "\"unknown\": %d,"
-            "\"failed\": %d,"
-            "\"gc\": %d"
+            "\"total\": %" PRIu64 ","
+            "\"unknown\": %" PRIu64 ","
+            "\"failed\": %" PRIu64 ","
+            "\"gc\": %" PRIu64
           "}"
         "}",
         script->state.engines.n,
