@@ -373,7 +373,7 @@ vmod_script_result_is_array(VRT_CTX, struct vmod_cfg_script *script, struct vmod
 static const char *
 get_result(VRT_CTX, result_value_t *result_value)
 {
-    const char *value;
+    char *value;
 
     switch (result_value->type) {
         case RESULT_VALUE_TYPE_BOOLEAN:
@@ -384,9 +384,18 @@ get_result(VRT_CTX, result_value_t *result_value)
             return value;
 
         case RESULT_VALUE_TYPE_NUMBER:
-            value = WS_Printf(ctx->ws, "%g", result_value->value.number);
+            value = WS_Printf(ctx->ws, "%.3f", result_value->value.number);
             if (value == NULL) {
                 FAIL_WS(ctx, NULL);
+            } else {
+                size_t i = strlen(value) - 1;
+                while (i > 0 && value[i] == '0') {
+                    i--;
+                }
+                if (value[i] == '.') {
+                    i--;
+                }
+                value[i + 1] = '\0';
             }
             return value;
 
