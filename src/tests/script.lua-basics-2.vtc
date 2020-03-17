@@ -111,6 +111,17 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             set resp.http.result4-table-value-11 = script.get_table_result_value(11);
             script.free_result();
 
+            script.init({"
+                return tonumber(ARGV[0])
+            "});
+            script.push("1125899906842624");  # 2^50
+            script.execute();
+            set resp.http.result5-is-number = script.result_is_number();
+            set resp.http.result5-decimal-value = script.get_decimal_result();
+            set resp.http.result5-integer-value = script.get_integer_result();
+            set resp.http.result5-value = script.get_result();
+            script.free_result();
+
         } elsif (req.http.id == "2") {
             script.init({"
                 varnish.shared.unset('baz', 'all')
@@ -154,6 +165,11 @@ client c1 {
     expect resp.http.result4-table-value-9 == "boolean"
     expect resp.http.result4-table-value-10 == "true"
     expect resp.http.result4-table-value-11 == "boolean"
+
+    expect resp.http.result5-is-number == "true"
+    expect resp.http.result5-decimal-value == "1125899906842624.000"
+    expect resp.http.result5-integer-value == "1125899906842624"
+    expect resp.http.result5-value == "1125899906842624"
 
     expect resp.http.variables-current == "2"
 
