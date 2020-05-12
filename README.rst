@@ -1,7 +1,7 @@
 
-.. image:: https://travis-ci.org/carlosabalde/libvmod-cfg.svg?branch=6.0
-   :alt: Travis CI badge
-   :target: https://travis-ci.org/carlosabalde/libvmod-cfg/
+.. image:: https://github.com/carlosabalde/libvmod-cfg/workflows/CI/badge.svg?branch=6.0
+   :alt: GitHub Actions CI badge
+   :target: https://github.com/carlosabalde/libvmod-cfg/actions
 .. image:: https://codecov.io/gh/carlosabalde/libvmod-cfg/branch/6.0/graph/badge.svg
    :alt: Codecov badge
    :target: https://codecov.io/gh/carlosabalde/libvmod-cfg
