@@ -51,7 +51,7 @@ jobs:
         run: |
           ./autogen.sh
           ./configure --prefix=/usr ${{ matrix.configure_flags }}
-          make -j4
+          make -j1
           make ${{ matrix.make_target }} -j1
 
       - name: Push code coverage
