@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        cc:
+          - gcc
+          - clang
+        configure_flags:
+          - --enable-luajit
+          - --disable-luajit
+          - --disable-luajit --disable-flush-jemalloc-tcache
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install packages
+        run: |
+          sudo apt-get install -qq \
+            automake autotools-dev lcov libcurl3 libcurl4-gnutls-dev \
+            libedit-dev libeditline-dev libjemalloc-dev libncurses-dev \
+            liblua5.1-0-dev libluajit-5.1-dev libpcre3-dev libtool lua5.1 \
+            luajit python-docutils python-sphinx vim-common
+
+      - name: Install Varnish Cache
+        run: |
+          wget --no-check-certificate https://varnish-cache.org/_downloads/varnish-4.1.10.tgz
+          tar zxvf varnish-*.tgz
+          pushd varnish-*/
+          ./autogen.sh
+          CC='${{ matrix.cc }}' ./configure ${{ matrix.configure_flags }}
+          make -sj32
+          sudo make PREFIX='/usr/local' install
+          sudo ldconfig
+          popd
+
+      - name: Build & test VMOD
+        run: |
+          ./autogen.sh
+          ./configure --prefix=/usr ${{ matrix.configure_flags }}
+          make -j1
+          make check -j1
