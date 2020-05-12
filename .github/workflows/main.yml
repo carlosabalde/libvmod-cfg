@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        cc:
+          - gcc
+          - clang
+        make_target:
+          - check
+          - distcheck
+        configure_flags:
+          - --enable-luajit
+          - --disable-luajit
+          - --disable-luajit --disable-flush-jemalloc-tcache
+        include:
+          - cc: gcc
+            make_target: lcov
+            configure_flags: --enable-code-coverage
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install packages
+        run: |
+          sudo apt-get install -qq \
+            automake autotools-dev lcov libcurl3 libcurl4-gnutls-dev \
+            libedit-dev libeditline-dev libjemalloc-dev libncurses-dev \
+            liblua5.1-0-dev libluajit-5.1-dev libpcre3-dev libtool lua5.1 \
+            luajit python-docutils python-sphinx vim-common
+
+      - name: Install Varnish Cache
+        run: |
+          wget --no-check-certificate https://varnish-cache.org/_downloads/varnish-6.4.0.tgz
+          tar zxvf varnish-*.tgz
+          pushd varnish-*/
+          ./autogen.sh
+          CC='${{ matrix.cc }}' ./configure ${{ matrix.configure_flags }}
+          make -sj32
+          sudo make PREFIX='/usr/local' install
+          sudo ldconfig
+          popd
+
+      - name: Build & test VMOD
+        run: |
+          ./autogen.sh
+          ./configure --prefix=/usr ${{ matrix.configure_flags }}
+          make -j4
+          make ${{ matrix.make_target }} -j1
+
+      - name: Push code coverage
+        if: ${{ matrix.make_target == 'lcov' }}
+        run: |
+          cp libvmod-cfg-*-coverage.info codecov.info
+          bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy
+
+      - name: Show test report
+        if: ${{ failure() }}
+        run: |
+          cat src/test-suite.log || exit 0
