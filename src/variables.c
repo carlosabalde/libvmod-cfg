@@ -194,7 +194,7 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
         WS_Release(ctx->ws, 0);
         FAIL_WS(ctx, NULL);
     }
-    result = end = WS_Front(ctx->ws);
+    result = end = WS_Reservation(ctx->ws);
 
     DUMP_CHAR('{');
     VRBT_FOREACH(variable, variables, variables) {

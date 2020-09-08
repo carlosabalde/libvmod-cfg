@@ -384,7 +384,7 @@ get_result(VRT_CTX, result_value_t *result_value)
             return value;
 
         case RESULT_VALUE_TYPE_NUMBER:
-            value = WS_Printf(ctx->ws, "%.3f", result_value->value.number);
+            value = (char *) WS_Printf(ctx->ws, "%.3f", result_value->value.number);
             if (value == NULL) {
                 FAIL_WS(ctx, NULL);
             } else {
@@ -585,7 +585,7 @@ vmod_script_stats(VRT_CTX, struct vmod_cfg_script *script)
     AZ(pthread_rwlock_rdlock(&script->state.variables.rwlock));
     AZ(pthread_rwlock_rdlock(&script->state.regexps.rwlock));
     Lck_Lock(&script->state.mutex);
-    char *result = WS_Printf(ctx->ws,
+    const char *result = WS_Printf(ctx->ws,
         "{"
           "\"engines\": {"
             "\"current\": %d,"
