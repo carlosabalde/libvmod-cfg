@@ -276,7 +276,7 @@ free_regexp(regexp_t *regexp)
     free((void *) regexp->text);
     regexp->text = NULL;
 
-    VRT_re_fini(regexp->vre);
+    VRE_free(&regexp->vre);
     regexp->vre = NULL;
 
     FREE_OBJ(regexp);
@@ -366,7 +366,7 @@ varnish_regmatch_command(
     if (re != NULL) {
         result = VRT_re_match(ctx, string, re);
         if (!cache) {
-            VRT_re_fini(re);
+            VRE_free(&re);
         }
     } else {
         *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
@@ -395,7 +395,7 @@ varnish_regsub_command(
     if (re != NULL) {
         result = VRT_regsub(ctx, all, string, re, sub);
         if (!cache) {
-            VRT_re_fini(re);
+            VRE_free(&re);
         }
     } else {
         *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
