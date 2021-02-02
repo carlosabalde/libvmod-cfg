@@ -168,10 +168,16 @@ free_task_state(task_state_t *state)
     FREE_OBJ(state);
 }
 
+static void
+fini_task_state(VRT_CTX, void *ptr)
+{
+    free_task_state(ptr);
+}
+
 static const struct vmod_priv_methods task_state_priv_methods[1] = {{
     .magic = VMOD_PRIV_METHODS_MAGIC,
     .type = "task_state",
-    .fini = (vmod_priv_fini_f *)free_task_state
+    .fini = (vmod_priv_fini_f *)fini_task_state
 }};
 
 task_state_t *
