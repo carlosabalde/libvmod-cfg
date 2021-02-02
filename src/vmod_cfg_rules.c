@@ -64,7 +64,7 @@ free_rule(rule_t *rule)
 {
     CHECK_OBJ_NOTNULL(rule, RULE_MAGIC);
 
-    VRT_re_fini(rule->vre);
+    VRE_free(&rule->vre);
     rule->vre = NULL;
 
     free((void *) rule->value);
