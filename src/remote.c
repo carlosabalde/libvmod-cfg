@@ -105,6 +105,8 @@ new_remote(
 void
 free_remote(remote_t *remote)
 {
+    CHECK_OBJ_NOTNULL(remote, REMOTE_MAGIC);
+
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
     remote->backup = NULL;

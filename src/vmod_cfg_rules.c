@@ -62,6 +62,8 @@ new_rule(vre_t *vre, const char *value)
 static void
 free_rule(rule_t *rule)
 {
+    CHECK_OBJ_NOTNULL(rule, RULE_MAGIC);
+
     VRT_re_fini(rule->vre);
     rule->vre = NULL;
 

@@ -163,6 +163,8 @@ reset_task_state(
 void
 free_task_state(task_state_t *state)
 {
+    CHECK_OBJ_NOTNULL(state, TASK_STATE_MAGIC);
+
     reset_task_state(state, 1, 1);
 
     FREE_OBJ(state);
@@ -216,6 +218,8 @@ new_engine(enum ENGINE_TYPE type, void *ctx)
 void
 free_engine(engine_t *engine)
 {
+    CHECK_OBJ_NOTNULL(engine, ENGINE_MAGIC);
+
     if (engine->type == ENGINE_TYPE_LUA) {
         lua_close(engine->ctx.L);
         engine->ctx.L = NULL;
@@ -270,6 +274,8 @@ new_regexp(const char *text, vre_t *vre)
 void
 free_regexp(regexp_t *regexp)
 {
+    CHECK_OBJ_NOTNULL(regexp, REGEXP_MAGIC);
+
     free((void *) regexp->text);
     regexp->text = NULL;
 
