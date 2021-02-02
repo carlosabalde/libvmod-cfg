@@ -168,6 +168,12 @@ free_task_state(task_state_t *state)
     FREE_OBJ(state);
 }
 
+static const struct vmod_priv_methods task_state_priv_methods[1] = {{
+    .magic = VMOD_PRIV_METHODS_MAGIC,
+    .type = "task_state",
+    .fini = (vmod_priv_fini_f *)free_task_state
+}};
+
 task_state_t *
 get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution)
 {
@@ -175,7 +181,7 @@ get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution)
 
     if (task_priv->priv == NULL) {
         task_priv->priv = new_task_state();
-        task_priv->free = (vmod_priv_free_f *)free_task_state;
+        task_priv->methods = task_state_priv_methods;
         result = task_priv->priv;
     } else {
         result = task_priv->priv;
