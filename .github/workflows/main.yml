@@ -30,6 +30,7 @@ jobs:
 
       - name: Install packages
         run: |
+          sudo apt-get update -q
           sudo apt-get install -qq \
             automake autotools-dev lcov libcurl4-gnutls-dev \
             libedit-dev libeditline-dev libjemalloc-dev libncurses-dev \
