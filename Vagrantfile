@@ -5,7 +5,7 @@ $script = <<SCRIPT
   # General packages.
   apt-get update -q
   apt-get install -qq unzip apt-transport-https \
-    autotools-dev automake libtool python-docutils pkg-config libpcre3-dev \
+    autotools-dev automake libtool python-docutils pkg-config libpcre2-dev \
     libeditline-dev libedit-dev make dpkg-dev git libjemalloc-dev \
     libncurses-dev python-sphinx graphviz libcurl4-gnutls-dev \
     lua5.1 liblua5.1-0-dev luajit libluajit-5.1-dev vim-common

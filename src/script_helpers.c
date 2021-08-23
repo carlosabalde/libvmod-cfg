@@ -317,15 +317,20 @@ init_regexp(
 
     // Not using the cache / Not found? Compile the regexp.
     if (result == NULL) {
-        const char *error;
-        int erroroffset;
-        result = VRE_compile(regexp, 0, &error, &erroroffset);
+        int errorcode, erroroffset;
+        result = VRE_compile(regexp, 0, &errorcode, &erroroffset, 1);
 
         // Error compiling regexp?
         if (result == NULL) {
+            struct vsb vsb;
+            char errbuf[VRE_ERROR_LEN];
+            AN(VSB_init(&vsb, errbuf, sizeof errbuf));
+            AZ(VRE_error(&vsb, errorcode));
+            AZ(VSB_finish(&vsb));
+            VSB_fini(&vsb);
             LOG(ctx, LOG_ERR,
                 "Got error while compiling regexp (script=%s, regexp=%s): %s",
-                script->name, regexp, error);
+                script->name, regexp, errbuf);
 
         // Cache result?
         } else if (cache) {
@@ -520,7 +525,7 @@ varnish_set_header_command(
                 ctx,
                 &hs,
                 value,
-                vrt_magic_string_end);
+                NULL);
         } else {
             *error = WS_Printf(
                 ctx->ws,

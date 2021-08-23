@@ -110,7 +110,7 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             script.init({"
                 return tonumber(ARGV[0])
             "});
-            script.push("1125899906842624");  # 2^50
+            script.push("34359738368");  # 2^39 -- See VRT_INTEGER_MAX & VRT_DECIMAL_MAX.
             script.execute();
             set resp.http.result5-is-number = script.result_is_number();
             set resp.http.result5-decimal-value = script.get_decimal_result();
@@ -163,9 +163,9 @@ client c1 {
     expect resp.http.result4-table-value-11 == "boolean"
 
     expect resp.http.result5-is-number == "true"
-    expect resp.http.result5-decimal-value == "1125899906842624.000"
-    expect resp.http.result5-integer-value == "1125899906842624"
-    expect resp.http.result5-value == "1125899906842624"
+    expect resp.http.result5-decimal-value == "34359738368.000"
+    expect resp.http.result5-integer-value == "34359738368"
+    expect resp.http.result5-value == "34359738368"
 
     expect resp.http.variables-current == "2"
 

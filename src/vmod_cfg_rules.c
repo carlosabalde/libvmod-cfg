@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 #include "cache/cache.h"
+#include "vsb.h"
 #include "vre.h"
 #include "vcc_cfg_if.h"
 
@@ -97,8 +98,6 @@ rules_parse(VRT_CTX, struct vmod_cfg_rules *rules, char *contents)
 
     char *line, *line_end, *regexp, *regexp_end, *value, *value_end;
     char line_end_char, regexp_end_char, value_end_char;
-    const char *error_string;
-    int error_offset;
     unsigned row = 1;
     line = contents;
     while (*line != '\0') {
@@ -145,11 +144,18 @@ rules_parse(VRT_CTX, struct vmod_cfg_rules *rules, char *contents)
         *value_end = '\0';
 
         // Compile & create rule.
-        vre_t *vre = VRE_compile(regexp, 0, &error_string, &error_offset);
+        int errorcode, erroroffset;
+        vre_t *vre = VRE_compile(regexp, 0, &errorcode, &erroroffset, 1);
         if (vre == NULL) {
+            struct vsb vsb;
+            char errbuf[VRE_ERROR_LEN];
+            AN(VSB_init(&vsb, errbuf, sizeof errbuf));
+            AZ(VRE_error(&vsb, errorcode));
+            AZ(VSB_finish(&vsb));
+            VSB_fini(&vsb);
             LOG(ctx, LOG_ERR,
                 "Got error while compiling regexp at line %d (%s): %s",
-                row, regexp, error_string);
+                row, regexp, errbuf);
             error = 3;
         } else {
             rule_t *rule = new_rule(vre, value);
