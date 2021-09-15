@@ -1,0 +1,20 @@
+Source: libvmod-cfg
+Section: web
+Priority: extra
+Maintainer: Carlos Abalde <carlos.abalde@gmail.com>
+Build-Depends: debhelper (>= 7),
+ build-essential,
+ pkg-config,
+ python-docutils | python3-docutils,
+ varnish (>= 7.0.0),
+ libvarnishapi-dev (>= 7.0.0),
+ libcurl4-gnutls-dev,
+ libluajit-5.1-dev,
+ libjemalloc-dev,
+ vim-common
+Standards-Version: 3.8.1
+
+Package: libvmod-cfg
+Architecture: any
+Depends: varnish (>= 7.0.0), libcurl3-gnutls, libluajit-5.1-2, ${shlibs:Depends}, ${misc:Depends}, ${Varnish:ABI}
+Description: Config VMOD for Varnish
