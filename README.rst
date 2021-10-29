@@ -441,7 +441,7 @@ Dependencies:
 * `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
 * `luajit <http://luajit.org>`_ (recommended; disabled with `--disable-luajit`) or `lua 5.1 <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
 
-Beware using LuaJIT GC64 mode is recommended is order to avoid `not enough memory` errors due to the 2 GiB (os much less) limitation. See `this excellent post by OpenResty <https://blog.openresty.com/en/luajit-gc64-mode/>` for details.
+Beware using LuaJIT GC64 mode is recommended is order to avoid `not enough memory` errors due to the 2 GiB (os much less) limitation. See `this excellent post by OpenResty <https://blog.openresty.com/en/luajit-gc64-mode/>`_ for details.
 
 COPYRIGHT
 =========
