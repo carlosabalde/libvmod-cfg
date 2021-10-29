@@ -64,7 +64,7 @@ retry:
     // reached, wait for another thread releasing an engine.
     if (result == NULL) {
         if (script->state.engines.n >= script->max_engines) {
-            Lck_CondWait(&script->state.engines.cond, &script->state.mutex, 0);
+            Lck_CondWait(&script->state.engines.cond, &script->state.mutex);
             script->state.stats.workers.blocked++;
             goto retry;
         } else {
