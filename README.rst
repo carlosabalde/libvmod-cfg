@@ -340,7 +340,7 @@ successfully and extensively tested in several highly trafficked environments.
 
 At some point the VMOD evolved towards a more general framework useful to
 execute arbitrarily complex Lua and JavaScript programs. Somehow something
-similar to OpenRestry in the Nginx arena. For example, using the cfg VMOD you
+similar to OpenResty in the Nginx arena. For example, using the cfg VMOD you
 can write crazy Lua-flavoured VCL. That includes loading any rocks
 you might need, facilities to safely share state among execution engines or among
 Varnish threads, etc. Used with caution, this allows you to go beyond the
@@ -457,7 +457,9 @@ The source tree is based on autotools to configure the building, and does also h
 Dependencies:
 
 * `libcurl <https://curl.haxx.se/libcurl/>`_ - multi-protocol file transfer library.
-* `luajit <http://luajit.org>`_ (recommended; disabled with `--disable-luajit`) or `lua 5.1 <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
+* `luajit <http://luajit.org>`_ (recommended; disabled with ``--disable-luajit``) or `lua 5.1 <https://www.lua.org>`_ - powerful, efficient, lightweight, embeddable scripting language.
+
+Beware using LuaJIT GC64 mode is recommended is order to avoid ``not enough memory`` errors due to the 2 GiB (os much less) limitation. See `this excellent post by OpenResty <https://blog.openresty.com/en/luajit-gc64-mode/>`_ for details.
 
 COPYRIGHT
 =========
