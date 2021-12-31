@@ -471,4 +471,4 @@ BSD's implementation of the red–black tree and the splay tree data structures 
 
 * https://github.com/varnishcache/varnish-cache/blob/master/include/vtree.h
 
-Copyright (c) 2016-2021 Carlos Abalde <carlos.abalde@gmail.com>
+Copyright (c) 2016-2022 Carlos Abalde <carlos.abalde@gmail.com>
