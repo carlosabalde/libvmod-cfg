@@ -30,7 +30,7 @@ AC_ARG_WITH([rst2man],
             [Location of rst2man (auto)])
     ],
     [RST2MAN="$withval"],
-    [AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], []))]
+    [AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], [])])
 
 # Check for pkg-config
 PKG_PROG_PKG_CONFIG
