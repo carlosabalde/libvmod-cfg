@@ -42,7 +42,7 @@ jobs:
           git clone https://github.com/varnishcache/varnish-cache.git ./varnish
           pushd varnish
           ./autogen.sh
-          CC='${{ matrix.cc }}' ./configure ${{ matrix.configure_flags }}
+          CC='${{ matrix.cc }}' ./configure
           make -sj32
           sudo make PREFIX='/usr/local' install
           sudo ldconfig
@@ -51,7 +51,7 @@ jobs:
       - name: Build & test VMOD
         run: |
           ./autogen.sh
-          ./configure --prefix=/usr ${{ matrix.configure_flags }}
+          CC='${{ matrix.cc }}' ./configure --prefix=/usr ${{ matrix.configure_flags }}
           make -j1
           make ${{ matrix.make_target }} -j1
 
