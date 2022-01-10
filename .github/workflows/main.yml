@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -35,7 +35,7 @@ jobs:
             automake autotools-dev lcov libcurl4-gnutls-dev \
             libedit-dev libeditline-dev libjemalloc-dev libncurses-dev \
             liblua5.1-0-dev libluajit-5.1-dev libpcre2-dev libtool lua5.1 \
-            luajit python-docutils python-sphinx vim-common
+            luajit python-docutils python3-sphinx vim-common
 
       - name: Install Varnish Cache
         run: |
