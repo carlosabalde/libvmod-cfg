@@ -226,10 +226,10 @@ VCL_VOID
 vmod_rules__init(
     VRT_CTX, struct vmod_cfg_rules **rules, const char *vcl_name,
     VCL_STRING location, VCL_STRING backup, VCL_INT period,
-    VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
-    VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
-    VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,
-    VCL_STRING curl_proxy)
+    VCL_BOOL ignore_load_failures, VCL_INT curl_connection_timeout,
+    VCL_INT curl_transfer_timeout, VCL_BOOL curl_ssl_verify_peer,
+    VCL_BOOL curl_ssl_verify_host, VCL_STRING curl_ssl_cafile,
+    VCL_STRING curl_ssl_capath, VCL_STRING curl_proxy)
 {
     CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
     AN(rules);
@@ -255,7 +255,9 @@ vmod_rules__init(
         AN(instance->state.rules);
         VTAILQ_INIT(instance->state.rules);
 
-        rules_check(ctx, instance, 1);
+        if (!rules_check(ctx, instance, 1) && !ignore_load_failures) {
+            vmod_rules__fini(&instance);
+        }
     }
 
     *rules = instance;

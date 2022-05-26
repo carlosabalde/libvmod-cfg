@@ -66,6 +66,7 @@ $Object file(
     STRING location,
     STRING backup="",
     INT period=60,
+    BOOL ignore_load_failures=1,
     INT curl_connection_timeout=0,
     INT curl_transfer_timeout=0,
     BOOL curl_ssl_verify_peer=0,
@@ -87,6 +88,9 @@ Arguments
 
     period: how frequently (seconds) contents of the file are reloaded (0 means
     disabling periodical reloads).
+
+    ignore_load_failures: if enabled and the initial file loading fails (parse
+    error, timeouts, etc.), the VCL objet is still created.
 
     curl_connection_timeout: connection timeout (milliseconds; 0 means no
     timeout).
@@ -175,6 +179,7 @@ $Object rules(
     STRING location,
     STRING backup="",
     INT period=60,
+    BOOL ignore_load_failures=1,
     INT curl_connection_timeout=0,
     INT curl_transfer_timeout=0,
     BOOL curl_ssl_verify_peer=0,
@@ -219,6 +224,7 @@ $Object script(
     STRING location="",
     STRING backup="",
     INT period=60,
+    BOOL ignore_load_failures=1,
     ENUM { lua, javascript } type="lua",
     INT max_engines=128,
     INT max_cycles=0,

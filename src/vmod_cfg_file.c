@@ -318,10 +318,10 @@ VCL_VOID
 vmod_file__init(
     VRT_CTX, struct vmod_cfg_file **file, const char *vcl_name,
     VCL_STRING location, VCL_STRING backup, VCL_INT period,
-    VCL_INT curl_connection_timeout, VCL_INT curl_transfer_timeout,
-    VCL_BOOL curl_ssl_verify_peer, VCL_BOOL curl_ssl_verify_host,
-    VCL_STRING curl_ssl_cafile, VCL_STRING curl_ssl_capath,
-    VCL_STRING curl_proxy, VCL_ENUM format,
+    VCL_BOOL ignore_load_failures, VCL_INT curl_connection_timeout,
+    VCL_INT curl_transfer_timeout, VCL_BOOL curl_ssl_verify_peer,
+    VCL_BOOL curl_ssl_verify_host, VCL_STRING curl_ssl_cafile,
+    VCL_STRING curl_ssl_capath, VCL_STRING curl_proxy, VCL_ENUM format,
     VCL_STRING name_delimiter, VCL_STRING value_delimiter)
 {
     CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
@@ -359,7 +359,9 @@ vmod_file__init(
         AN(instance->state.variables);
         VRBT_INIT(instance->state.variables);
 
-        file_check(ctx, instance, 1);
+        if (!file_check(ctx, instance, 1) && !ignore_load_failures) {
+            vmod_file__fini(&instance);
+        }
     }
 
     *file = instance;
