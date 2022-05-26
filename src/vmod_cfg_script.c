@@ -69,8 +69,8 @@ script_check(VRT_CTX, struct vmod_cfg_script *script, unsigned force)
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
-    VCL_STRING location, VCL_STRING backup, VCL_INT period, VCL_ENUM type,
-    VCL_INT max_engines, VCL_INT max_cycles,
+    VCL_STRING location, VCL_STRING backup, VCL_INT period,
+    VCL_BOOL ignore_load_failures, VCL_ENUM type, VCL_INT max_engines, VCL_INT max_cycles,
     VCL_INT min_gc_cycles, VCL_BOOL enable_sandboxing, VCL_INT lua_gc_step_size,
     VCL_BOOL lua_remove_loadfile_function, VCL_BOOL lua_remove_dotfile_function,
     VCL_BOOL lua_load_package_lib, VCL_BOOL lua_load_io_lib, VCL_BOOL lua_load_os_lib,
@@ -145,7 +145,9 @@ vmod_script__init(
         VRBT_INIT(&instance->state.variables.list);
         memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
-        script_check(ctx, instance, 1);
+        if (!script_check(ctx, instance, 1) && !ignore_load_failures) {
+            vmod_script__fini(&instance);
+        }
     }
 
     *script = instance;
