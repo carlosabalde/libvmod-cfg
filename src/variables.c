@@ -113,7 +113,7 @@ static const char *json_hex_chars = "0123456789abcdef";
 #define DUMP_CHAR(value) \
     do { \
         if (vsb != NULL) { \
-            VSB_putc(vsb, value); \
+            AZ(VSB_putc(vsb, value)); \
         } else { \
             *end = value; \
             if (free_ws <= 0) { \
