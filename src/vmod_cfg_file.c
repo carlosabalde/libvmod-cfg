@@ -169,35 +169,26 @@ static void
 file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
 {
     char *value = NULL;
-    double intpart;
 
-    switch (item->type) {
-        case cJSON_False:
-            value = "false";
-            break;
-
-        case cJSON_True:
-            value = "true";
-            break;
-
-        case cJSON_Number:
-            if (modf(item->valuedouble, &intpart) == 0) {
-                assert(asprintf(&value, "%d", item->valueint) > 0);
-            } else {
-                assert(asprintf(&value, "%.3f", item->valuedouble) > 0);
-            }
-            break;
-
-        case cJSON_Raw:
-        case cJSON_String:
-            value = item->valuestring;
-            break;
+    if (cJSON_IsFalse(item)) {
+        value = "false";
+    } else if (cJSON_IsTrue(item)) {
+        value = "true";
+    } else if (cJSON_IsNumber(item)) {
+        double intpart;
+        if (modf(item->valuedouble, &intpart) == 0) {
+            assert(asprintf(&value, "%d", item->valueint) > 0);
+        } else {
+            assert(asprintf(&value, "%.3f", item->valuedouble) > 0);
+        }
+    } else if (cJSON_IsRaw(item) || cJSON_IsString(item)) {
+        value = item->valuestring;
     }
 
     if (value != NULL) {
         variable_t *variable = new_global_variable(name, strlen(name), value);
         AZ(VRBT_INSERT(variables, ctx->variables, variable));
-        if (item->type == cJSON_Number) {
+        if (cJSON_IsNumber(item)) {
             free((void *) value);
         }
     }
@@ -210,14 +201,14 @@ file_parse_json_walk(
     char *buffer;
 
     while (item) {
-        if (item->type != cJSON_Array) {
+        if (!cJSON_IsArray(item)) {
             assert(asprintf(
                 &buffer, "%s%s%s",
                 prefix,
                 (delimit && item->string != NULL) ? ctx->file->name_delimiter: "",
                 (item->string != NULL) ? item->string : "") >= 0);
 
-            if (item->type != cJSON_Object) {
+            if (!cJSON_IsObject(item)) {
                 file_parse_json_emit(ctx, buffer, item);
             } else if (item->child) {
                 file_parse_json_walk(ctx, item->child, buffer, item->string != NULL);
