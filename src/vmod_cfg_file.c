@@ -164,7 +164,7 @@ file_parse_ini(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsign
  *****************************************************************************/
 
 static void
-file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
+file_parse_json_emit(struct file_parse_ctx *ctx, const char *prefix, cJSON *item)
 {
     char *value = NULL;
 
@@ -184,38 +184,42 @@ file_parse_json_emit(struct file_parse_ctx *ctx, const char *name, cJSON *item)
     }
 
     if (value != NULL) {
+        char *name;
+        AN(item->string);
+        assert(asprintf(&name, "%s%s", prefix, item->string) > 0);
+
         variable_t *variable = new_global_variable(name, strlen(name), value);
-        AZ(VRBT_INSERT(variables, ctx->variables, variable));
+
+        free((void *) name);
         if (cJSON_IsNumber(item)) {
             free((void *) value);
         }
+
+        AZ(VRBT_INSERT(variables, ctx->variables, variable));
     }
 }
 
 static void
-file_parse_json_walk(
-    struct file_parse_ctx *ctx, cJSON *item, const char *prefix, unsigned delimit)
+file_parse_json_walk(struct file_parse_ctx *ctx, cJSON *items, const char *prefix)
 {
-    char *buffer;
+    assert(cJSON_IsObject(items));
 
-    while (item) {
-        if (!cJSON_IsArray(item)) {
+    cJSON *item;
+    cJSON_ArrayForEach(item, items) {
+        AN(item->string);
+
+        if (cJSON_IsObject(item)) {
+            char *new_prefix;
             assert(asprintf(
-                &buffer, "%s%s%s",
+                &new_prefix, "%s%s%s",
                 prefix,
-                (delimit && item->string != NULL) ? ctx->file->name_delimiter: "",
-                (item->string != NULL) ? item->string : "") >= 0);
-
-            if (!cJSON_IsObject(item)) {
-                file_parse_json_emit(ctx, buffer, item);
-            } else if (item->child) {
-                file_parse_json_walk(ctx, item->child, buffer, item->string != NULL);
-            }
-
-            free((void *) buffer);
+                item->string,
+                ctx->file->name_delimiter) >= 0);
+            file_parse_json_walk(ctx, item, new_prefix);
+            free((void *) new_prefix);
+        } else {
+            file_parse_json_emit(ctx, prefix, item);
         }
-
-        item = item->next;
     }
 }
 
@@ -236,7 +240,7 @@ file_parse_json(VRT_CTX, struct vmod_cfg_file *file, const char *contents, unsig
 
     if (root != NULL) {
         if (root->type == cJSON_Object) {
-            file_parse_json_walk(&file_parse_ctx, root, "", 0);
+            file_parse_json_walk(&file_parse_ctx, root, "");
 
             result = file_parse_ctx.variables;
 
