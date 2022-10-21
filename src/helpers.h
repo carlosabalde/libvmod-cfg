@@ -30,7 +30,7 @@ extern vmod_state_t vmod_state;
         if ((ctx)->vsl != NULL) { \
             VSLb((ctx)->vsl, slt, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
         } else { \
-            VSL(slt, 0, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
+            VSL(slt, NO_VXID, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
         } \
     } while (0)
 

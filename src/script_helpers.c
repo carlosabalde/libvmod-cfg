@@ -364,7 +364,7 @@ varnish_log_command(VRT_CTX, const char *message)
     if (ctx->vsl != NULL) {
         VSLb(ctx->vsl, SLT_VCL_Log, "%s", message);
     } else {
-        VSL(SLT_VCL_Log, 0, "%s", message);
+        VSL(SLT_VCL_Log, NO_VXID, "%s", message);
     }
 }
 
