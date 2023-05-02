@@ -48,6 +48,8 @@ Vagrant.configure('2') do |config|
     ]
   end
 
+  config.vbguest.auto_update = false
+
   config.vm.define :v73 do |machine|
     machine.vm.box = 'ubuntu/jammy64'
     machine.vm.box_version = '=20221018.0.0 '
