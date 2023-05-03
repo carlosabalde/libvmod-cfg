@@ -159,7 +159,7 @@ varnish v1 -expect MGT.child_panic == 0
 # ocurr if not increasing the 'thread_pool_stack' parameter (see
 # https://github.com/varnishcache/varnish-cache/issues/2907). A different way
 # to avoid the problem is using '--disable-pcre-jit' when compiling Varnish.
-varnish v2 -arg "-p thread_pool_stack=128k" -vcl+backend {
+varnish v2 -arg "-p thread_pool_stack=256k" -vcl+backend {
     import cfg from "${vmod_topbuild}/src/.libs/libvmod_cfg.so";
 
     sub vcl_init {
