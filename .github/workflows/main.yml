@@ -12,9 +12,7 @@ jobs:
       matrix:
         cc:
           - gcc
-          # Skip clang in this legacy branch due to issues compiling VC 4.1
-          # using clang.
-          # - clang
+          - clang
         configure_flags:
           - --enable-luajit
           - --disable-luajit
@@ -33,12 +31,15 @@ jobs:
             luajit python3-docutils python3-sphinx vim-common
 
       - name: Install Varnish Cache
+        # Beware of the dirty hack required to compile VC 4.1 with clang.
         run: |
           wget --no-check-certificate https://varnish-cache.org/_downloads/varnish-4.1.10.tgz
           tar zxvf varnish-*.tgz
           pushd varnish-*/
           ./autogen.sh
-          CC='${{ matrix.cc }}' ./configure
+          CC='${{ matrix.cc }}' \
+            CFLAGS=$(if [ '${{ matrix.cc }}' == 'clang' ]; then echo '-Wno-implicit-int-float-conversion'; fi) \
+            ./configure
           make -sj32
           sudo make PREFIX='/usr/local' install
           sudo ldconfig
