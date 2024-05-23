@@ -30,8 +30,8 @@ jobs:
 
       - name: Install packages
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -qq \
+          sudo apt update
+          sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=non-empty-value apt install -y \
             automake autotools-dev lcov libcurl4-gnutls-dev \
             libedit-dev libeditline-dev libjemalloc-dev libncurses-dev \
             liblua5.1-0-dev libluajit-5.1-dev libpcre3-dev libtool lua5.1 \
