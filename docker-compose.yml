@@ -19,6 +19,7 @@ name: libvmod-cfg-main
 services:
   dev:
     hostname: dev
+    # platform: linux/arm64/v8
     build:
       context: .
       no_cache: true

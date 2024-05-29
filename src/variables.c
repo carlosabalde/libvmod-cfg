@@ -129,7 +129,7 @@ static const char *json_hex_chars = "0123456789abcdef";
     do { \
         DUMP_CHAR('"'); \
         for (int i = 0; value[i]; i++) { \
-            if (value[i] > 31 && value[i] != '\"' && value[i] != '\\') { \
+            if (value[i] > 31 && value[i] < 127 && value[i] != '\"' && value[i] != '\\') { \
                 DUMP_CHAR(value[i]); \
             } else { \
                 DUMP_CHAR('\\'); \
