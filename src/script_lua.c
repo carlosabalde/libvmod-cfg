@@ -254,11 +254,17 @@ execute_lua(
 
         // Execute 'varnish._ctx = ctx', 'varnish._script = script' and
         // 'varnish._state = state'.
-        lua_pushlightuserdata(engine->ctx.L, (struct vrt_ctx *) ctx);
+        void *ptr_ctx = lua_newuserdata(engine->ctx.L, sizeof(struct vrt_ctx *));
+        AN(ptr_ctx);
+        *(const struct vrt_ctx **)ptr_ctx = ctx;
         lua_setfield(engine->ctx.L, -4, "_ctx");
-        lua_pushlightuserdata(engine->ctx.L, (struct vmod_cfg_script *) script);
+        void *ptr_script = lua_newuserdata(engine->ctx.L, sizeof(struct vmod_cfg_script *));
+        AN(ptr_script);
+        *(struct vmod_cfg_script **)ptr_script = script;
         lua_setfield(engine->ctx.L, -4, "_script");
-        lua_pushlightuserdata(engine->ctx.L, (task_state_t *) state);
+        void *ptr_state = lua_newuserdata(engine->ctx.L, sizeof(task_state_t *));
+        AN(ptr_state);
+        *(task_state_t **)ptr_state = state;
         lua_setfield(engine->ctx.L, -4, "_state");
 
         // Populate 'ARGV' table accordingly to the input arguments.
@@ -368,8 +374,10 @@ done:
         lua_getglobal(L, "varnish"); \
         AN(lua_istable(L, -1)); \
         lua_getfield(L, -1, field); \
-        AN(lua_islightuserdata(L, -1)); \
-        void *data = lua_touserdata(L, -1); \
+        AN(lua_isuserdata(L, -1)); \
+        void *ptr = lua_touserdata(L, -1); \
+        AN(ptr); \
+        void *data = *(void **)ptr; \
         AN(data); \
         CAST_OBJ_NOTNULL(where, data, MAGIC); \
         lua_pop(L, 2); \
