@@ -296,9 +296,9 @@ file_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 }
 
 static unsigned
-file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
+file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force_load, unsigned force_backup)
 {
-    return check_remote(ctx, file->remote, force, &file_check_callback, file);
+    return check_remote(ctx, file->remote, force_load, force_backup, &file_check_callback, file);
 }
 
 #define SET_STRING(value, field) \
@@ -310,7 +310,7 @@ file_check(VRT_CTX, struct vmod_cfg_file *file, unsigned force)
 VCL_VOID
 vmod_file__init(
     VRT_CTX, struct vmod_cfg_file **file, const char *vcl_name,
-    VCL_STRING location, VCL_STRING backup, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_BOOL automated_backups, VCL_INT period,
     VCL_BOOL ignore_load_failures, VCL_INT curl_connection_timeout,
     VCL_INT curl_transfer_timeout, VCL_BOOL curl_ssl_verify_peer,
     VCL_BOOL curl_ssl_verify_host, VCL_STRING curl_ssl_cafile,
@@ -335,7 +335,8 @@ vmod_file__init(
         instance->name = strdup(vcl_name);
         AN(instance->name);
         instance->remote = new_remote(
-            location, backup, period, curl_connection_timeout, curl_transfer_timeout,
+            location, backup, automated_backups,
+            period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
             curl_ssl_capath, curl_proxy);
         SET_STRING(name_delimiter, name_delimiter);
@@ -352,7 +353,7 @@ vmod_file__init(
         AN(instance->state.variables);
         VRBT_INIT(instance->state.variables);
 
-        if (!file_check(ctx, instance, 1) && !ignore_load_failures) {
+        if (!file_check(ctx, instance, 1, 0) && !ignore_load_failures) {
             vmod_file__fini(&instance);
         }
     }
@@ -397,15 +398,15 @@ vmod_file__fini(struct vmod_cfg_file **file)
 #undef FREE_STRING
 
 VCL_BOOL
-vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file)
+vmod_file_reload(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL force_backup)
 {
-    return file_check(ctx, file, 1);
+    return file_check(ctx, file, 1, force_backup);
 }
 
 VCL_STRING
 vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream, VCL_STRING prefix)
 {
-    file_check(ctx, file, 0);
+    file_check(ctx, file, 0, 0);
     AZ(pthread_rwlock_rdlock(&file->state.rwlock));
     const char *result = dump_variables(ctx, file->state.variables, stream, prefix);
     AZ(pthread_rwlock_unlock(&file->state.rwlock));
@@ -415,14 +416,14 @@ vmod_file_dump(VRT_CTX, struct vmod_cfg_file *file, VCL_BOOL stream, VCL_STRING 
 VCL_VOID
 vmod_file_inspect(VRT_CTX, struct vmod_cfg_file *file)
 {
-    file_check(ctx, file, 0);
+    file_check(ctx, file, 0, 0);
     inspect_remote(ctx, file->remote);
 }
 
 VCL_BOOL
 vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 {
-    file_check(ctx, file, 0);
+    file_check(ctx, file, 0, 0);
     AZ(pthread_rwlock_rdlock(&file->state.rwlock));
     unsigned result = is_set_variable(ctx, file->state.variables, name);
     AZ(pthread_rwlock_unlock(&file->state.rwlock));
@@ -432,7 +433,7 @@ vmod_file_is_set(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name)
 VCL_STRING
 vmod_file_get(VRT_CTX, struct vmod_cfg_file *file, VCL_STRING name, VCL_STRING fallback)
 {
-    file_check(ctx, file, 0);
+    file_check(ctx, file, 0, 0);
     AZ(pthread_rwlock_rdlock(&file->state.rwlock));
     const char *result = get_variable(ctx, file->state.variables, name, fallback);
     AZ(pthread_rwlock_unlock(&file->state.rwlock));

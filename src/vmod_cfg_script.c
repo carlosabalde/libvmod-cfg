@@ -57,10 +57,10 @@ script_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 }
 
 static unsigned
-script_check(VRT_CTX, struct vmod_cfg_script *script, unsigned force)
+script_check(VRT_CTX, struct vmod_cfg_script *script, unsigned force_load, unsigned force_backup)
 {
     if (script->remote != NULL) {
-        return check_remote(ctx, script->remote, force, &script_check_callback, script);
+        return check_remote(ctx, script->remote, force_load, force_backup, &script_check_callback, script);
     } else {
         return 1;
     }
@@ -69,7 +69,7 @@ script_check(VRT_CTX, struct vmod_cfg_script *script, unsigned force)
 VCL_VOID
 vmod_script__init(
     VRT_CTX, struct vmod_cfg_script **script, const char *vcl_name,
-    VCL_STRING location, VCL_STRING backup, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_BOOL automated_backups, VCL_INT period,
     VCL_BOOL ignore_load_failures, VCL_ENUM type, VCL_INT max_engines, VCL_INT max_cycles,
     VCL_INT min_gc_cycles, VCL_BOOL enable_sandboxing, VCL_INT lua_gc_step_size,
     VCL_BOOL lua_remove_loadfile_function, VCL_BOOL lua_remove_dotfile_function,
@@ -99,7 +99,8 @@ vmod_script__init(
         AN(instance->name);
         if ((location != NULL) && (strlen(location) > 0)) {
             instance->remote = new_remote(
-                location, backup, period, curl_connection_timeout, curl_transfer_timeout,
+                location, backup, automated_backups,
+                period, curl_connection_timeout, curl_transfer_timeout,
                 curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
                 curl_ssl_capath, curl_proxy);
         } else {
@@ -145,7 +146,7 @@ vmod_script__init(
         VRBT_INIT(&instance->state.variables.list);
         memset(&instance->state.stats, 0, sizeof(instance->state.stats));
 
-        if (!script_check(ctx, instance, 1) && !ignore_load_failures) {
+        if (!script_check(ctx, instance, 1, 0) && !ignore_load_failures) {
             vmod_script__fini(&instance);
         }
     }
@@ -217,9 +218,9 @@ vmod_script__fini(struct vmod_cfg_script **script)
 }
 
 VCL_BOOL
-vmod_script_reload(VRT_CTX, struct vmod_cfg_script *script)
+vmod_script_reload(VRT_CTX, struct vmod_cfg_script *script, VCL_BOOL force_backup)
 {
-    return script_check(ctx, script, 1);
+    return script_check(ctx, script, 1, force_backup);
 }
 
 VCL_VOID
@@ -236,7 +237,7 @@ vmod_script_inspect(
             AZ(VSB_cat(vsb, state->execution.code));
         }
     } else if (script->remote != NULL) {
-        script_check(ctx, script, 0);
+        script_check(ctx, script, 0, 0);
         inspect_remote(ctx, script->remote);
     }
 }
