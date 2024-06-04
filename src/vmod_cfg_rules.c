@@ -215,15 +215,15 @@ rules_check_callback(VRT_CTX, void *ptr, char *contents, unsigned is_backup)
 }
 
 static unsigned
-rules_check(VRT_CTX, struct vmod_cfg_rules *rules, unsigned force)
+rules_check(VRT_CTX, struct vmod_cfg_rules *rules, unsigned force_load, unsigned force_backup)
 {
-    return check_remote(ctx, rules->remote, force, &rules_check_callback, rules);
+    return check_remote(ctx, rules->remote, force_load, force_backup, &rules_check_callback, rules);
 }
 
 VCL_VOID
 vmod_rules__init(
     VRT_CTX, struct vmod_cfg_rules **rules, const char *vcl_name,
-    VCL_STRING location, VCL_STRING backup, VCL_INT period,
+    VCL_STRING location, VCL_STRING backup, VCL_BOOL automated_backups, VCL_INT period,
     VCL_BOOL ignore_load_failures, VCL_INT curl_connection_timeout,
     VCL_INT curl_transfer_timeout, VCL_BOOL curl_ssl_verify_peer,
     VCL_BOOL curl_ssl_verify_host, VCL_STRING curl_ssl_cafile,
@@ -245,7 +245,8 @@ vmod_rules__init(
         instance->name = strdup(vcl_name);
         AN(instance->name);
         instance->remote = new_remote(
-            location, backup, period, curl_connection_timeout, curl_transfer_timeout,
+            location, backup, automated_backups,
+            period, curl_connection_timeout, curl_transfer_timeout,
             curl_ssl_verify_peer, curl_ssl_verify_host, curl_ssl_cafile,
             curl_ssl_capath, curl_proxy);
         AZ(pthread_rwlock_init(&instance->state.rwlock, NULL));
@@ -253,7 +254,7 @@ vmod_rules__init(
         AN(instance->state.rules);
         VTAILQ_INIT(instance->state.rules);
 
-        if (!rules_check(ctx, instance, 1) && !ignore_load_failures) {
+        if (!rules_check(ctx, instance, 1, 0) && !ignore_load_failures) {
             vmod_rules__fini(&instance);
         }
     }
@@ -285,15 +286,15 @@ vmod_rules__fini(struct vmod_cfg_rules **rules)
 }
 
 VCL_BOOL
-vmod_rules_reload(VRT_CTX, struct vmod_cfg_rules *rules)
+vmod_rules_reload(VRT_CTX, struct vmod_cfg_rules *rules, VCL_BOOL force_backup)
 {
-    return rules_check(ctx, rules, 1);
+    return rules_check(ctx, rules, 1, force_backup);
 }
 
 VCL_VOID
 vmod_rules_inspect(VRT_CTX, struct vmod_cfg_rules *rules)
 {
-    rules_check(ctx, rules, 0);
+    rules_check(ctx, rules, 0, 0);
     inspect_remote(ctx, rules->remote);
 }
 
@@ -303,7 +304,7 @@ vmod_rules_get(VRT_CTX, struct vmod_cfg_rules *rules, VCL_STRING value, VCL_STRI
     AN(ctx->ws);
     const char *result = fallback;
 
-    rules_check(ctx, rules, 0);
+    rules_check(ctx, rules, 0, 0);
 
     AZ(pthread_rwlock_rdlock(&rules->state.rwlock));
     rule_t *irule;

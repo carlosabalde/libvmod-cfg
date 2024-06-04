@@ -60,6 +60,7 @@ Description
 $Object file(
     STRING location,
     STRING backup="",
+    BOOL automated_backups=1,
     INT period=60,
     BOOL ignore_load_failures=1,
     INT curl_connection_timeout=0,
@@ -80,6 +81,12 @@ Arguments
 
     backup: when this option is used, you have to specify where to save the
     backup file.
+
+    automated_backups: if enabled and a backup file has been provided, that
+    file is updated on every successful load of ``location`` (i.e. during
+    ``vcl_init``, during periodical updates when ``period`` > 0, etc.).
+    Otherwise, the file is only updated when explicitly requested to do so (e.g.
+    calls to ``.reload()`` using the ``force_backup`` flag).
 
     period: how frequently (seconds) contents of the file are reloaded (0 means
     disabling periodical reloads).
@@ -119,8 +126,12 @@ Description
     on every VCL WARM event received by the VMOD and every ``period`` seconds
     (if ``period`` > 0).
 
-$Method BOOL .reload()
+$Method BOOL .reload(BOOL force_backup=1)
 
+Arguments
+    force_backup: if enabled and a backup file has been provided, that file
+    will be updated upon a successful reload, overriding the default behavior
+    for automated backups.
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
 
@@ -167,6 +178,7 @@ Description
 $Object rules(
     STRING location,
     STRING backup="",
+    BOOL automated_backups=1,
     INT period=60,
     BOOL ignore_load_failures=1,
     INT curl_connection_timeout=0,
@@ -182,8 +194,12 @@ Description
 
     See ``cfg.file()`` for details.
 
-$Method BOOL .reload()
+$Method BOOL .reload(BOOL force_backup=1)
 
+Arguments
+    force_backup: if enabled and a backup file has been provided, that file
+    will be updated upon a successful reload, overriding the default behavior
+    for automated backups.
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
 
@@ -206,6 +222,7 @@ Description
 $Object script(
     STRING location="",
     STRING backup="",
+    BOOL automated_backups=1,
     INT period=60,
     BOOL ignore_load_failures=1,
     ENUM { lua, javascript } type="lua",
@@ -268,8 +285,12 @@ Description
 
     See ``cfg.file()`` for details about undocumented arguments.
 
-$Method BOOL .reload()
+$Method BOOL .reload(BOOL force_backup=1)
 
+Arguments
+    force_backup: if enabled and a backup file has been provided, that file
+    will be updated upon a successful reload, overriding the default behavior
+    for automated backups.
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
 

@@ -44,7 +44,8 @@ static char *read_url(VRT_CTX, remote_t *remote);
 
 remote_t *
 new_remote(
-    const char *location, const char *backup, unsigned period, unsigned curl_connection_timeout,
+    const char *location, const char *backup, unsigned automated_backups,
+    unsigned period, unsigned curl_connection_timeout,
     unsigned curl_transfer_timeout, unsigned curl_ssl_verify_peer,
     unsigned curl_ssl_verify_host, const char *curl_ssl_cafile,
     const char *curl_ssl_capath, const char *curl_proxy)
@@ -68,6 +69,7 @@ new_remote(
     } else {
         result->backup = NULL;
     }
+    result->automated_backups = automated_backups;
     result->period = period;
     result->curl.connection_timeout = curl_connection_timeout;
     result->curl.transfer_timeout = curl_transfer_timeout;
@@ -109,6 +111,7 @@ free_remote(remote_t *remote)
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
     remote->backup = NULL;
+    remote->automated_backups = 0;
     remote->period = 0;
     remote->curl.connection_timeout = 0;
     remote->curl.transfer_timeout = 0;
@@ -171,7 +174,7 @@ check_remote_backup(
 
 unsigned
 check_remote(
-    VRT_CTX, remote_t *remote, unsigned force,
+    VRT_CTX, remote_t *remote, unsigned force_load, unsigned force_backup,
     unsigned (*callback)(VRT_CTX, void *, char *, unsigned), void *ptr)
 {
     unsigned result = 0;
@@ -179,7 +182,7 @@ check_remote(
     time_t now = time(NULL);
     unsigned winner = 0;
 
-    if (!force &&
+    if (!force_load &&
         !remote->state.reloading &&
         ((remote->period > 0) && (now - remote->state.tst > remote->period))) {
         AZ(pthread_mutex_lock(&remote->state.mutex));
@@ -190,7 +193,7 @@ check_remote(
         AZ(pthread_mutex_unlock(&remote->state.mutex));
     }
 
-    if (force || winner) {
+    if (force_load || winner) {
         char *contents = (*remote->read)(ctx, remote);
 
         if (contents != NULL && strlen(contents) > 0) {
@@ -206,39 +209,45 @@ check_remote(
             AZ(pthread_mutex_unlock(&remote->state.mutex));
 
             if (remote->backup != NULL) {
-                FILE *backup = fopen(remote->backup, "wb");
-                if (backup != NULL) {
-                    int rc = fputs(contents, backup);
-                    if (rc < 0) {
-                        // Not possible to use GNU strerror_r() due to Linux Alpine
-                        // issue. See:
-                        //   - https://stackoverflow.com/questions/41953104/strerror-r-is-incorrectly-declared-on-alpine-linux
-                        char buffer[256];
+                if (remote->automated_backups || force_backup) {
+                    FILE *backup = fopen(remote->backup, "wb");
+                    if (backup != NULL) {
+                        int rc = fputs(contents, backup);
+                        if (rc < 0) {
+                            // Not possible to use GNU strerror_r() due to Linux Alpine
+                            // issue. See:
+                            //   - https://stackoverflow.com/questions/41953104/strerror-r-is-incorrectly-declared-on-alpine-linux
+                            char buffer[256];
 #ifdef STRERROR_R_CHAR_P
-                        LOG(ctx, LOG_ERR,
-                            "Failed to write backup file (location=%s, backup=%s, error=%s)",
-                            remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
-#else
-                        rc = strerror_r(rc, buffer, sizeof(buffer));
-                        if (rc == 0) {
                             LOG(ctx, LOG_ERR,
                                 "Failed to write backup file (location=%s, backup=%s, error=%s)",
-                                remote->location.raw, remote->backup, buffer);
-                        } else {
-                            LOG(ctx, LOG_ERR,
-                                "Failed to write backup file (location=%s, backup=%s, error=%d)",
-                                remote->location.raw, remote->backup, rc);
-                        }
+                                remote->location.raw, remote->backup, strerror_r(rc, buffer, sizeof(buffer)));
+#else
+                            rc = strerror_r(rc, buffer, sizeof(buffer));
+                            if (rc == 0) {
+                                LOG(ctx, LOG_ERR,
+                                    "Failed to write backup file (location=%s, backup=%s, error=%s)",
+                                    remote->location.raw, remote->backup, buffer);
+                            } else {
+                                LOG(ctx, LOG_ERR,
+                                    "Failed to write backup file (location=%s, backup=%s, error=%d)",
+                                    remote->location.raw, remote->backup, rc);
+                            }
 #endif
+                        } else {
+                            LOG(ctx, LOG_INFO,
+                                "Successfully write to backup file (location=%s, backup=%s)",
+                                remote->location.raw, remote->backup);
+                        }
+                        fclose(backup);
                     } else {
-                        LOG(ctx, LOG_INFO,
-                            "Successfully write to backup file (location=%s, backup=%s)",
+                        LOG(ctx, LOG_ERR,
+                            "Failed to open backup file (location=%s, backup=%s)",
                             remote->location.raw, remote->backup);
                     }
-                    fclose(backup);
                 } else {
-                    LOG(ctx, LOG_ERR,
-                        "Failed to open backup file (location=%s, backup=%s)",
+                    LOG(ctx, LOG_INFO,
+                        "Automated backups are disabled (location=%s, backup=%s)",
                         remote->location.raw, remote->backup);
                 }
             }
