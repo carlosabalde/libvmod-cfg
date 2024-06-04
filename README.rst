@@ -38,6 +38,7 @@ import cfg;
     Object file(
         STRING location,
         STRING backup="",
+        BOOL automated_backups=1,
         INT period=60,
         BOOL ignore_load_failures=1,
         INT curl_connection_timeout=0,
@@ -50,7 +51,7 @@ import cfg;
         ENUM { ini, json } format="ini",
         STRING name_delimiter=":",
         STRING value_delimiter=";")
-    Method BOOL .reload()
+    Method BOOL .reload(BOOL force_backup=0)
     Method STRING .dump(BOOL stream=0, STRING prefix="")
     Method VOID .inspect()
 
@@ -64,6 +65,7 @@ import cfg;
     Object rules(
         STRING location,
         STRING backup="",
+        BOOL automated_backups=1,
         INT period=60,
         BOOL ignore_load_failures=1,
         INT curl_connection_timeout=0,
@@ -73,7 +75,7 @@ import cfg;
         STRING curl_ssl_cafile="",
         STRING curl_ssl_capath="",
         STRING curl_proxy="")
-    Method BOOL .reload()
+    Method BOOL .reload(BOOL force_backup=0)
     Method VOID .inspect()
 
     Method STRING .get(STRING value, STRING fallback="")
@@ -85,6 +87,7 @@ import cfg;
     Object script(
         STRING location="",
         STRING backup="",
+        BOOL automated_backups=1,
         INT period=60,
         BOOL ignore_load_failures=1,
         ENUM { lua, javascript } type="lua",
@@ -105,7 +108,7 @@ import cfg;
         STRING curl_ssl_cafile="",
         STRING curl_ssl_capath="",
         STRING curl_proxy="")
-    Method BOOL .reload()
+    Method BOOL .reload(BOOL force_backup=0)
     Method VOID .inspect()
 
     Method VOID .init(STRING code="")
