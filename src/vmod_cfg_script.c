@@ -151,6 +151,10 @@ vmod_script__init(
         }
     }
 
+    if (instance == NULL) {
+        FAIL_INSTANCE(ctx,);
+    }
+
     *script = instance;
 }
 
