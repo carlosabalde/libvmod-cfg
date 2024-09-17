@@ -44,4 +44,7 @@ extern vmod_state_t vmod_state;
 #define FAIL_WS(ctx, result) \
     FAIL(ctx, result, "Workspace overflow")
 
+#define FAIL_INSTANCE(ctx, result) \
+    FAIL(ctx, result, "Failed to create instance")
+
 #endif
