@@ -265,6 +265,10 @@ vmod_rules__init(
         }
     }
 
+    if (instance == NULL) {
+        FAIL_INSTANCE(ctx,);
+    }
+
     *rules = instance;
 }
 

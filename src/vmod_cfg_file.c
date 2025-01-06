@@ -358,6 +358,10 @@ vmod_file__init(
         }
     }
 
+    if (instance == NULL) {
+        FAIL_INSTANCE(ctx,);
+    }
+
     *file = instance;
 }
 
