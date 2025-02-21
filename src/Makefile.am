@@ -53,6 +53,8 @@ EXTRA_DIST = \
 	vmod_cfg.vcc \
 	$(VMOD_TESTS)
 
+DISTCLEANFILES = vmod_vcs_version.txt
+
 $(srcdir)/script_javascript.c: script_javascript_helpers.h
 
 script_javascript_helpers.h: script_javascript_helpers.js
