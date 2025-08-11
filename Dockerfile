@@ -1,4 +1,4 @@
-FROM ubuntu:noble-20240423
+FROM ubuntu:noble-20250714
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -47,6 +47,7 @@ RUN apt update \
 
 RUN git clone https://github.com/varnishcache/varnish-cache.git /tmp/varnish \
     && cd /tmp/varnish \
+    && git submodule update --init \
     && ./autogen.sh \
     && ./configure \
     && make \
