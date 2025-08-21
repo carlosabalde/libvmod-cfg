@@ -1,8 +1,8 @@
 
-.. image:: https://github.com/carlosabalde/libvmod-cfg/actions/workflows/main.yml/badge.svg?branch=master
+.. image:: https://github.com/carlosabalde/libvmod-cfg/actions/workflows/main.yml/badge.svg?branch=main
    :alt: GitHub Actions CI badge
    :target: https://github.com/carlosabalde/libvmod-cfg/actions
-.. image:: https://codecov.io/gh/carlosabalde/libvmod-cfg/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/carlosabalde/libvmod-cfg/branch/main/graph/badge.svg
    :alt: Codecov badge
    :target: https://codecov.io/gh/carlosabalde/libvmod-cfg
 
@@ -440,7 +440,7 @@ INSTALLATION
 
 The source tree is based on autotools to configure the building, and does also have the necessary bits in place to do functional unit tests using the varnishtest tool.
 
-**Beware this project contains multiples branches (master, 4.1, etc.). Please, select the branch to be used depending on your Varnish Cache version (Varnish trunk → master, Varnish 4.1.x → 4.1, etc.).**
+**Beware this project contains multiples branches (main, 4.1, etc.). Please, select the branch to be used depending on your Varnish Cache version (Varnish trunk → main, Varnish 4.1.x → 4.1, etc.).**
 
 Dependencies:
 
