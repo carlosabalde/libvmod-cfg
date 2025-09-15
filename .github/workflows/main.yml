@@ -58,9 +58,10 @@ jobs:
 
       - name: Push code coverage
         if: ${{ matrix.make_target == 'lcov' }}
-        run: |
-          cp libvmod-cfg-*-coverage.info codecov.info
-          bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy -t ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
       - name: Show test report
         if: ${{ failure() }}
