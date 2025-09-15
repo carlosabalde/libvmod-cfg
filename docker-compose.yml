@@ -14,14 +14,13 @@
 
 version: '3.7'
 
-name: libvmod-cfg-main
+name: libvmod-cfg-8_0
 
 services:
   dev:
     hostname: dev
     build:
       context: .
-      no_cache: true
     privileged: true
     environment:
       HOST_UID: ${UID:?}
