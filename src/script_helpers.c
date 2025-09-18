@@ -484,7 +484,9 @@ varnish_get_header_command(
         if (is_valid_http_where(ctx, he)) {
             char buffer[strlen(name) + 3];
             sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
-            const struct gethdr_s hs = {he, buffer};
+            hdr_t hdr;
+            CAST_HDR(hdr, buffer);
+            const struct gethdr_s hs = {he, hdr};
             result = VRT_GetHdr(ctx, &hs);
         } else {
             *error = WS_Printf(
@@ -520,7 +522,9 @@ varnish_set_header_command(
         if (is_valid_http_where(ctx, he)) {
             char buffer[strlen(name) + 3];
             sprintf(buffer, "%c%s:", (char) (strlen(name) + 1), name);
-            const struct gethdr_s hs = {he, buffer};
+            hdr_t hdr;
+            CAST_HDR(hdr, buffer);
+            const struct gethdr_s hs = {he, hdr};
             VRT_SetHdr(
                 ctx,
                 &hs,
