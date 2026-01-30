@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 20.0
+Version: 20.1
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,21 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Fri Jan 30 2026 Carlos Abalde <carlos.abalde@gmail.com> - 20.1-1.20260130
+- Add support for larger integers (scripting internally uses doubles; 54 bits).
+- Upgrade to inih 58.
+- Upgrade to cJSON 1.7.18.
+- Upgrade to Duktape 2.7.0.
+- Add CHECK_OBJ_NOTNULL() checks in all free_*() functions.
+- Replace VRT_re_fini() with VRE_free().
+- Add 'ignore_load_failures' argument to file, rules & script objects.
+- Add missing AZ().
+- Fix cJSON type checks.
+- Use cJSON_ArrayForEach()
+- Add 'automated_backups' & 'force_backup' flags.
+- Abort 'vcl_init' asap if a VMOD object instance cannot be created.
+- Stop using Lua light userdata to avoid issues in platforms like ARM64.
+- Stop assuming signed chars in DUMP_STRING().
 * Mon Sep 15 2025 Carlos Abalde <carlos.abalde@gmail.com> - 20.0-1.20250915
 - Migrated to Varnish Cache 8.0.x.
 * Tue Mar 18 2025 Carlos Abalde <carlos.abalde@gmail.com> - 19.0-1.20250318
