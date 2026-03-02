@@ -115,11 +115,11 @@ static const char *json_hex_chars = "0123456789abcdef";
         if (vsb != NULL) { \
             AZ(VSB_putc(vsb, value)); \
         } else { \
-            *end = value; \
             if (free_ws <= 0) { \
                 WS_Release(ctx->ws, 0); \
                 FAIL_WS(ctx, NULL); \
             } \
+            *end = value; \
             end++; \
             free_ws--; \
         } \
