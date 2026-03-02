@@ -110,7 +110,7 @@ free_remote(remote_t *remote)
 
     FREE_STRING(location.raw);
     FREE_STRING(location.parsed);
-    remote->backup = NULL;
+    FREE_OPTIONAL_STRING(backup);
     remote->automated_backups = 0;
     remote->period = 0;
     remote->curl.connection_timeout = 0;
