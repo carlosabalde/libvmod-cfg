@@ -3,7 +3,7 @@
 
 typedef struct remote {
     unsigned magic;
-    #define REMOTE_MAGIC 0x9774a43f
+    #define REMOTE_MAGIC 0x1470cdad
 
     struct {
         const char *raw;
