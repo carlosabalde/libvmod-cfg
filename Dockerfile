@@ -26,6 +26,7 @@ RUN apt update \
         libluajit-5.1-dev \
         libncurses-dev \
         libpcre2-dev \
+        libssl-dev \
         libtool \
         lua5.1 \
         luajit \
