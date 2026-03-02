@@ -660,6 +660,7 @@ varnish_shared_unset_command(
             if (variable != NULL) {
                 VRBT_REMOVE(variables, &script->state.variables.list, variable);
                 script->state.variables.n--;
+                free_global_variable(variable);
             }
 
             if (!is_locked) {
