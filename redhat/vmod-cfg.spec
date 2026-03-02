@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 5.11
+Version: 5.12
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,13 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Mon Mar 02 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.12-1.20260302
+- Fixed duplicate magic number for REMOTE_MAGIC.
+- Fixed memory leak when unsetting global-scope shared variables.
+- Fixed memory leak of backup string in free_remote().
+- Fixed off-by-one buffer overflow in dump_variables() DUMP_CHAR macro.
+- Upgraded to inih 62.
+- Upgraded to cJSON 1.7.19.
 * Fri Jan 30 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.11-1.20260130
 - Add support for larger integers (scripting internally uses doubles; 54 bits).
 - Upgrade to inih 58.
