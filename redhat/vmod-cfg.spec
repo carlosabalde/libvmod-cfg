@@ -7,8 +7,8 @@ URL: https://github.com/carlosabalde/libvmod-cfg
 Group: System Environment/Daemons
 Source0: libvmod-cfg.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires: varnish >= 8.8.0, libcurl, luajit
-BuildRequires: make, python-docutils, varnish >= 8.8.0, varnish-devel >= 8.8.0, libcurl-devel, luajit-devel, jemalloc-devel, vim-common
+Requires: varnish >= 8.0.0, libcurl, luajit
+BuildRequires: make, python-docutils, varnish >= 8.0.0, varnish-devel >= 8.0.0, libcurl-devel, luajit-devel, jemalloc-devel, vim-common
 
 %description
 Config VMOD for Varnish
