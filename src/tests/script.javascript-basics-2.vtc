@@ -110,7 +110,7 @@ varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
             script.init({"
                 return parseFloat(ARGV[0])
             "});
-            script.push("34359738368");  # 2^39 -- See VRT_INTEGER_MAX & VRT_DECIMAL_MAX.
+            script.push("34359738368");  # 2^35 = 34359738368. Beware of VRT_INTEGER_MAX & VRT_DECIMAL_MAX.
             script.execute();
             set resp.http.result5-is-number = script.result_is_number();
             set resp.http.result5-decimal-value = script.get_decimal_result();
