@@ -114,7 +114,7 @@ rules_parse(VRT_CTX, struct vmod_cfg_rules *rules, char *contents)
 
         // Skip empty lines.
         regexp = line;
-        for (; (*regexp != '\0') && isspace(*regexp); regexp++);
+        for (; (*regexp != '\0') && isspace((unsigned char)*regexp); regexp++);
         if (*regexp == '\0') {
             goto skip;
         }
@@ -130,13 +130,13 @@ rules_parse(VRT_CTX, struct vmod_cfg_rules *rules, char *contents)
             goto skip;
         }
         regexp_end = value;
-        for (; (regexp_end > regexp) && isspace(*(regexp_end - 1)); regexp_end--);
+        for (; (regexp_end > regexp) && isspace((unsigned char)*(regexp_end - 1)); regexp_end--);
 
         // Extract value.
         value += 2;
-        for (; (*value != '\0') && isspace(*value); value++);
+        for (; (*value != '\0') && isspace((unsigned char)*value); value++);
         value_end = line_end;
-        for (; (value_end > value) && isspace(*(value_end - 1)); value_end--);
+        for (; (value_end > value) && isspace((unsigned char)*(value_end - 1)); value_end--);
 
         // Isolate regexp & value.
         regexp_end_char = *regexp_end;
