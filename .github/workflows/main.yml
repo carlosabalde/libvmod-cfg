@@ -6,10 +6,13 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.platform }}
 
     strategy:
       matrix:
+        platform:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
         cc:
           - gcc
           - clang
@@ -21,12 +24,13 @@ jobs:
           - --disable-luajit
           - --disable-luajit --disable-flush-jemalloc-tcache
         include:
-          - cc: gcc
+          - platform: ubuntu-24.04
+            cc: gcc
             make_target: lcov
             configure_flags: --enable-code-coverage
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         run: |
