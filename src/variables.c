@@ -129,7 +129,8 @@ static const char *json_hex_chars = "0123456789abcdef";
     do { \
         DUMP_CHAR('"'); \
         for (int i = 0; value[i]; i++) { \
-            if (value[i] > 31 && value[i] < 127 && value[i] != '\"' && value[i] != '\\') { \
+            unsigned char _ch = (unsigned char)value[i]; \
+            if (_ch > 31 && _ch < 127 && _ch != '\"' && _ch != '\\') { \
                 DUMP_CHAR(value[i]); \
             } else { \
                 DUMP_CHAR('\\'); \
@@ -166,8 +167,8 @@ static const char *json_hex_chars = "0123456789abcdef";
                         DUMP_CHAR('u'); \
                         DUMP_CHAR('0'); \
                         DUMP_CHAR('0'); \
-                        DUMP_CHAR(json_hex_chars[(value[i] >> 4) & 0xf]); \
-                        DUMP_CHAR(json_hex_chars[value[i] & 0xf]); \
+                        DUMP_CHAR(json_hex_chars[(_ch >> 4) & 0xf]); \
+                        DUMP_CHAR(json_hex_chars[_ch & 0xf]); \
                         break; \
                 } \
             } \
