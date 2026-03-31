@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 5.12
+Version: 5.13
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Tue Mar 31 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.13-1.20260331
+- Fixed several ARM64 portability issues.
 * Mon Mar 02 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.12-1.20260302
 - Fixed duplicate magic number for REMOTE_MAGIC.
 - Fixed memory leak when unsetting global-scope shared variables.
