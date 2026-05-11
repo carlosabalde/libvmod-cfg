@@ -32,37 +32,32 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install packages
+      - name: Build Docker image
         run: |
-          sudo apt update
-          sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=non-empty-value apt install -y \
-            automake autotools-dev lcov libcurl4-gnutls-dev \
-            libedit-dev libjemalloc-dev libncurses-dev \
-            liblua5.1-0-dev libluajit-5.1-dev libpcre2-dev libtool lua5.1 \
-            luajit python3-docutils python3-sphinx vim-common
-
-      - name: Install Varnish Cache
-        run: |
-          wget --no-check-certificate https://github.com/varnish/varnish/releases/download/varnish-8.0.1/varnish-8.0.1.tar.gz
-          tar zxvf varnish-*.tar.gz
-          pushd varnish-*/
-          ./autogen.sh
-          CC='${{ matrix.cc }}' ./configure
-          make -sj32
-          sudo make PREFIX='/usr/local' install
-          sudo ldconfig
-          popd
+          docker build \
+            --build-arg VARNISH_CC='${{ matrix.cc }}' \
+            --tag libvmod-cfg-dev \
+            .
 
       - name: Build & test VMOD
         run: |
-          ./autogen.sh
-          CC='${{ matrix.cc }}' ./configure --prefix=/usr ${{ matrix.configure_flags }}
-          make -j1
-          make ${{ matrix.make_target }} -j1
+          docker run \
+            --rm \
+            --entrypoint bash \
+            --volume ${{ github.workspace }}:/workspace \
+            --workdir /workspace \
+            libvmod-cfg-dev \
+            -c '\
+              set -e; \
+              git config --global --add safe.directory /workspace; \
+              ./autogen.sh; \
+              CC="${{ matrix.cc }}" ./configure --prefix=/usr ${{ matrix.configure_flags }}; \
+              make -j1; \
+              make ${{ matrix.make_target }} -j1'
 
       - name: Push code coverage
         if: ${{ matrix.make_target == 'lcov' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
