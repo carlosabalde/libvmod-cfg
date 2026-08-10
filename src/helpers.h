@@ -16,8 +16,8 @@ typedef struct vmod_state {
         struct VSC_lck *script;
     } locks;
     struct {
-        unsigned syslog_disabled;
-        unsigned stderr_disabled;
+        unsigned syslog_enabled;
+        unsigned stderr_enabled;
     } log;
 } vmod_state_t;
 
@@ -30,19 +30,19 @@ extern vmod_state_t vmod_state;
 // the Varnish management process) logging should be rare, especially when
 // handling requests.
 //
-// Alternative: fully disable syslog and/or stderr logging using environment
-// variables (see VMOD event function), or adjust this macro to limit syslog and
-// stderr to non-request stuff (no VXID cases: initializations, helper threads,
-// etc.). Better for performance, but not ideal for visibility.
+// Alternative: enable/disable syslog and/or stderr logging using the env var
+// (see VMOD event function), or adjust this macro to limit syslog and stderr to
+// non-request stuff (no VXID cases: initializations, helper threads, etc.).
+// Better for performance, but not ideal for visibility.
 #define LOG(ctx, level, fmt, ...) \
     do { \
         long _tst = (long) time(NULL); \
         \
-        if (!vmod_state.log.syslog_disabled) { \
+        if (vmod_state.log.syslog_enabled) { \
             syslog(level, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
         } \
         \
-        if (!vmod_state.log.stderr_disabled) { \
+        if (vmod_state.log.stderr_enabled) { \
             fprintf(stderr, "[CFG][%ld][%d][%s:%d] " fmt "\n", _tst, level, __func__, __LINE__, ##__VA_ARGS__); \
         } \
         \
