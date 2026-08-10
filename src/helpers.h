@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <time.h>
 
 typedef struct vmod_state {
     unsigned refs;
@@ -14,29 +15,48 @@ typedef struct vmod_state {
         struct vsc_seg *vsc_seg;
         struct VSC_lck *script;
     } locks;
+    struct {
+        unsigned syslog_disabled;
+        unsigned stderr_disabled;
+    } log;
 } vmod_state_t;
 
 extern vmod_state_t vmod_state;
 
+// Both 'syslog()' and 'fprintf()' serialize threads. Each grabs a process-wide
+// lock (glibc's internal lock and stdio's FILE lock, respectively) across its
+// syscall. Therefore, do NOT use this macro in hot paths. Syslog (which doesn't
+// matter much in containers) and stderr (which is gated by a pipe consumed by
+// the Varnish management process) logging should be rare, especially when
+// handling requests.
+//
+// Alternative: fully disable syslog and/or stderr logging using environment
+// variables (see VMOD event function), or adjust this macro to limit syslog and
+// stderr to non-request stuff (no VXID cases: initializations, helper threads,
+// etc.). Better for performance, but not ideal for visibility.
 #define LOG(ctx, level, fmt, ...) \
     do { \
-        syslog(level, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
-        unsigned slt; \
-        if (level <= LOG_ERR) { \
-            slt = SLT_VCL_Error; \
-        } else { \
-            slt = SLT_VCL_Log; \
+        long _tst = (long) time(NULL); \
+        \
+        if (!vmod_state.log.syslog_disabled) { \
+            syslog(level, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
         } \
+        \
+        if (!vmod_state.log.stderr_disabled) { \
+            fprintf(stderr, "[CFG][%ld][%d][%s:%d] " fmt "\n", _tst, level, __func__, __LINE__, ##__VA_ARGS__); \
+        } \
+        \
+        unsigned _slt = ((level) <= LOG_ERR) ? SLT_VCL_Error : ((level) < LOG_DEBUG) ? SLT_VCL_Log : SLT_Debug; \
         if ((ctx)->vsl != NULL) { \
-            VSLb((ctx)->vsl, slt, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
+            VSLb((ctx)->vsl, _slt, "[CFG][%ld][%s:%d] " fmt, _tst, __func__, __LINE__, ##__VA_ARGS__); \
         } else { \
-            VSL(slt, 0, "[CFG][%s:%d] " fmt, __func__, __LINE__, __VA_ARGS__); \
+            VSL(_slt, 0, "[CFG][%ld][%s:%d] " fmt, _tst, __func__, __LINE__, ##__VA_ARGS__); \
         } \
     } while (0)
 
 #define FAIL(ctx, result, fmt, ...) \
     do { \
-        syslog(LOG_ALERT, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
+        LOG(ctx, LOG_ALERT, fmt, ##__VA_ARGS__); \
         VRT_fail(ctx, "[CFG][%s:%d] " fmt, __func__, __LINE__, ##__VA_ARGS__); \
         return result; \
     } while (0)
