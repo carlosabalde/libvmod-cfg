@@ -47,7 +47,7 @@ extern vmod_state_t vmod_state;
         } \
         \
         unsigned _slt = ((level) <= LOG_ERR) ? SLT_VCL_Error : ((level) < LOG_DEBUG) ? SLT_VCL_Log : SLT_Debug; \
-        if ((ctx)->vsl != NULL) { \
+        if (ctx != NULL && (ctx)->vsl != NULL) { \
             VSLb((ctx)->vsl, _slt, "[CFG][%ld][%s:%d] " fmt, _tst, __func__, __LINE__, ##__VA_ARGS__); \
         } else { \
             VSL(_slt, NO_VXID, "[CFG][%ld][%s:%d] " fmt, _tst, __func__, __LINE__, ##__VA_ARGS__); \
