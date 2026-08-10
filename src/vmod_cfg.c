@@ -28,20 +28,27 @@ dlreopen(void *addr)
 int
 event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
 {
+    static int logging_initialized = 0;
+
     switch (e) {
         case VCL_EVENT_LOAD:
-            curl_global_init(CURL_GLOBAL_ALL);
-            if (vmod_state.refs == 0) {
-                vmod_state.libs.lua = dlreopen(&luaL_newstate);
-                vmod_state.locks.script = Lck_CreateClass(
-                    &vmod_state.locks.vsc_seg, "cfg.script");
-                AN(vmod_state.locks.script);
+            if (!logging_initialized) {
+                logging_initialized = 1;
                 const char *log_sinks = getenv("VMOD_CFG_LOG_SINKS");
                 if (log_sinks == NULL) {
                     log_sinks = "syslog";
                 }
                 vmod_state.log.syslog_enabled = strstr(log_sinks, "syslog") != NULL;
                 vmod_state.log.stderr_enabled = strstr(log_sinks, "stderr") != NULL;
+            }
+
+            curl_global_init(CURL_GLOBAL_ALL);
+
+            if (vmod_state.refs == 0) {
+                vmod_state.libs.lua = dlreopen(&luaL_newstate);
+                vmod_state.locks.script = Lck_CreateClass(
+                    &vmod_state.locks.vsc_seg, "cfg.script");
+                AN(vmod_state.locks.script);
             }
             vmod_state.refs++;
             break;
