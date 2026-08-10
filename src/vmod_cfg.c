@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <lua.h>
 #include <lauxlib.h>
@@ -35,10 +36,12 @@ vmod_event_function(VRT_CTX, struct vmod_priv *vcl_priv, enum vcl_event_e e)
                 vmod_state.locks.script = Lck_CreateClass(
                     &vmod_state.locks.vsc_seg, "cfg.script");
                 AN(vmod_state.locks.script);
-                const char *v = getenv("VMOD_CFG_NO_SYSLOG_LOGGING");
-                vmod_state.log.syslog_disabled = (v != NULL && *v);
-                v = getenv("VMOD_CFG_NO_STDERR_LOGGING");
-                vmod_state.log.stderr_disabled = (v != NULL && *v);
+                const char *log_sinks = getenv("VMOD_CFG_LOG_SINKS");
+                if (log_sinks == NULL) {
+                    log_sinks = "syslog";
+                }
+                vmod_state.log.syslog_enabled = strstr(log_sinks, "syslog") != NULL;
+                vmod_state.log.stderr_enabled = strstr(log_sinks, "stderr") != NULL;
             }
             vmod_state.refs++;
             break;

@@ -10,6 +10,6 @@ vmod_state_t vmod_state = {
     .libs.lua = NULL,
     .locks.vsc_seg = NULL,
     .locks.script = NULL,
-    .log.syslog_disabled = 0,
-    .log.stderr_disabled = 0
+    .log.syslog_enabled = 0,
+    .log.stderr_enabled = 0
 };
