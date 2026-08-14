@@ -1,6 +1,6 @@
 FROM ubuntu:noble-20260410
 
-ARG VARNISH_CC=gcc
+ARG VCC=gcc
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -55,7 +55,7 @@ RUN cd /tmp \
     && rm -f varnish-*.tar.gz \
     && cd varnish-* \
     && ./autogen.sh \
-    && CC="${VARNISH_CC}" ./configure \
+    && CC="${VCC}" ./configure \
     && make \
     && make PREFIX='/usr/local' install \
     && ldconfig
