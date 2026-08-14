@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 5.13
+Version: 5.14
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Fri Aug 14 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.14-1.20260814
+- Improved VMOD logging: stderr support & VMOD_CFG_LOG_SINKS env var.
 * Tue Mar 31 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.13-1.20260331
 - Fixed several ARM64 portability issues.
 * Mon Mar 02 2026 Carlos Abalde <carlos.abalde@gmail.com> - 5.12-1.20260302
