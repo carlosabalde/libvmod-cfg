@@ -6,7 +6,6 @@
 #include <inttypes.h>
 
 #include "cache/cache.h"
-#include "vsb.h"
 #include "vcl.h"
 #include "vre.h"
 #include "vcc_cfg_if.h"
@@ -236,9 +235,11 @@ vmod_script_inspect(
     if (state->execution.code != NULL) {
         if ((ctx->method == VCL_MET_SYNTH) ||
             (ctx->method == VCL_MET_BACKEND_ERROR)) {
-            struct vsb *vsb = NULL;
-            CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
-            AZ(VSB_cat(vsb, state->execution.code));
+            // 'state->execution.code' is the VCL_STRING handed over to
+            // '.init()', so it lives at least until the end of the task and
+            // satisfies the until-delivery lifetime required by
+            // 'append_response_body()'.
+            append_response_body(ctx, state->execution.code);
         }
     } else if (script->remote != NULL) {
         script_check(ctx, script, 0, 0);

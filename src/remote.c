@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 
 #include "cache/cache.h"
-#include "vsb.h"
 #include "vcl.h"
 
 #include "helpers.h"
@@ -294,14 +293,26 @@ inspect_remote(VRT_CTX, remote_t *remote)
 {
     if ((ctx->method == VCL_MET_SYNTH) ||
         (ctx->method == VCL_MET_BACKEND_ERROR)) {
-        struct vsb *vsb = NULL;
-        CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
+        const char *contents = NULL;
+        unsigned overflow = 0;
 
+        // 'remote->state.contents' is heap memory that a concurrent reload
+        // may free or replace as soon as the mutex is released, but
+        // 'append_response_body()' needs the string to stay untouched until
+        // delivery: copy it to the workspace while still holding the mutex.
         AZ(pthread_mutex_lock(&remote->state.mutex));
         if (remote->state.contents != NULL) {
-            AZ(VSB_cat(vsb, remote->state.contents));
+            contents = WS_Copy(ctx->ws, remote->state.contents, -1);
+            overflow = contents == NULL;
         }
         AZ(pthread_mutex_unlock(&remote->state.mutex));
+
+        if (overflow) {
+            FAIL_WS(ctx, );
+        }
+        if (contents != NULL) {
+            append_response_body(ctx, contents);
+        }
     }
 }
 

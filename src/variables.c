@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "cache/cache.h"
-#include "vsb.h"
 #include "vcl.h"
 
 #include "helpers.h"
@@ -112,17 +111,13 @@ static const char *json_hex_chars = "0123456789abcdef";
 
 #define DUMP_CHAR(value) \
     do { \
-        if (vsb != NULL) { \
-            AZ(VSB_putc(vsb, value)); \
-        } else { \
-            if (free_ws <= 0) { \
-                WS_Release(ctx->ws, 0); \
-                FAIL_WS(ctx, NULL); \
-            } \
-            *end = value; \
-            end++; \
-            free_ws--; \
+        if (free_ws <= 0) { \
+            WS_Release(ctx->ws, 0); \
+            FAIL_WS(ctx, NULL); \
         } \
+        *end = value; \
+        end++; \
+        free_ws--; \
     } while (0)
 
 #define DUMP_STRING(value) \
@@ -179,13 +174,6 @@ static const char *json_hex_chars = "0123456789abcdef";
 const char *
 dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *prefix)
 {
-    struct vsb *vsb = NULL;
-    if (stream && (
-        (ctx->method == VCL_MET_SYNTH) ||
-        (ctx->method == VCL_MET_BACKEND_ERROR))) {
-        CAST_OBJ_NOTNULL(vsb, ctx->specific, VSB_MAGIC);
-    }
-
     AN(ctx->ws);
     char *result, *end;
     variable_t *variable;
@@ -217,6 +205,19 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
     *end = '\0';
 
     WS_Release(ctx->ws, end - result + 1);
+
+    // In streaming mode the dump used to be written directly into the
+    // 'ctx->specific' VSB, skipping the workspace. That VSB is no longer read
+    // by the synth storage engine, so the dump is now always built on the
+    // workspace (which also satisfies the until-delivery lifetime required
+    // by 'append_response_body()') and 'stream' only decides whether it is
+    // appended to the response body or returned to the caller.
+    if (stream && (
+        (ctx->method == VCL_MET_SYNTH) ||
+        (ctx->method == VCL_MET_BACKEND_ERROR))) {
+        append_response_body(ctx, result);
+        return "";
+    }
 
     return result;
 }

@@ -27,7 +27,7 @@ Description
 $Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
-    stream: if enabled, the JSON object will be streamed as a synthetic
+    stream: if enabled, the JSON object will be delivered as a synthetic
     response.
 
     prefix: if specified, the JSON object will only contain the variables that
@@ -37,9 +37,11 @@ Description
 
     If called during ``vcl_synth`` or ``vcl_backend_error`` with the ``stream``
     argument enabled, this function will return an empty string and behave as
-    a call to the ``synthetic`` VCL function with the JSON object as input.
-    This highly reduces the amount of required workspace memory, specially for
-    large JSON objects.
+    setting ``resp.body`` with the JSON object.
+
+    Beware that after 9.0.x the response is no longer streamed: it is always
+    built on the workspace, even when the ``stream`` argument is enabled, so
+    enough free workspace to hold the whole response is required.
 
 $Method BOOL .is_set(STRING name)
 
@@ -138,7 +140,7 @@ Description
 $Method STRING .dump(BOOL stream=0, STRING prefix="")
 
 Arguments
-    stream: if enabled, the JSON object will be streamed as a synthetic
+    stream: if enabled, the JSON object will be delivered as a synthetic
     response.
 
     prefix: if specified, the JSON object will only contains the variables that
@@ -148,16 +150,18 @@ Description
 
     If called during ``vcl_synth`` or ``vcl_backend_error`` with the ``stream``
     argument enabled, this function will return an empty string and behave as
-    a call to the ``synthetic`` VCL function with the JSON object as input.
-    This highly reduces the amount of required workspace memory, specially for
-    large JSON objects.
+    setting ``resp.body`` with the JSON object.
+
+    Beware that after 9.0.x the response is no longer streamed: it is always
+    built on the workspace, even when the ``stream`` argument is enabled, so
+    enough free workspace to hold the whole response is required.
 
 $Method VOID .inspect()
 
 Description
     This function may be called during ``vcl_synth`` or ``vcl_backend_error``
-    and it will behave as a call to the ``synthetic`` VCL function with current
-    contents of the file as input.
+    and it will behave as setting ``resp.body`` with current contents of the
+    file.
 
 $Method BOOL .is_set(STRING name)
 
@@ -207,8 +211,8 @@ $Method VOID .inspect()
 
 Description
     This function may be called during ``vcl_synth`` or ``vcl_backend_error``
-    and it will behave as a call to the ``synthetic`` VCL function with current
-    contents of the rules file as input.
+    and it will behave as setting ``resp.body`` with current contents of the
+    rules file.
 
 $Method STRING .get(STRING value, STRING fallback="")
 
@@ -298,8 +302,8 @@ $Method VOID .inspect(PRIV_TASK)
 
 Description
     This function may be called during ``vcl_synth`` or ``vcl_backend_error``
-    and it will behave as a call to the ``synthetic`` VCL function with current
-    contents of the loaded script (inline script or file) as input.
+    and it will behave as setting ``resp.body`` with current contents of the
+    loaded script (inline script or file).
 
 $Method VOID .init(PRIV_TASK, STRING code="")
 
