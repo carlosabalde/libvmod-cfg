@@ -8,14 +8,14 @@ server s1 {
 shell {
     cat > "${tmp}/test-regmatch.lua" <<'EOF'
 local string = ARGV[0]
-local regexp = ARGV[1]
+local regexp = (ARGV[1]:gsub('<NUL>', '\0'))
 local cache = ARGV[2] == 'true'
 return varnish.regmatch(string, regexp, cache)
 EOF
 
     cat > "${tmp}/test-regsub-and-regsuball.lua" <<'EOF'
 local string = ARGV[0]
-local regexp = ARGV[1]
+local regexp = (ARGV[1]:gsub('<NUL>', '\0'))
 local sub = ARGV[2]
 local cache = ARGV[3] == 'true'
 return {
@@ -115,6 +115,18 @@ varnish v1 -vcl+backend {
             set resp.http.Result-7 = "error";
         }
 
+        # Match #8: regexp with an embedded NUL byte. Rejected before reaching
+        # the caches, so no new compiled regexp is cached.
+        set req.http.String = "abc";
+        set req.http.Regexp = "^a<NUL>x";
+        set req.http.Cache = "true";
+        call execute_script;
+        if (script.result_is_boolean()) {
+            set resp.http.Result-8 = script.get_boolean_result();
+        } elsif (script.result_is_error()) {
+            set resp.http.Result-8 = "error";
+        }
+
         # Counters.
         set resp.http.Regexps-Current = script.counter("regexps.current");
     }
@@ -142,6 +154,7 @@ client c1 -connect ${v1_sock} {
     expect resp.http.Result-5 == "true"
     expect resp.http.Result-6 == "true"
     expect resp.http.Result-7 == "error"
+    expect resp.http.Result-8 == "error"
     expect resp.http.Regexps-Current == "1"
 } -run
 
@@ -262,10 +275,36 @@ client c2 -connect ${v2_sock} {
     expect resp.http.Result-5 == "error"
     expect resp.http.Result-6 == "error"
     expect resp.http.Regexps-Current == "2"
+
+    # No match: the subject itself is returned.
+    txreq -hdr "String: foo" \
+          -hdr {Regexp: bar} \
+          -hdr {Sub: baz}
+    rxresp
+    expect resp.http.Result-1 == "foo"
+    expect resp.http.Result-2 == "foo"
+    expect resp.http.Result-3 == "foo"
+    expect resp.http.Result-4 == "foo"
+    expect resp.http.Result-5 == "foo"
+    expect resp.http.Result-6 == "foo"
+    expect resp.http.Regexps-Current == "3"
+
+    # Regexp with an embedded NUL byte: rejected before reaching the caches.
+    txreq -hdr "String: foo" \
+          -hdr {Regexp: f<NUL>oo} \
+          -hdr {Sub: bar}
+    rxresp
+    expect resp.http.Result-1 == "error"
+    expect resp.http.Result-2 == "error"
+    expect resp.http.Result-3 == "error"
+    expect resp.http.Result-4 == "error"
+    expect resp.http.Result-5 == "error"
+    expect resp.http.Result-6 == "error"
+    expect resp.http.Regexps-Current == "3"
 } -run
 
 logexpect l2 -wait
 
-varnish v2 -expect client_req == 3
+varnish v2 -expect client_req == 5
 
 varnish v2 -expect MGT.child_panic == 0
