@@ -19,6 +19,27 @@
 
 static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
 
+// Keys used to store per-engine values in the Lua registry, which is not
+// reachable from scripts:
+//   - The error handler, cached once by 'new_context()' instead of being
+//     looked up through the 'varnish' global table on every execution. This
+//     also freezes the binding: whatever a script does to 'varnish' afterwards,
+//     the handler defined by the builtin helpers is the one used.
+//   - The 'ctx', 'script' & 'state' pointers (light userdata), set by
+//     'execute()' around each execution and used by the varnish.* commands.
+//     Light userdata is a plain value (no allocation, nothing for the garbage
+//     collector to track) and the registry is a plain table, so setting them
+//     is a raw assignment instead of a '__newindex' metamethod call on the
+//     read-only 'varnish' table. As a bonus, the pointers are no longer
+//     readable (nor overwritable) from scripts.
+//   - The 'is_locked' flag used by the varnish.shared.* commands, for the
+//     same reasons.
+#define REGISTRY_KEY_ERROR_HANDLER "varnish._error_handler"
+#define REGISTRY_KEY_CTX "varnish._ctx"
+#define REGISTRY_KEY_SCRIPT "varnish._script"
+#define REGISTRY_KEY_STATE "varnish._state"
+#define REGISTRY_KEY_SHARED_IS_LOCKED "varnish.shared._is_locked"
+
 /******************************************************************************
  * BASICS.
  *****************************************************************************/
@@ -205,14 +226,9 @@ execute_lua(
     engine_t *engine = lock_engine(ctx, script);
     AN(engine);
 
-    // Push 'varnish' table into the stack.
-    lua_getglobal(engine->ctx.L, "varnish");
-    AN(lua_istable(engine->ctx.L, -1));
-
-    // Push the value of 'varnish._error_handler' into the stack. This will
-    // keep the 'varnish' table in the stack, just under the the error handler
-    // function.
-    lua_getfield(engine->ctx.L, -1, "_error_handler");
+    // Push the error handler cached in the registry by 'new_context()' into
+    // the stack.
+    lua_getfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_ERROR_HANDLER);
     AN(lua_isfunction(engine->ctx.L, -1));
 
     // Try to lookup the function to be executed. Result will be pushed
@@ -244,7 +260,6 @@ execute_lua(
     // Current state of the stack at this point (top to bottom):
     //   - Function to be executed.
     //   - Error handler function.
-    //   - 'varnish' table.
 
     if (result != NULL) {
         // Assertions.
@@ -252,20 +267,14 @@ execute_lua(
         AN(argv);
         AN(result);
 
-        // Execute 'varnish._ctx = ctx', 'varnish._script = script' and
-        // 'varnish._state = state'.
-        void *ptr_ctx = lua_newuserdata(engine->ctx.L, sizeof(struct vrt_ctx *));
-        AN(ptr_ctx);
-        *(const struct vrt_ctx **)ptr_ctx = ctx;
-        lua_setfield(engine->ctx.L, -4, "_ctx");
-        void *ptr_script = lua_newuserdata(engine->ctx.L, sizeof(struct vmod_cfg_script *));
-        AN(ptr_script);
-        *(struct vmod_cfg_script **)ptr_script = script;
-        lua_setfield(engine->ctx.L, -4, "_script");
-        void *ptr_state = lua_newuserdata(engine->ctx.L, sizeof(task_state_t *));
-        AN(ptr_state);
-        *(task_state_t **)ptr_state = state;
-        lua_setfield(engine->ctx.L, -4, "_state");
+        // Store the 'ctx', 'script' & 'state' pointers in the registry (see
+        // REGISTRY_KEY_CTX, etc.). They are used by the varnish.* commands.
+        lua_pushlightuserdata(engine->ctx.L, TRUST_ME(ctx));
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_CTX);
+        lua_pushlightuserdata(engine->ctx.L, script);
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_SCRIPT);
+        lua_pushlightuserdata(engine->ctx.L, state);
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_STATE);
 
         // Populate 'ARGV' table accordingly to the input arguments.
         lua_newtable(engine->ctx.L);
@@ -297,14 +306,16 @@ execute_lua(
         // Remove the function result and the error handler from the stack.
         lua_pop(engine->ctx.L, 2);
 
-        // Execute 'varnish._ctx = nil', 'varnish._script = nil' and
-        // 'varnish._state = nil'.
+        // Clear the pointers stored in the registry: the engine is about to
+        // be released and they must not outlive this execution (a varnish.*
+        // command executed outside an execution must fail loudly instead of
+        // silently using stale pointers).
         lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, -2, "_ctx");
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_CTX);
         lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, -2, "_script");
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_SCRIPT);
         lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, -2, "_state");
+        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_STATE);
     } else {
         // Everything looks correct. Full execution is not required: simply
         // remove function to be executed & error handler from the stack.
@@ -313,12 +324,6 @@ execute_lua(
     }
 
 done:
-    // Current state of the stack at this point (top to bottom):
-    //   - 'varnish' table.
-
-    // Remove 'varnish' table from the stack.
-    lua_pop(engine->ctx.L, 1);
-
     // Update stats.
     Lck_Lock(&script->state.mutex);
     script->state.stats.executions.total++;
@@ -367,30 +372,26 @@ done:
  * VARNISH.* COMMANDS.
  *****************************************************************************/
 
-// Extract field from 'varnish.field'. Both 'varnish' table and user data are
-// pushed into the stack and the removed.
-#define GET_VARNISH_TABLE_FOO_FIELD(L, field, where, MAGIC) \
+// Extract a pointer stored in the Lua registry (see REGISTRY_KEY_CTX, etc.).
+// The light userdata is pushed into the stack and then removed.
+#define GET_REGISTRY_FOO_FIELD(L, key, where, MAGIC) \
     do { \
-        lua_getglobal(L, "varnish"); \
-        AN(lua_istable(L, -1)); \
-        lua_getfield(L, -1, field); \
-        AN(lua_isuserdata(L, -1)); \
-        void *ptr = lua_touserdata(L, -1); \
-        AN(ptr); \
-        void *data = *(void **)ptr; \
+        lua_getfield(L, LUA_REGISTRYINDEX, key); \
+        AN(lua_islightuserdata(L, -1)); \
+        void *data = lua_touserdata(L, -1); \
         AN(data); \
         CAST_OBJ_NOTNULL(where, data, MAGIC); \
-        lua_pop(L, 2); \
+        lua_pop(L, 1); \
     } while (0)
 
-#define GET_VARNISH_TABLE_CTX(L, where) \
-    GET_VARNISH_TABLE_FOO_FIELD(L, "_ctx", where, VRT_CTX_MAGIC)
+#define GET_REGISTRY_CTX(L, where) \
+    GET_REGISTRY_FOO_FIELD(L, REGISTRY_KEY_CTX, where, VRT_CTX_MAGIC)
 
-#define GET_VARNISH_TABLE_SCRIPT(L, where) \
-    GET_VARNISH_TABLE_FOO_FIELD(L, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
+#define GET_REGISTRY_SCRIPT(L, where) \
+    GET_REGISTRY_FOO_FIELD(L, REGISTRY_KEY_SCRIPT, where, VMOD_CFG_SCRIPT_MAGIC)
 
-#define GET_VARNISH_TABLE_STATE(L, where) \
-    GET_VARNISH_TABLE_FOO_FIELD(L, "_state", where, TASK_STATE_MAGIC)
+#define GET_REGISTRY_STATE(L, where) \
+    GET_REGISTRY_FOO_FIELD(L, REGISTRY_KEY_STATE, where, TASK_STATE_MAGIC)
 
 static int
 varnish_log_lua_command(lua_State *L)
@@ -405,9 +406,9 @@ varnish_log_lua_command(lua_State *L)
 
     // Check input arguments.
     if (message != NULL) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
 
         // Execute command.
         varnish_log_command(ctx, message);
@@ -438,9 +439,9 @@ varnish_get_header_lua_command(lua_State *L)
 
     // Check input arguments.
     if (name != NULL && strlen(name) > 0) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
 
         // Execute command.
         const char *error;
@@ -476,9 +477,9 @@ varnish_set_header_lua_command(lua_State *L)
     // Check input arguments.
     if (name != NULL && strlen(name) > 0 &&
         value != NULL && strlen(value) > 0) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
 
         // Execute command.
         const char *error;
@@ -516,11 +517,11 @@ varnish_regmatch_lua_command(lua_State *L)
 
     // Check input arguments.
     if (string != NULL && regexp != NULL) {
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Extract 'ctx' & 'script' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_TABLE_SCRIPT(L, script);
+        GET_REGISTRY_SCRIPT(L, script);
 
         // Execute command.
         const char *error;
@@ -560,11 +561,11 @@ varnish_regsub_lua_command(lua_State *L, unsigned all)
 
     // Check input arguments.
     if (string != NULL && regexp != NULL && sub != NULL) {
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Extract 'ctx' & 'script' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_TABLE_SCRIPT(L, script);
+        GET_REGISTRY_SCRIPT(L, script);
 
         // Execute command.
         const char *error;
@@ -597,29 +598,21 @@ varnish_regsuball_lua_command(lua_State *L)
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
 
-// Extract value from 'varnish.shared._is_locked'.
-#define GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, where) \
+// Extract the 'is_locked' flag stored in the registry (see
+// REGISTRY_KEY_SHARED_IS_LOCKED).
+#define GET_REGISTRY_SHARED_IS_LOCKED(L, where) \
     do { \
-        lua_getglobal(L, "varnish"); \
-        AN(lua_istable(L, -1)); \
-        lua_getfield(L, -1, "shared"); \
-        AN(lua_istable(L, -1)); \
-        lua_getfield(L, -1, "_is_locked"); \
+        lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY_SHARED_IS_LOCKED); \
         AN(lua_isboolean(L, -1)); \
         where = lua_toboolean(L, -1); \
-        lua_pop(L, 3); \
+        lua_pop(L, 1); \
     } while (0)
 
-// Update value in 'varnish.shared._is_locked'.
-#define SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, value) \
+// Update the 'is_locked' flag stored in the registry.
+#define SET_REGISTRY_SHARED_IS_LOCKED(L, value) \
     do { \
-        lua_getglobal(L, "varnish"); \
-        AN(lua_istable(L, -1)); \
-        lua_getfield(L, -1, "shared"); \
-        AN(lua_istable(L, -1)); \
-        lua_pushboolean (L, value); \
-        lua_setfield(L, -2, "_is_locked"); \
-        lua_pop(L, 2); \
+        lua_pushboolean(L, value); \
+        lua_setfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY_SHARED_IS_LOCKED); \
     } while (0)
 
 static int
@@ -643,18 +636,17 @@ varnish_shared_get_lua_command(lua_State *L)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the registry.
         unsigned is_locked;
-        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
+        GET_REGISTRY_SHARED_IS_LOCKED(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_TABLE_SCRIPT(L, script);
+        GET_REGISTRY_SCRIPT(L, script);
         task_state_t *state;
-        GET_VARNISH_TABLE_STATE(L, state);
+        GET_REGISTRY_STATE(L, state);
 
         // Execute command.
         result = varnish_shared_get_command(ctx, script, state, key, scope, is_locked);
@@ -685,18 +677,17 @@ varnish_shared_set_lua_command(lua_State *L)
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
         value != NULL) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the registry.
         unsigned is_locked;
-        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
+        GET_REGISTRY_SHARED_IS_LOCKED(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_TABLE_SCRIPT(L, script);
+        GET_REGISTRY_SCRIPT(L, script);
         task_state_t *state;
-        GET_VARNISH_TABLE_STATE(L, state);
+        GET_REGISTRY_STATE(L, state);
 
         // Execute command.
         varnish_shared_set_command(ctx, script, state, key, value, scope, is_locked);
@@ -724,18 +715,17 @@ varnish_shared_unset_lua_command(lua_State *L)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the registry.
         unsigned is_locked;
-        GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
+        GET_REGISTRY_SHARED_IS_LOCKED(L, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the registry.
         VRT_CTX;
-        GET_VARNISH_TABLE_CTX(L, ctx);
+        GET_REGISTRY_CTX(L, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_TABLE_SCRIPT(L, script);
+        GET_REGISTRY_SCRIPT(L, script);
         task_state_t *state;
-        GET_VARNISH_TABLE_STATE(L, state);
+        GET_REGISTRY_STATE(L, state);
 
         // Execute command.
         varnish_shared_unset_command(ctx, script, state, key, scope, is_locked);
@@ -759,18 +749,18 @@ varnish_shared_eval_lua_command(lua_State *L)
         lua_error(L);
     }
 
-    // Execute 'is_locked = varnish.shared._is_locked'.
+    // Extract 'is_locked' from the registry.
     unsigned is_locked;
-    GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, is_locked);
+    GET_REGISTRY_SHARED_IS_LOCKED(L, is_locked);
 
-    // Execute 'script = varnish._script'.
+    // Extract 'script' from the registry.
     struct vmod_cfg_script *script;
-    GET_VARNISH_TABLE_SCRIPT(L, script);
+    GET_REGISTRY_SCRIPT(L, script);
 
     // Get lock if needed.
     if (!is_locked) {
         AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
-        SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 1);
+        SET_REGISTRY_SHARED_IS_LOCKED(L, 1);
     }
 
     // Execute function and leave result or error message on top
@@ -779,7 +769,7 @@ varnish_shared_eval_lua_command(lua_State *L)
 
     // Release lock if needed.
     if (!is_locked) {
-        SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD(L, 0);
+        SET_REGISTRY_SHARED_IS_LOCKED(L, 0);
         AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 
@@ -790,13 +780,13 @@ varnish_shared_eval_lua_command(lua_State *L)
     return 1;
 }
 
-#undef GET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
-#undef SET_VARNISH_SHARED_TABLE_IS_LOCKED_FIELD
+#undef GET_REGISTRY_SHARED_IS_LOCKED
+#undef SET_REGISTRY_SHARED_IS_LOCKED
 
-#undef GET_VARNISH_TABLE_FOO_FIELD
-#undef GET_VARNISH_TABLE_CTX
-#undef GET_VARNISH_TABLE_SCRIPT
-#undef GET_VARNISH_TABLE_STATE
+#undef GET_REGISTRY_FOO_FIELD
+#undef GET_REGISTRY_CTX
+#undef GET_REGISTRY_SCRIPT
+#undef GET_REGISTRY_STATE
 
 /******************************************************************************
  * HELPERS.
@@ -894,8 +884,8 @@ enable_lua_protections(lua_State *L)
         "     __metatable = false\n"
         "   });\n"
         "end\n"
-        "varnish.shared = readonly_table(varnish.shared, {_is_locked = true})\n"
-        "varnish = readonly_table(varnish, {_ctx = true, _script = true, _state = true})\n"
+        "varnish.shared = readonly_table(varnish.shared, {})\n"
+        "varnish = readonly_table(varnish, {})\n"
         "\n"
         "readonly_table = nil\n";
     AZ(luaL_loadbuffer(L, protections, strlen(protections), "@enable_lua_protections"));
@@ -939,8 +929,6 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     AN(lua_istable(result, -1));
     lua_getfield(result, -1, "shared");
     AN(lua_istable(result, -1));
-    lua_pushboolean (result, 0);
-    lua_setfield(result, -2, "_is_locked");
     lua_pushcfunction(result, varnish_shared_get_lua_command);
     lua_setfield(result, -2, "get");
     lua_pushcfunction(result, varnish_shared_set_lua_command);
@@ -958,6 +946,19 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
         script_lua_helpers_lua_len,
         "@helpers"));
     AZ(lua_pcall(result, 0, 0, 0));
+
+    // Cache the error handler (defined by the script helpers) in the registry
+    // (see REGISTRY_KEY_ERROR_HANDLER) and initialize the 'is_locked' flag
+    // used by the varnish.shared.* commands (see
+    // REGISTRY_KEY_SHARED_IS_LOCKED).
+    lua_getglobal(result, "varnish");
+    AN(lua_istable(result, -1));
+    lua_getfield(result, -1, "_error_handler");
+    AN(lua_isfunction(result, -1));
+    lua_setfield(result, LUA_REGISTRYINDEX, REGISTRY_KEY_ERROR_HANDLER);
+    lua_pop(result, 1);
+    lua_pushboolean(result, 0);
+    lua_setfield(result, LUA_REGISTRYINDEX, REGISTRY_KEY_SHARED_IS_LOCKED);
 
     // Protect accesses to global variables, set global 'varnish' table as
     // read only, disable the 'debug' library, etc.
