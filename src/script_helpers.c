@@ -176,14 +176,21 @@ fini_task_state(VRT_CTX, void *ptr)
 
 static const struct vmod_priv_methods task_state_priv_methods[1] = {{
     .magic = VMOD_PRIV_METHODS_MAGIC,
-    .type = "task_state",
+    .type = "script_task_state",
     .fini = (vmod_priv_fini_f *)fini_task_state
 }};
 
 task_state_t *
-get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution)
+get_task_state(VRT_CTX, struct vmod_cfg_script *script, unsigned reset_execution)
 {
     task_state_t *result = NULL;
+
+    // One state per script instance and per task. Beware VRT_priv_task()
+    // cannot fail: since Varnish 8.0.1 (see 1cc722bfb) allocation of the
+    // internal registry entry falls back to the heap when the task workspace
+    // is exhausted.
+    struct vmod_priv *task_priv = VRT_priv_task(ctx, script);
+    AN(task_priv);
 
     if (task_priv->priv == NULL) {
         task_priv->priv = new_task_state();
