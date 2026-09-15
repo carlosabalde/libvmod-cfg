@@ -412,6 +412,30 @@ varnish_log_command(VRT_CTX, const char *message)
     }
 }
 
+// Builds the error message reported when a regexp cannot be instantiated.
+// Returns NULL (after failing the VCL) if the workspace is exhausted.
+const char *
+regexp_error(VRT_CTX, const char *regexp)
+{
+    AN(regexp);
+
+    const char *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
+    if (error == NULL) {
+        FAIL_WS(ctx, NULL);
+    }
+
+    return error;
+}
+
+unsigned
+varnish_regmatch_re_command(VRT_CTX, const char *string, vre_t *re)
+{
+    AN(string);
+    AN(re);
+
+    return VRT_re_match(ctx, string, re);
+}
+
 unsigned
 varnish_regmatch_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
@@ -425,18 +449,26 @@ varnish_regmatch_command(
 
     vre_t *re = init_regexp(ctx, script, regexp, cache);
     if (re != NULL) {
-        result = VRT_re_match(ctx, string, re);
+        result = varnish_regmatch_re_command(ctx, string, re);
         if (!cache) {
             VRE_free(&re);
         }
     } else {
-        *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
-        if (*error == NULL) {
-            FAIL_WS(ctx, 0);
-        }
+        *error = regexp_error(ctx, regexp);
     }
 
     return result;
+}
+
+const char *
+varnish_regsub_re_command(
+    VRT_CTX, const char *string, vre_t *re, const char *sub, unsigned all)
+{
+    AN(string);
+    AN(re);
+    AN(sub);
+
+    return VRT_regsub(ctx, all, string, re, sub);
 }
 
 const char *
@@ -454,15 +486,12 @@ varnish_regsub_command(
 
     vre_t *re = init_regexp(ctx, script, regexp, cache);
     if (re != NULL) {
-        result = VRT_regsub(ctx, all, string, re, sub);
+        result = varnish_regsub_re_command(ctx, string, re, sub, all);
         if (!cache) {
             VRE_free(&re);
         }
     } else {
-        *error = WS_Printf(ctx->ws, "Failed to instantiate '%s' regexp.", regexp);
-        if (*error == NULL) {
-            FAIL_WS(ctx, NULL);
-        }
+        *error = regexp_error(ctx, regexp);
     }
 
     return result;
