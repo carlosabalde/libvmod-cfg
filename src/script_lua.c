@@ -214,6 +214,8 @@ execute_lua(
 {
     // Initializations.
     unsigned success = 0;
+    unsigned unknown = 0;
+    unsigned gc = 0;
 
     // If name (i.e. f_<SHA256(code)>) wasn't provided a new one will be generated
     // here (allocated in the heap) and it will be returned to the caller.
@@ -237,11 +239,7 @@ execute_lua(
     if (!lua_isfunction(engine->ctx.L, -1)) {
         // Remove the non-function value from the stack.
         lua_pop(engine->ctx.L, 1);
-
-        // Update stats.
-        Lck_Lock(&script->state.mutex);
-        script->state.stats.executions.unknown++;
-        Lck_Unlock(&script->state.mutex);
+        unknown = 1;
 
         // Compile & register the function to be executed.
         if (pre_execute(ctx, script, engine, code, *name)) {
@@ -324,28 +322,16 @@ execute_lua(
     }
 
 done:
-    // Update stats.
-    Lck_Lock(&script->state.mutex);
-    script->state.stats.executions.total++;
-    if (!success) {
-        script->state.stats.executions.failed++;
-    }
-    Lck_Unlock(&script->state.mutex);
-
     // Call the garbage collector from time to time to avoid a full cycle
     // performed by Lua, which adds too much latency.
     engine->ncycles++;
     if (gc_collect) {
         lua_gc(engine->ctx.L, LUA_GCCOLLECT, 0);
-        Lck_Lock(&script->state.mutex);
-        script->state.stats.executions.gc++;
-        Lck_Unlock(&script->state.mutex);
+        gc = 1;
     } else {
         if (engine->ncycles % script->min_gc_cycles == 0) {
             lua_gc(engine->ctx.L, LUA_GCSTEP, script->engine_cfg.lua.gc_step_size);
-            Lck_Lock(&script->state.mutex);
-            script->state.stats.executions.gc++;
-            Lck_Unlock(&script->state.mutex);
+            gc = 1;
         }
     }
 
@@ -361,8 +347,8 @@ done:
     }
 #endif
 
-    // Unlock script execution engine.
-    unlock_engine(ctx, script, engine);
+    // Release script execution engine & update stats.
+    release_engine(ctx, script, engine, unknown, success, gc);
 
     // Done!
     return success;

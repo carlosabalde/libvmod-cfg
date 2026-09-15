@@ -197,6 +197,8 @@ unsigned execute_javascript(
 {
     // Initializations.
     unsigned success = 0;
+    unsigned unknown = 0;
+    unsigned gc = 0;
 
     // If name (i.e. f_<SHA256(code)>) wasn't provided a new one will be generated
     // here (allocated in the heap) and it will be returned to the caller.
@@ -219,11 +221,7 @@ unsigned execute_javascript(
     if (!duk_is_function(engine->ctx.D, -1)) {
         // Remove the non-function value from the stack.
         duk_pop(engine->ctx.D);
-
-        // Update stats.
-        Lck_Lock(&script->state.mutex);
-        script->state.stats.executions.unknown++;
-        Lck_Unlock(&script->state.mutex);
+        unknown = 1;
 
         // Compile & register the function to be executed.
         if (pre_execute(ctx, script, engine, code, *name)) {
@@ -308,22 +306,12 @@ done:
     // Remove 'varnish' object from the stack.
     duk_pop(engine->ctx.D);
 
-    // Update stats.
-    Lck_Lock(&script->state.mutex);
-    script->state.stats.executions.total++;
-    if (!success) {
-        script->state.stats.executions.failed++;
-    }
-    Lck_Unlock(&script->state.mutex);
-
     // Call the garbage collector from time to time.
     engine->ncycles++;
     if (gc_collect || engine->ncycles % script->min_gc_cycles == 0) {
         duk_gc(engine->ctx.D, DUK_GC_COMPACT);
         duk_gc(engine->ctx.D, DUK_GC_COMPACT);
-        Lck_Lock(&script->state.mutex);
-        script->state.stats.executions.gc++;
-        Lck_Unlock(&script->state.mutex);
+        gc = 1;
     }
 
     // Flush calling thread's jemalloc tcache in order to keep memory usage
@@ -338,8 +326,8 @@ done:
     }
 #endif
 
-    // Unlock script execution engine.
-    unlock_engine(ctx, script, engine);
+    // Release script execution engine & update stats.
+    release_engine(ctx, script, engine, unknown, success, gc);
 
     // Done!
     return success;
