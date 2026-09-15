@@ -82,8 +82,17 @@ retry:
     return result;
 }
 
+/*
+ * Return an engine to the pool of free engines and record the outcome of the
+ * execution it just completed ('unknown': the function had to be compiled &
+ * registered first; 'success': the execution completed; 'gc': the garbage
+ * collector ran). Both are done under a single acquisition of the script lock
+ * on purpose: this runs once per execution.
+ */
 void
-unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine)
+release_engine(
+    VRT_CTX, struct vmod_cfg_script *script, engine_t *engine,
+    unsigned unknown, unsigned success, unsigned gc)
 {
     CHECK_OBJ_NOTNULL(engine, ENGINE_MAGIC);
 
@@ -92,14 +101,42 @@ unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine)
     int size = script->api.get_engine_stack_size(engine);
     if (size > 0) {
         LOG(ctx, LOG_ERR,
-            "Found non-zero stack when unlocking engine (script=%s, size=%d)",
+            "Found non-zero stack when releasing engine (script=%s, size=%d)",
             script->name, size);
     }
 
     Lck_Lock(&script->state.mutex);
+
     VTAILQ_REMOVE(&script->state.engines.busy, engine, list);
-    VTAILQ_INSERT_TAIL(&script->state.engines.free, engine, list);
+
+    // Beware engines are stacked (i.e. LIFO) on purpose: the engine that just
+    // finished is the one with warm CPU caches, so it should be the next one
+    // picked by 'lock_engine()'. This also keeps the working set of engines
+    // (i.e. scripting engine heaps) as small as the load allows.
+    //
+    // The trade-off is RSS retention: engines beyond the working set sink to
+    // the tail of the free list and are never popped again, so they never run
+    // GC steps (only run after an execution) and never accrue cycles towards
+    // 'max_cycles' (only checked at pop time by 'is_valid_engine()'). Heaps
+    // inflated during a traffic burst therefore stay resident until the next
+    // script reload or VCL discard. Should it ever matter in practice, the
+    // cheap mitigation is to stamp a last-used timestamp on release and reap
+    // long-idle tail engines periodically.
+    VTAILQ_INSERT_HEAD(&script->state.engines.free, engine, list);
+
+    script->state.stats.executions.total++;
+    if (unknown) {
+        script->state.stats.executions.unknown++;
+    }
+    if (!success) {
+        script->state.stats.executions.failed++;
+    }
+    if (gc) {
+        script->state.stats.executions.gc++;
+    }
+
     AZ(pthread_cond_signal(&script->state.engines.cond));
+
     Lck_Unlock(&script->state.mutex);
 }
 
