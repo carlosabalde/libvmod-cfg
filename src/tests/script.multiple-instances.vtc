@@ -1,0 +1,72 @@
+varnishtest "Test execution state isolation between script instances"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new lua1 = cfg.script("", period=0, type=lua);
+        new lua2 = cfg.script("", period=0, type=lua);
+        new js1 = cfg.script("", period=0, type=javascript);
+    }
+
+    sub vcl_deliver {
+        # Interleaved initializations, argument pushes & executions across
+        # instances, including instances using different engine types.
+        lua1.init({"return ARGV[0] .. '-lua1'"});
+        lua2.init({"return ARGV[0] .. '-lua2'"});
+        js1.init({"return ARGV[0] + '-js1';"});
+        lua1.push("foo");
+        lua2.push("bar");
+        js1.push("baz");
+        js1.execute();
+        lua2.execute();
+        lua1.execute();
+        set resp.http.result-lua1 = lua1.get_result();
+        set resp.http.result-lua2 = lua2.get_result();
+        set resp.http.result-js1 = js1.get_result();
+        lua1.free_result();
+        lua2.free_result();
+        js1.free_result();
+
+        # Results are not visible through other instances.
+        lua1.init({"return 'secret'"});
+        lua1.execute();
+        set resp.http.result-leaked-to-lua2 = lua2.result_is_string();
+        set resp.http.result-in-lua1 = lua1.get_result();
+        lua1.free_result();
+
+        # Task-scoped variables are per script instance too.
+        lua1.init({"varnish.shared.set('key', 'value', 'task') return true"});
+        lua1.execute();
+        lua1.free_result();
+        lua1.init({"return varnish.shared.get('key', 'task')"});
+        lua1.execute();
+        set resp.http.task-variable-in-lua1 = lua1.get_result();
+        lua1.free_result();
+        lua2.init({"return varnish.shared.get('key', 'task')"});
+        lua2.execute();
+        set resp.http.task-variable-leaked-to-lua2 = lua2.result_is_string();
+        lua2.free_result();
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result-lua1 == "foo-lua1"
+    expect resp.http.result-lua2 == "bar-lua2"
+    expect resp.http.result-js1 == "baz-js1"
+    expect resp.http.result-leaked-to-lua2 == "false"
+    expect resp.http.result-in-lua1 == "secret"
+    expect resp.http.task-variable-in-lua1 == "value"
+    expect resp.http.task-variable-leaked-to-lua2 == "false"
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0

@@ -229,9 +229,9 @@ vmod_script_reload(VRT_CTX, struct vmod_cfg_script *script, VCL_BOOL force_backu
 
 VCL_VOID
 vmod_script_inspect(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if (state->execution.code != NULL) {
         if ((ctx->method == VCL_MET_SYNTH) ||
@@ -249,10 +249,10 @@ vmod_script_inspect(
 
 VCL_VOID
 vmod_script_init(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_STRING code)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 1);
+    task_state_t *state = get_task_state(ctx, script, 1);
 
     if ((code != NULL) && (strlen(code) > 0)) {
         state->execution.code = code;
@@ -262,15 +262,22 @@ vmod_script_init(
 
 VCL_VOID
 vmod_script_push(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_STRING arg)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
-    // Do not continue if the maximum number of allowed arguments has been
-    // reached or if the initial call to .init() was not executed.
-    if ((state->execution.argc >= 0) &&
-        (state->execution.argc < MAX_EXECUTION_ARGS)) {
+    // Do not continue if the initial call to .init() was not executed or if
+    // the maximum number of allowed arguments has been reached.
+    if (state->execution.argc < 0) {
+        LOG(ctx, LOG_ERR,
+            "Failed to push argument (script=%s): execution not initialized",
+            script->name);
+    } else if (state->execution.argc >= MAX_EXECUTION_ARGS) {
+        LOG(ctx, LOG_ERR,
+            "Failed to push argument (script=%s): too many arguments (limit=%d)",
+            script->name, MAX_EXECUTION_ARGS);
+    } else {
         // Handle NULL arguments as empty strings.
         if (arg == NULL) {
             arg = WS_Copy(ctx->ws, "", -1);
@@ -279,22 +286,22 @@ vmod_script_push(
             }
         }
         state->execution.argv[state->execution.argc++] = arg;
-    } else {
-        LOG(ctx, LOG_ERR,
-            "Failed to push argument (script=%s, limit=%d)",
-            script->name, MAX_EXECUTION_ARGS);
     }
 }
 
 VCL_VOID
 vmod_script_execute(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_BOOL gc_collect, VCL_BOOL flush_jemalloc_tcache)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     // Do not continue if the initial call to .init() was not executed.
-    if (state->execution.argc >= 0) {
+    if (state->execution.argc < 0) {
+        LOG(ctx, LOG_ERR,
+            "Failed to execute script (script=%s): execution not initialized",
+            script->name);
+    } else {
         const char *code, *name;
         // Copy code -and optionally function name- (both will be allocated
         // in the workspace) to be executed.
@@ -343,9 +350,9 @@ vmod_script_execute(
 
 #define VMOD_SCRIPT_RESULT_IS_FOO(lower, upper) \
 VCL_BOOL \
-vmod_script_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv) \
+vmod_script_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script) \
 { \
-    task_state_t *state = get_task_state(ctx, task_priv, 0); \
+    task_state_t *state = get_task_state(ctx, script, 0); \
     \
     return \
         (state->execution.argc >= 0) && \
@@ -363,9 +370,9 @@ VMOD_SCRIPT_RESULT_IS_FOO(string, STRING)
 #undef VMOD_SCRIPT_RESULT_IS_FOO
 
 VCL_BOOL
-vmod_script_result_is_table(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+vmod_script_result_is_table(VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     return
         (state->execution.argc >= 0) &&
@@ -373,9 +380,9 @@ vmod_script_result_is_table(VRT_CTX, struct vmod_cfg_script *script, struct vmod
 }
 
 VCL_BOOL
-vmod_script_result_is_array(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+vmod_script_result_is_array(VRT_CTX, struct vmod_cfg_script *script)
 {
-    return vmod_script_result_is_table(ctx, script, task_priv);
+    return vmod_script_result_is_table(ctx, script);
 }
 
 static const char *
@@ -417,9 +424,9 @@ get_result(VRT_CTX, result_value_t *result_value)
 
 VCL_STRING
 vmod_script_get_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues == -1)) {
@@ -431,9 +438,9 @@ vmod_script_get_result(
 
 VCL_BOOL
 vmod_script_get_boolean_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues == -1) &&
@@ -446,9 +453,9 @@ vmod_script_get_boolean_result(
 
 VCL_REAL
 vmod_script_get_decimal_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues == -1) &&
@@ -461,16 +468,16 @@ vmod_script_get_decimal_result(
 
 VCL_INT
 vmod_script_get_integer_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    return (VCL_INT) vmod_script_get_decimal_result(ctx, script, task_priv);
+    return (VCL_INT) vmod_script_get_decimal_result(ctx, script);
 }
 
 VCL_STRING
 vmod_script_get_string_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues == -1) &&
@@ -483,9 +490,9 @@ vmod_script_get_string_result(
 
 VCL_INT
 vmod_script_get_table_result_length(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues >= 0)) {
@@ -497,16 +504,16 @@ vmod_script_get_table_result_length(
 
 VCL_INT
 vmod_script_get_array_result_length(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    return vmod_script_get_table_result_length(ctx, script, task_priv);
+    return vmod_script_get_table_result_length(ctx, script);
 }
 
 #define VMOD_SCRIPT_TABLE_RESULT_IS_FOO(lower, upper) \
 VCL_BOOL \
-vmod_script_table_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv, VCL_INT index) \
+vmod_script_table_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, VCL_INT index) \
 { \
-    task_state_t *state = get_task_state(ctx, task_priv, 0); \
+    task_state_t *state = get_task_state(ctx, script, 0); \
     \
     return \
         (state->execution.argc >= 0) && \
@@ -515,9 +522,9 @@ vmod_script_table_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, s
         (state->execution.result.values[index].type == RESULT_VALUE_TYPE_ ## upper); \
 } \
 VCL_BOOL \
-vmod_script_array_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv, VCL_INT index) \
+vmod_script_array_result_is_ ## lower(VRT_CTX, struct vmod_cfg_script *script, VCL_INT index) \
 { \
-    return vmod_script_table_result_is_ ## lower(ctx, script, task_priv, index); \
+    return vmod_script_table_result_is_ ## lower(ctx, script, index); \
 } \
 
 VMOD_SCRIPT_TABLE_RESULT_IS_FOO(error, ERROR)
@@ -533,10 +540,10 @@ VMOD_SCRIPT_TABLE_RESULT_IS_FOO(array, TABLE)
 
 VCL_STRING
 vmod_script_get_table_result_value(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_INT index)
 {
-    task_state_t *state = get_task_state(ctx, task_priv, 0);
+    task_state_t *state = get_task_state(ctx, script, 0);
 
     if ((state->execution.argc >= 0) &&
         (state->execution.result.nvalues >= 0) &&
@@ -549,17 +556,17 @@ vmod_script_get_table_result_value(
 
 VCL_STRING
 vmod_script_get_array_result_value(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv,
+    VRT_CTX, struct vmod_cfg_script *script,
     VCL_INT index)
 {
-    return vmod_script_get_table_result_value(ctx, script, task_priv, index);
+    return vmod_script_get_table_result_value(ctx, script, index);
 }
 
 VCL_VOID
 vmod_script_free_result(
-    VRT_CTX, struct vmod_cfg_script *script, struct vmod_priv *task_priv)
+    VRT_CTX, struct vmod_cfg_script *script)
 {
-    get_task_state(ctx, task_priv, 1);
+    get_task_state(ctx, script, 1);
 }
 
 static uint64_t

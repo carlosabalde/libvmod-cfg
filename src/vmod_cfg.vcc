@@ -281,6 +281,12 @@ Arguments
 Description
     Parses the file (if provided) and creates a new instance.
 
+    Execution state (i.e., initialized script, pushed arguments, result of the
+    last execution, and task-scoped variables) is kept separately per script
+    instance and per VCL task (e.g., a client request or a backend fetch).
+    Therefore, multiple instances can be freely used during the same task,
+    even interleaving initializations, executions and processing of results.
+
     See ``cfg.file()`` for details about undocumented arguments.
 
 $Method BOOL .reload(BOOL force_backup=1)
@@ -292,14 +298,14 @@ Arguments
 Description
     Reloads contents of the file. A ``False`` value is returned on failure.
 
-$Method VOID .inspect(PRIV_TASK)
+$Method VOID .inspect()
 
 Description
     This function may be called during ``vcl_synth`` or ``vcl_backend_error``
     and it will behave as appending current contents of the loaded script
     (inline script or file) to ``resp.body``.
 
-$Method VOID .init(PRIV_TASK, STRING code="")
+$Method VOID .init(STRING code="")
 
 Arguments
     code: implementation of the script to be executed. If not provided, the
@@ -308,14 +314,14 @@ Description
     Gets ready for a execution of the script. Arguments should be enqueued
     separately calling one or more times to the ``.push()`` method.
 
-$Method VOID .push(PRIV_TASK, STRING arg)
+$Method VOID .push(STRING arg)
 
 Arguments
     arg: argument for a previously initialized script.
 Description
     Provides an argument to a previously initialized script.
 
-$Method VOID .execute(PRIV_TASK, BOOL gc_collect=0, BOOL flush_jemalloc_tcache=1)
+$Method VOID .execute(BOOL gc_collect=0, BOOL flush_jemalloc_tcache=1)
 
 Arguments
     gc_collect: performs a full garbage-collection cycle once execution is
@@ -325,53 +331,53 @@ Arguments
 Description
     Executes a previously initialized script.
 
-$Method BOOL .result_is_error(PRIV_TASK)
+$Method BOOL .result_is_error()
 
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     an error value.
 
-$Method BOOL .result_is_nil(PRIV_TASK)
+$Method BOOL .result_is_nil()
 
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     a nil value.
 
-$Method BOOL .result_is_null(PRIV_TASK)
+$Method BOOL .result_is_null()
 
 Description
     Alias of ``.result_is_nil()``.
 
-$Method BOOL .result_is_boolean(PRIV_TASK)
+$Method BOOL .result_is_boolean()
 
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     a boolean value.
 
-$Method BOOL .result_is_number(PRIV_TASK)
+$Method BOOL .result_is_number()
 
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     a number value.
 
-$Method BOOL .result_is_string(PRIV_TASK)
+$Method BOOL .result_is_string()
 
 Return value
     TRUE if a previously executed script ``.execute()`` returned a
     string value.
 
-$Method BOOL .result_is_table(PRIV_TASK)
+$Method BOOL .result_is_table()
 
 Return value
     TRUE if a previously executed script using ``.execute()`` returned
     an table value.
 
-$Method BOOL .result_is_array(PRIV_TASK)
+$Method BOOL .result_is_array()
 
 Description
     Alias of ``.result_is_table()``.
 
-$Method STRING .get_result(PRIV_TASK)
+$Method STRING .get_result()
 
 Return value
     A string representation of the result value of a previously executed
@@ -379,42 +385,42 @@ Return value
 Description
     Do not use this function to access to table results.
 
-$Method BOOL .get_boolean_result(PRIV_TASK)
+$Method BOOL .get_boolean_result()
 
 Return value
     If a previously executed script using ``.execute()`` returned a boolean
     value, this function returns a boolean representation of that value.
 
-$Method REAL .get_decimal_result(PRIV_TASK)
+$Method REAL .get_decimal_result()
 
 Return value
     If a previously executed script using ``.execute()`` returned a decimal
     value, this function returns a decimal representation of that value.
 
-$Method INT .get_integer_result(PRIV_TASK)
+$Method INT .get_integer_result()
 
 Return value
     If a previously executed script using ``.execute()`` returned an integer
     value, this function returns a integer representation of that value.
 
-$Method STRING .get_string_result(PRIV_TASK)
+$Method STRING .get_string_result()
 
 Return value
     If a previously executed script using ``.execute()`` returned a string
     value, this function returns a string representation of that value.
 
-$Method INT .get_table_result_length(PRIV_TASK)
+$Method INT .get_table_result_length()
 
 Return value
     If a previously executed script using ``.execute()`` returned a table
     value, this function returns the number of elements in that table.
 
-$Method INT .get_array_result_length(PRIV_TASK)
+$Method INT .get_array_result_length()
 
 Description
     Alias of ``.get_table_result_length()``.
 
-$Method BOOL .table_result_is_error(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_error(INT index)
 
 Arguments
     index: index in the table result.
@@ -423,12 +429,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     an error value (nested tables are not supported).
 
-$Method BOOL .array_result_is_error(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_error(INT index)
 
 Description
     Alias of ``.table_result_is_error()``.
 
-$Method BOOL .table_result_is_nil(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_nil(INT index)
 
 Arguments
     index: index in the table result.
@@ -437,12 +443,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a nil value (nested tables are not supported).
 
-$Method BOOL .array_result_is_null(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_null(INT index)
 
 Description
     Alias of ``.table_result_is_nil()``.
 
-$Method BOOL .table_result_is_boolean(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_boolean(INT index)
 
 Arguments
     index: index in the table result.
@@ -451,12 +457,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a boolean value (nested tables are not supported).
 
-$Method BOOL .array_result_is_boolean(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_boolean(INT index)
 
 Description
     Alias of ``.table_result_is_boolean()``.
 
-$Method BOOL .table_result_is_number(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_number(INT index)
 
 Arguments
     index: index in the table result.
@@ -465,12 +471,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a number value (nested tables are not supported).
 
-$Method BOOL .array_result_is_number(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_number(INT index)
 
 Description
     Alias of ``.table_result_is_number()``.
 
-$Method BOOL .table_result_is_string(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_string(INT index)
 
 Arguments
     index: index in the table result.
@@ -479,12 +485,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a string value (nested tables are not supported).
 
-$Method BOOL .array_result_is_string(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_string(INT index)
 
 Description
     Alias of ``.table_result_is_string()``.
 
-$Method BOOL .table_result_is_table(PRIV_TASK, INT index)
+$Method BOOL .table_result_is_table(INT index)
 
 Arguments
     index: index in the table result.
@@ -493,12 +499,12 @@ Return value
     value, this function returns TRUE if the nth element in that table is
     a table value (nested tables are not supported).
 
-$Method BOOL .array_result_is_array(PRIV_TASK, INT index)
+$Method BOOL .array_result_is_array(INT index)
 
 Description
     Alias of ``.table_result_is_table()``.
 
-$Method STRING .get_table_result_value(PRIV_TASK, INT index)
+$Method STRING .get_table_result_value(INT index)
 
 Arguments
     index: index in the table result.
@@ -507,12 +513,12 @@ Return value
     value, this function returns a string representation of the nth element
     in that table (nested table are not supported).
 
-$Method STRING .get_array_result_value(PRIV_TASK, INT index)
+$Method STRING .get_array_result_value(INT index)
 
 Description
     Alias of ``.get_table_result_value()``.
 
-$Method VOID .free_result(PRIV_TASK)
+$Method VOID .free_result()
 
 Description
     Frees memory internally used by a previously executed script using
