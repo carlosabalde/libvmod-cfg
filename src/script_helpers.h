@@ -207,7 +207,7 @@ void reset_task_state(
     task_state_t *state, unsigned reset_variables, unsigned reset_execution);
 void free_task_state(task_state_t *state);
 task_state_t *get_task_state(
-    VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution);
+    VRT_CTX, struct vmod_cfg_script *script, unsigned reset_execution);
 
 engine_t *new_engine(enum ENGINE_TYPE type, void *ctx);
 void free_engine(engine_t *engine);

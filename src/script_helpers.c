@@ -169,9 +169,18 @@ free_task_state(task_state_t *state)
 }
 
 task_state_t *
-get_task_state(VRT_CTX, struct vmod_priv *task_priv, unsigned reset_execution)
+get_task_state(VRT_CTX, struct vmod_cfg_script *script, unsigned reset_execution)
 {
     task_state_t *result = NULL;
+
+    // One state per script instance and per task. Beware in Varnish 6.0
+    // VRT_priv_task() may fail returning a NULL value when the task workspace
+    // is exhausted, so callers must be ready to receive a NULL state (the
+    // task has already been failed here in that case).
+    struct vmod_priv *task_priv = VRT_priv_task(ctx, script);
+    if (task_priv == NULL) {
+        FAIL_WS(ctx, NULL);
+    }
 
     if (task_priv->priv == NULL) {
         task_priv->priv = new_task_state();
