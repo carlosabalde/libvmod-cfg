@@ -159,7 +159,14 @@ struct vmod_cfg_script {
         struct {
             pthread_rwlock_t rwlock;
             unsigned n;
-            regexps_t list;
+            regexps_t list;  // Compiled regexps cache. Beware entries are
+                             // immortal: never evicted (not even on script
+                             // reload) until the script instance is destroyed,
+                             // after all its engines. The per-engine caches
+                             // (see 'get_regexp()' in the engines) borrow raw
+                             // pointers against this invariant; adding any
+                             // form of eviction here requires invalidating
+                             // them first.
         } regexps;
 
         struct {
@@ -227,13 +234,18 @@ const char *varnish_get_header_command(
 void varnish_set_header_command(
     VRT_CTX, const char *name, const char *value, const char *where,
     const char **error);
+const char *regexp_error(VRT_CTX, const char *regexp);
 unsigned varnish_regmatch_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
     const char *regexp, unsigned cache, const char **error);
+unsigned varnish_regmatch_re_command(
+    VRT_CTX, const char *string, vre_t *re);
 const char *varnish_regsub_command(
     VRT_CTX, struct vmod_cfg_script *script, const char *string,
     const char *regexp, const char *sub, unsigned cache, unsigned all,
     const char **error);
+const char *varnish_regsub_re_command(
+    VRT_CTX, const char *string, vre_t *re, const char *sub, unsigned all);
 
 const char *varnish_shared_get_command(
     VRT_CTX, struct vmod_cfg_script *script, task_state_t *state,
