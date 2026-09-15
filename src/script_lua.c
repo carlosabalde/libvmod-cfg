@@ -448,7 +448,7 @@ varnish_log_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.log() requires one argument.");
         lua_error(L);
     }
-    const char *message = lua_tostring(L, -1);
+    const char *message = lua_tostring(L, 1);
 
     // Check input arguments.
     if (message != NULL) {
@@ -476,10 +476,10 @@ varnish_get_header_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.get_header() requires one argument.");
         lua_error(L);
     }
-    const char *name = lua_tostring(L, -1 * argc);
+    const char *name = lua_tostring(L, 1);
     const char *where = NULL;
     if (argc >= 2) {
-        where = lua_tostring(L, -1 * argc + 1);
+        where = lua_tostring(L, 2);
     }
     where = where ? where : "req";
 
@@ -512,11 +512,11 @@ varnish_set_header_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.set_header() requires two arguments.");
         lua_error(L);
     }
-    const char *name = lua_tostring(L, -1 * argc);
-    const char *value = lua_tostring(L, -1 * argc + 1);
+    const char *name = lua_tostring(L, 1);
+    const char *value = lua_tostring(L, 2);
     const char *where = NULL;
     if (argc >= 3) {
-        where = lua_tostring(L, -1 * argc + 2);
+        where = lua_tostring(L, 3);
     }
     where = where ? where : "req";
 
@@ -552,13 +552,26 @@ varnish_regmatch_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.regmatch() requires two arguments.");
         lua_error(L);
     }
-    const char *string = lua_tostring(L, -1 * argc);
-    const char *regexp = lua_tostring(L, -1 * argc + 1);
+    const char *string = lua_tostring(L, 1);
+    size_t regexp_len;
+    const char *regexp = lua_tolstring(L, 2, &regexp_len);
     unsigned cache;
     if (argc >= 3) {
-        cache = lua_toboolean(L, -1 * argc + 2);
+        cache = lua_toboolean(L, 3);
     } else {
         cache = 1;
+    }
+
+    // Reject patterns with embedded NUL bytes. Patterns are compiled as C
+    // strings and the shared regexp cache keys on the same prefix, so such a
+    // pattern would quietly behave as its pre-NUL prefix ('a\0x' and 'a\0y'
+    // would both compile to /a/), while the per-engine cache would key on the
+    // whole Lua string. A NUL byte in a pattern is always a script bug: fail
+    // loudly, like a pattern that fails to compile. Beware this runs before
+    // any C resource is acquired, so raising is longjmp-safe.
+    if (regexp != NULL && strlen(regexp) != regexp_len) {
+        lua_pushstring(L, "varnish.regmatch() pattern contains a NUL byte.");
+        lua_error(L);
     }
 
     // Check input arguments.
@@ -603,14 +616,27 @@ varnish_regsub_lua_command(lua_State *L, unsigned all)
         lua_pushstring(L, "varnish.regsub() & varnish.regsuball() require three arguments.");
         lua_error(L);
     }
-    const char *string = lua_tostring(L, -1 * argc);
-    const char *regexp = lua_tostring(L, -1 * argc + 1);
-    const char *sub = lua_tostring(L, -1 * argc + 2);
+    const char *string = lua_tostring(L, 1);
+    size_t regexp_len;
+    const char *regexp = lua_tolstring(L, 2, &regexp_len);
+    const char *sub = lua_tostring(L, 3);
     unsigned cache;
     if (argc >= 4) {
-        cache = lua_toboolean(L, -1 * argc + 3);
+        cache = lua_toboolean(L, 4);
     } else {
         cache = 1;
+    }
+
+    // Reject patterns with embedded NUL bytes. Patterns are compiled as C
+    // strings and the shared regexp cache keys on the same prefix, so such a
+    // pattern would quietly behave as its pre-NUL prefix ('a\0x' and 'a\0y'
+    // would both compile to /a/), while the per-engine cache would key on the
+    // whole Lua string. A NUL byte in a pattern is always a script bug: fail
+    // loudly, like a pattern that fails to compile. Beware this runs before
+    // any C resource is acquired, so raising is longjmp-safe.
+    if (regexp != NULL && strlen(regexp) != regexp_len) {
+        lua_pushstring(L, "varnish.regsub() & varnish.regsuball() pattern contains a NUL byte.");
+        lua_error(L);
     }
 
     // Check input arguments.
@@ -638,8 +664,18 @@ varnish_regsub_lua_command(lua_State *L, unsigned all)
         }
     }
 
-    // Done!
-    lua_pushstring(L, result);
+    // Done! On no match 'VRT_regsub()' returns the subject itself: push a copy
+    // of argument 1 instead of re-interning it with 'lua_pushstring()' (hash,
+    // string table probe and a full memcmp against the very string already
+    // held). Beware argument 1 is guaranteed to be a Lua string at this point:
+    // it either was one, or 'lua_tostring()' converted the number in place.
+    // The match path is unchanged: the result is a new workspace string and
+    // has to be interned anyway.
+    if (result != NULL && result == string) {
+        lua_pushvalue(L, 1);
+    } else {
+        lua_pushstring(L, result);
+    }
     return 1;
 }
 
@@ -688,10 +724,10 @@ varnish_shared_get_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.shared.get() requires one argument.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -1 * argc);
+    const char *key = lua_tostring(L, 1);
     const char *scope = NULL;
     if (argc >= 2) {
-        scope = lua_tostring(L, -1 * argc + 1);
+        scope = lua_tostring(L, 2);
     }
     scope = scope ? scope : "all";
 
@@ -727,11 +763,11 @@ varnish_shared_set_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.shared.set() requires two arguments.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -1 * argc);
-    const char *value = lua_tostring(L, -1 * argc + 1);
+    const char *key = lua_tostring(L, 1);
+    const char *value = lua_tostring(L, 2);
     const char *scope = NULL;
     if (argc >= 3) {
-        scope = lua_tostring(L, -1 * argc + 2);
+        scope = lua_tostring(L, 3);
     }
     scope = scope ? scope : "task";
 
@@ -767,10 +803,10 @@ varnish_shared_unset_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.shared.unset() requires one argument.");
         lua_error(L);
     }
-    const char *key = lua_tostring(L, -1 * argc);
+    const char *key = lua_tostring(L, 1);
     const char *scope = NULL;
     if (argc >= 2) {
-        scope = lua_tostring(L, -1 * argc + 1);
+        scope = lua_tostring(L, 2);
     }
     scope = scope ? scope : "all";
 
@@ -805,7 +841,7 @@ varnish_shared_eval_lua_command(lua_State *L)
         lua_pushstring(L, "varnish.shared.eval() requires one argument.");
         lua_error(L);
     }
-    if (!lua_isfunction(L, -1)) {
+    if (!lua_isfunction(L, 1)) {
         lua_pushstring(L, "varnish.shared.eval() requires a function argument.");
         lua_error(L);
     }
