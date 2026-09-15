@@ -34,11 +34,17 @@ static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
 //     readable (nor overwritable) from scripts.
 //   - The 'is_locked' flag used by the varnish.shared.* commands, for the
 //     same reasons.
+//   - The per-engine regexp cache table, mapping pattern strings to 'vre_t'
+//     pointers (light userdata) borrowed from the script-wide regexp cache.
+//     It lets the varnish.reg*() commands resolve compiled regexps without
+//     touching the shared cache (and its rwlock) on every call; see
+//     'get_regexp()'.
 #define REGISTRY_KEY_ERROR_HANDLER "varnish._error_handler"
 #define REGISTRY_KEY_CTX "varnish._ctx"
 #define REGISTRY_KEY_SCRIPT "varnish._script"
 #define REGISTRY_KEY_STATE "varnish._state"
 #define REGISTRY_KEY_SHARED_IS_LOCKED "varnish.shared._is_locked"
+#define REGISTRY_KEY_REGEXP_CACHE "varnish.regexps"
 
 /******************************************************************************
  * BASICS.
@@ -379,6 +385,60 @@ done:
 #define GET_REGISTRY_STATE(L, where) \
     GET_REGISTRY_FOO_FIELD(L, REGISTRY_KEY_STATE, where, TASK_STATE_MAGIC)
 
+/*
+ * Resolve the compiled regexp for the pattern at stack index 'regexp_idx'
+ * ('regexp' being its C string), going through the per-engine cache table
+ * stored in the Lua registry (see REGISTRY_KEY_REGEXP_CACHE). A hit is a cheap
+ * table lookup on memory owned by this engine: no shared state (i.e. the
+ * script-wide regexp cache and its rwlock) is touched. The table is keyed with
+ * the pattern argument itself: Lua strings are interned, so 'lua_pushvalue()'
+ * copies a tagged value already hashed, instead of 'lua_pushstring()'
+ * rediscovering the string object (strlen, hash and memcmp over the pattern).
+ *
+ * On a miss the pattern is resolved through the shared cache ('init_regexp()',
+ * compiling and registering it if needed) and the resulting pointer is
+ * remembered for the lifetime of this engine. Borrowing the pointer is safe
+ * because entries in the shared cache are never destroyed until the whole
+ * script instance is destroyed, after all its engines (see the note next to
+ * the cache declaration).
+ *
+ * Uncached lookups (i.e. 'cache' disabled) bypass both caches, preserving the
+ * compile-use-free behavior: the caller owns the returned regexp.
+ */
+static vre_t *
+get_regexp(
+    lua_State *L, int regexp_idx, VRT_CTX, struct vmod_cfg_script *script,
+    const char *regexp, unsigned cache)
+{
+    vre_t *result;
+
+    if (!cache) {
+        return init_regexp(ctx, script, regexp, 0);
+    }
+
+    lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_KEY_REGEXP_CACHE);
+    AN(lua_istable(L, -1));
+    lua_pushvalue(L, regexp_idx);
+    lua_rawget(L, -2);
+    if (lua_islightuserdata(L, -1)) {
+        result = lua_touserdata(L, -1);
+        AN(result);
+        lua_pop(L, 2);
+        return result;
+    }
+    lua_pop(L, 1);
+
+    result = init_regexp(ctx, script, regexp, 1);
+    if (result != NULL) {
+        lua_pushvalue(L, regexp_idx);
+        lua_pushlightuserdata(L, result);
+        lua_rawset(L, -3);
+    }
+    lua_pop(L, 1);
+
+    return result;
+}
+
 static int
 varnish_log_lua_command(lua_State *L)
 {
@@ -509,12 +569,20 @@ varnish_regmatch_lua_command(lua_State *L)
         struct vmod_cfg_script *script;
         GET_REGISTRY_SCRIPT(L, script);
 
-        // Execute command.
-        const char *error;
-        result = varnish_regmatch_command(ctx, script, string, regexp, cache, &error);
-        if (error != NULL) {
-            lua_pushstring(L, error);
-            lua_error(L);
+        // Resolve the compiled regexp (the pattern is the second argument)
+        // & execute command.
+        vre_t *re = get_regexp(L, 2, ctx, script, regexp, cache);
+        if (re != NULL) {
+            result = varnish_regmatch_re_command(ctx, string, re);
+            if (!cache) {
+                VRE_free(&re);
+            }
+        } else {
+            const char *error = regexp_error(ctx, regexp);
+            if (error != NULL) {
+                lua_pushstring(L, error);
+                lua_error(L);
+            }
         }
     }
 
@@ -553,13 +621,20 @@ varnish_regsub_lua_command(lua_State *L, unsigned all)
         struct vmod_cfg_script *script;
         GET_REGISTRY_SCRIPT(L, script);
 
-        // Execute command.
-        const char *error;
-        result = varnish_regsub_command(
-            ctx, script, string, regexp, sub, cache, all, &error);
-        if (error != NULL) {
-            lua_pushstring(L, error);
-            lua_error(L);
+        // Resolve the compiled regexp (the pattern is the second argument)
+        // & execute command.
+        vre_t *re = get_regexp(L, 2, ctx, script, regexp, cache);
+        if (re != NULL) {
+            result = varnish_regsub_re_command(ctx, string, re, sub, all);
+            if (!cache) {
+                VRE_free(&re);
+            }
+        } else {
+            const char *error = regexp_error(ctx, regexp);
+            if (error != NULL) {
+                lua_pushstring(L, error);
+                lua_error(L);
+            }
         }
     }
 
@@ -945,6 +1020,11 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_pop(result, 1);
     lua_pushboolean(result, 0);
     lua_setfield(result, LUA_REGISTRYINDEX, REGISTRY_KEY_SHARED_IS_LOCKED);
+
+    // Create the per-engine regexp cache table in the registry (see
+    // REGISTRY_KEY_REGEXP_CACHE & 'get_regexp()').
+    lua_newtable(result);
+    lua_setfield(result, LUA_REGISTRYINDEX, REGISTRY_KEY_REGEXP_CACHE);
 
     // Protect accesses to global variables, set global 'varnish' table as
     // read only, disable the 'debug' library, etc.
