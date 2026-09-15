@@ -199,7 +199,9 @@ struct vmod_cfg_script {
 };
 
 engine_t *lock_engine(VRT_CTX, struct vmod_cfg_script *script);
-void unlock_engine(VRT_CTX, struct vmod_cfg_script *script, engine_t *engine);
+void release_engine(
+    VRT_CTX, struct vmod_cfg_script *script, engine_t *engine,
+    unsigned unknown, unsigned success, unsigned gc);
 const char *new_function_name(const char *code);
 
 task_state_t *new_task_state();
