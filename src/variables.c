@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "cache/cache.h"
+#include "vsb.h"
 #include "vcl.h"
 
 #include "helpers.h"
@@ -111,13 +112,17 @@ static const char *json_hex_chars = "0123456789abcdef";
 
 #define DUMP_CHAR(value) \
     do { \
-        if (free_ws <= 0) { \
-            WS_Release(ctx->ws, 0); \
-            FAIL_WS(ctx, NULL); \
+        if (vsb != NULL) { \
+            AZ(VSB_putc(vsb, value)); \
+        } else { \
+            if (free_ws <= 0) { \
+                WS_Release(ctx->ws, 0); \
+                FAIL_WS(ctx, NULL); \
+            } \
+            *end = value; \
+            end++; \
+            free_ws--; \
         } \
-        *end = value; \
-        end++; \
-        free_ws--; \
     } while (0)
 
 #define DUMP_STRING(value) \
@@ -174,16 +179,31 @@ static const char *json_hex_chars = "0123456789abcdef";
 const char *
 dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *prefix)
 {
-    AN(ctx->ws);
-    char *result, *end;
+    // In streaming mode the dump is built directly in a task-owned heap VSB
+    // handed over to 'append_synth_response_body()', so it is not limited by
+    // the available workspace.
+    struct vsb *vsb = NULL;
+    if (stream && (
+        (ctx->method == VCL_MET_SYNTH) ||
+        (ctx->method == VCL_MET_BACKEND_ERROR))) {
+        vsb = new_task_synth_vsb(ctx);
+        AN(vsb);
+    }
+
+    char *result = NULL, *end = NULL;
+    unsigned free_ws = 0;
+    if (vsb == NULL) {
+        AN(ctx->ws);
+        free_ws = WS_ReserveAll(ctx->ws);
+        if (free_ws <= 0) {
+            WS_Release(ctx->ws, 0);
+            FAIL_WS(ctx, NULL);
+        }
+        result = end = WS_Reservation(ctx->ws);
+    }
+
     variable_t *variable;
     unsigned i = 0;
-    unsigned free_ws = WS_ReserveAll(ctx->ws);
-    if (free_ws <= 0) {
-        WS_Release(ctx->ws, 0);
-        FAIL_WS(ctx, NULL);
-    }
-    result = end = WS_Reservation(ctx->ws);
 
     DUMP_CHAR('{');
     VRBT_FOREACH(variable, variables, variables) {
@@ -202,22 +222,14 @@ dump_variables(VRT_CTX, variables_t *variables, unsigned stream, const char *pre
         i++;
     }
     DUMP_CHAR('}');
-    *end = '\0';
 
-    WS_Release(ctx->ws, end - result + 1);
-
-    // In streaming mode the dump used to be written directly into the
-    // 'ctx->specific' VSB, skipping the workspace. That VSB is no longer read
-    // by the synth storage engine, so the dump is now always built on the
-    // workspace (which also satisfies the until-delivery lifetime required
-    // by 'append_response_body()') and 'stream' only decides whether it is
-    // appended to the response body or returned to the caller.
-    if (stream && (
-        (ctx->method == VCL_MET_SYNTH) ||
-        (ctx->method == VCL_MET_BACKEND_ERROR))) {
-        append_response_body(ctx, result);
+    if (vsb != NULL) {
+        append_synth_response_body(ctx, vsb);
         return "";
     }
+
+    *end = '\0';
+    WS_Release(ctx->ws, end - result + 1);
 
     return result;
 }
