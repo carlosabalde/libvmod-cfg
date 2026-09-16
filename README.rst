@@ -449,6 +449,32 @@ Dependencies:
 
 Beware using LuaJIT GC64 mode is recommended is order to avoid ``not enough memory`` errors due to the 2 GiB (os much less) limitation. See `this excellent post by OpenResty <https://blog.openresty.com/en/luajit-gc64-mode/>`_ for details.
 
+LOGGING
+=======
+
+Messages logged by the VMOD are always sent to the Varnish Shared memory Log (VSL), using the ``VCL_Error`` tag for errors, the ``VCL_Log`` tag for other relevant messages, and the ``Debug`` tag for debug messages. Whenever possible messages are attached to the transaction being processed; otherwise they are logged without a VXID (e.g., messages generated during initializations or by background threads).
+
+Additionally, messages can be duplicated to extra sinks selected using the ``VMOD_CFG_LOG_SINKS`` environment variable, which is checked for occurrences of the following tokens:
+
+* ``syslog``: messages are also submitted to syslog. This is the default behavior when the environment variable is not set.
+
+* ``stderr``: messages are also written to the standard error output. This is specially useful in containerized environments, where syslog is usually not available and where the ``varnishd`` standard error output is typically forwarded to the container logs.
+
+Multiple sinks can be combined (e.g., ``VMOD_CFG_LOG_SINKS=syslog,stderr``), and both can be disabled using any value not containing those tokens (e.g., ``VMOD_CFG_LOG_SINKS=none``). In any case, VSL logging is always enabled.
+
+RUNNING TESTS
+=============
+
+The test suite is executed using ``make check``. Each ``.vtc`` test is wrapped by ``src/tests/runner.sh``, which creates a temporary scratch folder (injected into the test as the ``${tmp}`` macro, used by most tests as the place where configuration files, scripts, backups, etc. are stored) and sets up the environment variables required by some tests (i.e., ``LIBVMOD_CFG_VALUE``).
+
+The whole test suite or just a single test can be executed::
+
+    # Whole test suite.
+    make check
+
+    # Single test.
+    make check TESTS=tests/file.remote.vtc
+
 COPYRIGHT
 =========
 
