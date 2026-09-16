@@ -19,6 +19,22 @@
 
 static duk_context *new_context(VRT_CTX, struct vmod_cfg_script *script);
 
+// Keys used to store per-engine values in the Duktape heap stash, which is not
+// reachable from scripts:
+//   - The 'ctx', 'script' & 'state' pointers, set by 'execute()' around each
+//     execution and used by the varnish.* commands. Storing them in the stash
+//     instead of as hidden properties of the global 'varnish' object saves a
+//     global lookup per command call and, more importantly, decouples the
+//     commands from the 'varnish' global binding: a script clobbering it now
+//     gets a regular execution error instead of an assertion failure in the
+//     next command.
+//   - The 'is_locked' flag used by the varnish.shared.* commands, for the same
+//     reasons.
+#define STASH_KEY_CTX "varnish._ctx"
+#define STASH_KEY_SCRIPT "varnish._script"
+#define STASH_KEY_STATE "varnish._state"
+#define STASH_KEY_SHARED_IS_LOCKED "varnish.shared._is_locked"
+
 /******************************************************************************
  * BASICS.
  *****************************************************************************/
@@ -211,10 +227,6 @@ unsigned execute_javascript(
     engine_t *engine = lock_engine(ctx, script);
     AN(engine);
 
-    // Push 'varnish' object into the stack.
-    duk_get_global_string(engine->ctx.D, "varnish");
-    AN(duk_is_object(engine->ctx.D, -1));
-
     // Try to lookup the function to be executed. Result will be pushed
     // into the stack.
     duk_get_global_string(engine->ctx.D, *name);
@@ -236,7 +248,6 @@ unsigned execute_javascript(
 
     // Current state of the stack at this point (top to bottom):
     //   - Function to be executed.
-    //   - 'varnish' object.
 
     if (result != NULL) {
         // Assertions.
@@ -244,14 +255,16 @@ unsigned execute_javascript(
         AN(argv);
         AN(result);
 
-        // Execute 'varnish._ctx = ctx', 'varnish._script = script' and
-        // 'varnish._state = state'.
-        duk_push_pointer(engine->ctx.D, (struct vrt_ctx *) ctx);
-        duk_put_prop_string(engine->ctx.D, -3, DUK_HIDDEN_SYMBOL("_ctx"));
-        duk_push_pointer(engine->ctx.D, (struct vmod_cfg_script *) script);
-        duk_put_prop_string(engine->ctx.D, -3, DUK_HIDDEN_SYMBOL("_script"));
-        duk_push_pointer(engine->ctx.D, (task_state_t *) state);
-        duk_put_prop_string(engine->ctx.D, -3, DUK_HIDDEN_SYMBOL("_state"));
+        // Store the 'ctx', 'script' & 'state' pointers in the heap stash (see
+        // STASH_KEY_CTX, etc.). They are used by the varnish.* commands.
+        duk_push_heap_stash(engine->ctx.D);
+        duk_push_pointer(engine->ctx.D, TRUST_ME(ctx));
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_CTX);
+        duk_push_pointer(engine->ctx.D, script);
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_SCRIPT);
+        duk_push_pointer(engine->ctx.D, state);
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_STATE);
+        duk_pop(engine->ctx.D);
 
         // Populate 'ARGV' array accordingly to the input arguments.
         duk_idx_t idx = duk_push_array(engine->ctx.D);
@@ -284,14 +297,18 @@ unsigned execute_javascript(
         // Remove the function result from the stack.
         duk_pop(engine->ctx.D);
 
-        // Execute 'varnish._ctx = nil', 'varnish._script = nil' and
-        // 'varnish._state = nil'.
+        // Clear the pointers stored in the heap stash: the engine is about to
+        // be released and they must not outlive this execution (a varnish.*
+        // command executed outside an execution must fail loudly instead of
+        // silently using stale pointers).
+        duk_push_heap_stash(engine->ctx.D);
         duk_push_null(engine->ctx.D);
-        duk_put_prop_string(engine->ctx.D, -2, DUK_HIDDEN_SYMBOL("_ctx"));
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_CTX);
         duk_push_null(engine->ctx.D);
-        duk_put_prop_string(engine->ctx.D, -2, DUK_HIDDEN_SYMBOL("_script"));
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_SCRIPT);
         duk_push_null(engine->ctx.D);
-        duk_put_prop_string(engine->ctx.D, -2, DUK_HIDDEN_SYMBOL("_state"));
+        duk_put_prop_string(engine->ctx.D, -2, STASH_KEY_STATE);
+        duk_pop(engine->ctx.D);
     } else {
         // Everything looks correct. Full execution is not required: simply
         // remove function to be executed from the stack.
@@ -300,12 +317,6 @@ unsigned execute_javascript(
     }
 
 done:
-    // Current state of the stack at this point (top to bottom):
-    //   - 'varnish' object.
-
-    // Remove 'varnish' object from the stack.
-    duk_pop(engine->ctx.D);
-
     // Call the garbage collector from time to time.
     engine->ncycles++;
     if (gc_collect || engine->ncycles % script->min_gc_cycles == 0) {
@@ -337,13 +348,12 @@ done:
  * VARNISH.* COMMANDS.
  *****************************************************************************/
 
-// Extract field from 'varnish.field'. Both 'varnish' table and user data are
-// pushed into the stack and the removed.
-#define GET_VARNISH_OBJECT_FOO_FIELD(D, field, where, MAGIC) \
+// Extract a pointer stored in the heap stash (see STASH_KEY_CTX, etc.). Both
+// the stash and the pointer are pushed into the stack and then removed.
+#define GET_STASH_FOO_FIELD(D, key, where, MAGIC) \
     do { \
-        duk_get_global_string(D, "varnish"); \
-        AN(duk_is_object(D, -1)); \
-        duk_get_prop_string(D, -1, DUK_HIDDEN_SYMBOL(field)); \
+        duk_push_heap_stash(D); \
+        duk_get_prop_string(D, -1, key); \
         AN(duk_is_pointer(D, -1)); \
         void *data = duk_get_pointer(D, -1); \
         AN(data); \
@@ -351,14 +361,14 @@ done:
         duk_pop_2(D); \
     } while (0)
 
-#define GET_VARNISH_OBJECT_CTX(D, where) \
-    GET_VARNISH_OBJECT_FOO_FIELD(D, "_ctx", where, VRT_CTX_MAGIC)
+#define GET_STASH_CTX(D, where) \
+    GET_STASH_FOO_FIELD(D, STASH_KEY_CTX, where, VRT_CTX_MAGIC)
 
-#define GET_VARNISH_OBJECT_SCRIPT(D, where) \
-    GET_VARNISH_OBJECT_FOO_FIELD(D, "_script", where, VMOD_CFG_SCRIPT_MAGIC)
+#define GET_STASH_SCRIPT(D, where) \
+    GET_STASH_FOO_FIELD(D, STASH_KEY_SCRIPT, where, VMOD_CFG_SCRIPT_MAGIC)
 
-#define GET_VARNISH_OBJECT_STATE(D, where) \
-    GET_VARNISH_OBJECT_FOO_FIELD(D, "_state", where, TASK_STATE_MAGIC)
+#define GET_STASH_STATE(D, where) \
+    GET_STASH_FOO_FIELD(D, STASH_KEY_STATE, where, TASK_STATE_MAGIC)
 
 static duk_ret_t
 varnish_log_javascript_command(duk_context *D)
@@ -375,9 +385,9 @@ varnish_log_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (message != NULL) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
 
         // Execute command.
         varnish_log_command(ctx, message);
@@ -410,9 +420,9 @@ varnish_get_header_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (name != NULL && strlen(name) > 0) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
 
         // Execute command.
         const char *error;
@@ -449,9 +459,9 @@ varnish_set_header_javascript_command(duk_context *D)
     // Check input arguments.
     if (name != NULL && strlen(name) > 0 &&
         value != NULL && strlen(value) > 0) {
-        // Execute 'ctx = varnish._ctx'.
+        // Extract 'ctx' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
 
         // Execute command.
         const char *error;
@@ -490,11 +500,11 @@ varnish_regmatch_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (string != NULL && regexp != NULL) {
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Extract 'ctx' & 'script' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_OBJECT_SCRIPT(D, script);
+        GET_STASH_SCRIPT(D, script);
 
         // Execute command.
         const char *error;
@@ -535,11 +545,11 @@ varnish_regsub_javascript_command(duk_context *D, unsigned all)
 
     // Check input arguments.
     if (string != NULL && regexp != NULL && sub != NULL) {
-        // Execute 'ctx = varnish._ctx' & 'script = varnish._script'.
+        // Extract 'ctx' & 'script' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_OBJECT_SCRIPT(D, script);
+        GET_STASH_SCRIPT(D, script);
 
         // Execute command.
         const char *error;
@@ -571,29 +581,24 @@ varnish_regsuball_javascript_command(duk_context *D)
  * VARNISH.SHARED.* COMMANDS.
  *****************************************************************************/
 
-// Extract value from 'varnish.shared._is_locked'.
-#define GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, where) \
+// Extract the 'is_locked' flag stored in the heap stash (see
+// STASH_KEY_SHARED_IS_LOCKED).
+#define GET_STASH_SHARED_IS_LOCKED(D, where) \
     do { \
-        duk_get_global_string(D, "varnish"); \
-        AN(duk_is_object(D, -1)); \
-        duk_get_prop_string(D, -1, "shared"); \
-        AN(duk_is_object(D, -1)); \
-        duk_get_prop_string(D, -1, DUK_HIDDEN_SYMBOL("_is_locked")); \
+        duk_push_heap_stash(D); \
+        duk_get_prop_string(D, -1, STASH_KEY_SHARED_IS_LOCKED); \
         AN(duk_is_boolean(D, -1)); \
         where = duk_get_boolean(D, -1); \
-        duk_pop_3(D); \
+        duk_pop_2(D); \
     } while (0)
 
-// Update value in 'varnish.shared._is_locked'.
-#define SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, value) \
+// Update the 'is_locked' flag stored in the heap stash.
+#define SET_STASH_SHARED_IS_LOCKED(D, value) \
     do { \
-        duk_get_global_string(D, "varnish"); \
-        AN(duk_is_object(D, -1)); \
-        duk_get_prop_string(D, -1, "shared"); \
-        AN(duk_is_object(D, -1)); \
-        duk_push_boolean (D, value); \
-        duk_put_prop_string(D, -2, DUK_HIDDEN_SYMBOL("_is_locked")); \
-        duk_pop_2(D); \
+        duk_push_heap_stash(D); \
+        duk_push_boolean(D, value); \
+        duk_put_prop_string(D, -2, STASH_KEY_SHARED_IS_LOCKED); \
+        duk_pop(D); \
     } while (0)
 
 static duk_ret_t
@@ -619,18 +624,17 @@ varnish_shared_get_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the heap stash.
         unsigned is_locked;
-        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
+        GET_STASH_SHARED_IS_LOCKED(D, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_OBJECT_SCRIPT(D, script);
+        GET_STASH_SCRIPT(D, script);
         task_state_t *state;
-        GET_VARNISH_OBJECT_STATE(D, state);
+        GET_STASH_STATE(D, state);
 
         // Execute command.
         result = varnish_shared_get_command(ctx, script, state, key, scope, is_locked);
@@ -663,18 +667,17 @@ varnish_shared_set_javascript_command(duk_context *D)
     // Check input arguments.
     if (key != NULL && strlen(key) > 0 &&
         value != NULL) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the heap stash.
         unsigned is_locked;
-        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
+        GET_STASH_SHARED_IS_LOCKED(D, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_OBJECT_SCRIPT(D, script);
+        GET_STASH_SCRIPT(D, script);
         task_state_t *state;
-        GET_VARNISH_OBJECT_STATE(D, state);
+        GET_STASH_STATE(D, state);
 
         // Execute command.
         varnish_shared_set_command(ctx, script, state, key, value, scope, is_locked);
@@ -704,18 +707,17 @@ varnish_shared_unset_javascript_command(duk_context *D)
 
     // Check input arguments.
     if (key != NULL && strlen(key) > 0) {
-        // Execute 'is_locked = varnish.shared._is_locked'.
+        // Extract 'is_locked' from the heap stash.
         unsigned is_locked;
-        GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
+        GET_STASH_SHARED_IS_LOCKED(D, is_locked);
 
-        // Execute 'ctx = varnish._ctx', 'script = varnish._script' &
-        // 'state = varnish._state'.
+        // Extract 'ctx', 'script' & 'state' from the heap stash.
         VRT_CTX;
-        GET_VARNISH_OBJECT_CTX(D, ctx);
+        GET_STASH_CTX(D, ctx);
         struct vmod_cfg_script *script;
-        GET_VARNISH_OBJECT_SCRIPT(D, script);
+        GET_STASH_SCRIPT(D, script);
         task_state_t *state;
-        GET_VARNISH_OBJECT_STATE(D, state);
+        GET_STASH_STATE(D, state);
 
         // Execute command.
         varnish_shared_unset_command(ctx, script, state, key, scope, is_locked);
@@ -743,18 +745,18 @@ varnish_shared_eval_javascript_command(duk_context *D)
             "varnish.shared.eval() requires a function argument.");
     }
 
-    // Execute 'is_locked = varnish.shared._is_locked'.
+    // Extract 'is_locked' from the heap stash.
     unsigned is_locked;
-    GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, is_locked);
+    GET_STASH_SHARED_IS_LOCKED(D, is_locked);
 
-    // Execute 'script = varnish._script'.
+    // Extract 'script' from the heap stash.
     struct vmod_cfg_script *script;
-    GET_VARNISH_OBJECT_SCRIPT(D, script);
+    GET_STASH_SCRIPT(D, script);
 
     // Get lock if needed.
     if (!is_locked) {
         AZ(pthread_rwlock_wrlock(&script->state.variables.rwlock));
-        SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 1);
+        SET_STASH_SHARED_IS_LOCKED(D, 1);
     }
 
     // Execute function and leave result or error message on top
@@ -763,7 +765,7 @@ varnish_shared_eval_javascript_command(duk_context *D)
 
     // Release lock if needed.
     if (!is_locked) {
-        SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD(D, 0);
+        SET_STASH_SHARED_IS_LOCKED(D, 0);
         AZ(pthread_rwlock_unlock(&script->state.variables.rwlock));
     }
 
@@ -774,13 +776,13 @@ varnish_shared_eval_javascript_command(duk_context *D)
     return 1;
 }
 
-#undef GET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
-#undef SET_VARNISH_SHARED_OBJECT_IS_LOCKED_FIELD
+#undef GET_STASH_SHARED_IS_LOCKED
+#undef SET_STASH_SHARED_IS_LOCKED
 
-#undef GET_VARNISH_OBJECT_FOO_FIELD
-#undef GET_VARNISH_OBJECT_CTX
-#undef GET_VARNISH_OBJECT_SCRIPT
-#undef GET_VARNISH_OBJECT_STATE
+#undef GET_STASH_FOO_FIELD
+#undef GET_STASH_CTX
+#undef GET_STASH_SCRIPT
+#undef GET_STASH_STATE
 
 /******************************************************************************
  * HELPERS.
@@ -793,8 +795,14 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     duk_context *result = duk_create_heap_default();
     AN(result);
 
-    // Add support for varnish.engine, varnish.shared, varnish._ctx,
-    // varnish._script, varnish.log(), etc.
+    // Initialize the 'is_locked' flag used by the varnish.shared.* commands
+    // (see STASH_KEY_SHARED_IS_LOCKED).
+    duk_push_heap_stash(result);
+    duk_push_boolean(result, 0);
+    duk_put_prop_string(result, -2, STASH_KEY_SHARED_IS_LOCKED);
+    duk_pop(result);
+
+    // Add support for varnish.engine, varnish.shared, varnish.log(), etc.
     duk_idx_t idx = duk_push_object(result);
     duk_push_object(result);
     duk_put_prop_string(result, idx, "engine");
@@ -819,8 +827,6 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     AN(duk_is_object(result, -1));
     duk_get_prop_string(result, -1, "shared");
     AN(duk_is_object(result, -1));
-    duk_push_boolean(result, 0);
-    duk_put_prop_string(result, -2, DUK_HIDDEN_SYMBOL("_is_locked"));
     duk_push_c_function(result, varnish_shared_get_javascript_command, DUK_VARARGS);
     duk_put_prop_string(result, -2, "get");
     duk_push_c_function(result, varnish_shared_set_javascript_command, DUK_VARARGS);
