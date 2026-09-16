@@ -92,10 +92,12 @@ else
     AC_MSG_RESULT([disabled])
 fi
 
-m4_ifndef([VARNISH_PREREQ], AC_MSG_ERROR([Need varnish.m4 -- see README.rst]))
+m4_ifndef([VCACHE_REQUIRE], AC_MSG_ERROR([Need varnish.m4 / vinyl.m4 -- see README.rst]))
 
-#VARNISH_PREREQ([5.0], [5.1])
-VARNISH_VMODS([cfg])
+VCACHE_REQUIRE(
+    [[varnish], [trunk]],
+    [[vinyl], [trunk]])
+VCACHE_VMODS([cfg])
 
 VMOD_TESTS="$(cd $srcdir/src && echo tests/*.vtc)"
 AC_SUBST(VMOD_TESTS)
@@ -106,7 +108,7 @@ AX_CURLOPT_CHECK([CURLOPT_CONNECTTIMEOUT_MS])
 AC_FUNC_STRERROR_R
 
 save_CFLAGS="${CFLAGS}"
-CFLAGS="${CFLAGS} ${VARNISHAPI_CFLAGS}"
+CFLAGS="${CFLAGS} ${VCACHEAPI_CFLAGS}"
 AC_CHECK_DECLS([VRT_FlushThreadCache], [], [], [[#include <cache/cache.h>]])
 CFLAGS="${save_CFLAGS}"
 
@@ -123,8 +125,8 @@ CC:                $CC
 CFLAGS:            $CFLAGS
 LDFLAGS:           $LDFLAGS
 
-VARNISHAPI_CFLAGS: $VARNISHAPI_CFLAGS
-VARNISHAPI_LIBS:   $VARNISHAPI_LIBS
+VCACHEAPI_CFLAGS:  $VCACHEAPI_CFLAGS
+VCACHEAPI_LIBS:    $VCACHEAPI_LIBS
 
 CURL_CFLAGS:       $CURL_CFLAGS
 CURL_LIBS:         $CURL_LIBS

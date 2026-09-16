@@ -1,4 +1,4 @@
-varnishtest "Test blocked workers for script"
+vtest "Test blocked workers for script"
 
 server s1 {
    rxreq
@@ -22,7 +22,7 @@ return n
 EOF
 }
 
-varnish v1 -vcl+backend {
+vcache v1 -vcl+backend {
     import ${vmod_cfg};
 
     sub vcl_init {
@@ -78,6 +78,6 @@ client c2 {
     expect resp.http.executions-gc == "0"
 } -run
 
-varnish v1 -expect client_req == 2
+vcache v1 -expect client_req == 2
 
-varnish v1 -expect MGT.child_panic == 0
+vcache v1 -expect MGT.child_panic == 0

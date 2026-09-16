@@ -1,4 +1,4 @@
-varnishtest "Test .reload() for files"
+vtest "Test .reload() for files"
 
 server s_origin1 {
     rxreq
@@ -23,7 +23,7 @@ server s_origin2 {
     txresp -body "field: baz"
 } -repeat 1 -start
 
-varnish v_origin2 -vcl {
+vcache v_origin2 -vcl {
     backend default {
         .host = "${s_origin2_addr}";
         .port = "${s_origin2_port}";
@@ -34,7 +34,7 @@ varnish v_origin2 -vcl {
     }
 } -start
 
-varnish v1 -vcl {
+vcache v1 -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -93,6 +93,6 @@ client c1 {
     expect resp.http.dump == {{"field":"baz"}}
 } -run
 
-varnish v1 -expect client_req == 4
+vcache v1 -expect client_req == 4
 
-varnish v1 -expect MGT.child_panic == 0
+vcache v1 -expect MGT.child_panic == 0

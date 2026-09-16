@@ -12,7 +12,7 @@ Currently (1) JSON files; (2) Python's ConfigParser .INI-like files; (3) files c
 
 Wondering why I created this VMOD? How it could make your life easier? I wrote a blog post with some answers: `Moving logic to the caching edge (and back) <https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back>`_.
 
-Looking for official support for this VMOD? Please, contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premier Partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
+Vinyl Cache, Varnish Cache, and Varnish Enterprise are all supported by this VMOD. Looking for official support? Please contact `Allenta Consulting <https://www.allenta.com>`_, a `Varnish Software Premium partner <https://www.varnish-software.com/partner/allenta-consulting>`_.
 
 SYNOPSIS
 ========
@@ -338,7 +338,7 @@ The original goal of this VMOD was offering efficient strategies to parametrize
 VCL behavior based on information provided by external local or remote data
 sources. That evolved from environment variables and configuration JSON / INI
 files, to simple Lua / JavaScript programs executed in local interpreters
-embedded in the Varnish Cache core. All these strategies, specially the one based on
+embedded in the VCache core. All these strategies, specially the one based on
 INI files and the one based on Lua scripts interpreted by LuaJIT, have been
 successfully and extensively tested in several highly trafficked environments.
 
@@ -347,14 +347,14 @@ execute arbitrarily complex Lua and JavaScript programs. Somehow something
 similar to OpenResty in the Nginx arena. For example, using the cfg VMOD you
 can write crazy Lua-flavoured VCL. That includes loading any rocks
 you might need, facilities to safely share state among execution engines or among
-Varnish threads, etc. Used with caution, this allows you to go beyond the
+VCache threads, etc. Used with caution, this allows you to go beyond the
 limits of VCL as a language and help you to model complex logic in the
 caching layer. Of course, you can also use the VMOD to shoot yourself in
 the foot.
 
 Next you can see a simple useless example showing the power of the VMOD.
 Beware it assumes a local Redis Server running and it depends on the
-``http``, ``redis-lua`` and ``lua-cjson`` rocks. As well, beware Varnish
+``http``, ``redis-lua`` and ``lua-cjson`` rocks. As well, beware VCache
 should be started with the right environment variables properly configured
 (i.e. ``eval `luarocks path```).
 
@@ -438,9 +438,9 @@ should be started with the right environment variables properly configured
 INSTALLATION
 ============
 
-The source tree is based on autotools to configure the building, and does also have the necessary bits in place to do functional unit tests using the varnishtest tool.
+The source tree is based on autotools to configure the building, and does also have the necessary bits in place to do functional unit tests using the test tool.
 
-**Beware this project contains multiples branches (main, 4.1, etc.). Please, select the branch to be used depending on your Varnish Cache version (Varnish trunk → main, Varnish 4.1.x → 4.1, etc.).**
+**Beware this project contains multiples branches (main, 4.1, 4.0, etc.). Please, select the branch to be used depending on your VCache version (VCache trunk → main, VCache 4.1.x → 4.1, VCache 4.0.x → 4.0, etc.).**
 
 Dependencies:
 
@@ -452,13 +452,13 @@ Beware using LuaJIT GC64 mode is recommended is order to avoid ``not enough memo
 LOGGING
 =======
 
-Messages logged by the VMOD are always sent to the Varnish Shared memory Log (VSL), using the ``VCL_Error`` tag for errors, the ``VCL_Log`` tag for other relevant messages, and the ``Debug`` tag for debug messages. Whenever possible messages are attached to the transaction being processed; otherwise they are logged without a VXID (e.g., messages generated during initializations or by background threads).
+Messages logged by the VMOD are always sent to the VCache Shared memory Log (VSL), using the ``VCL_Error`` tag for errors, the ``VCL_Log`` tag for other relevant messages, and the ``Debug`` tag for debug messages. Whenever possible messages are attached to the transaction being processed; otherwise they are logged without a VXID (e.g., messages generated during initializations or by background threads).
 
 Additionally, messages can be duplicated to extra sinks selected using the ``VMOD_CFG_LOG_SINKS`` environment variable, which is checked for occurrences of the following tokens:
 
 * ``syslog``: messages are also submitted to syslog. This is the default behavior when the environment variable is not set.
 
-* ``stderr``: messages are also written to the standard error output. This is specially useful in containerized environments, where syslog is usually not available and where the ``varnishd`` standard error output is typically forwarded to the container logs.
+* ``stderr``: messages are also written to the standard error output. This is specially useful in containerized environments, where syslog is usually not available and where the manager process standard error output is typically forwarded to the container logs.
 
 Multiple sinks can be combined (e.g., ``VMOD_CFG_LOG_SINKS=syslog,stderr``), and both can be disabled using any value not containing those tokens (e.g., ``VMOD_CFG_LOG_SINKS=none``). In any case, VSL logging is always enabled.
 
@@ -499,8 +499,8 @@ MIT's implementation of the JavaScript engine by Sami Vaarala has been built usi
           --source-directory src-input \
           --config-metadata config
 
-BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnishcache/varnish-cache>`_:
+BSD's implementation of the red–black tree and the splay tree data structures by Niels Provos has been borrowed from the `Varnish Cache project <https://github.com/varnish/varnish>`_:
 
-* https://github.com/varnishcache/varnish-cache/blob/master/include/vtree.h
+* https://github.com/varnish/varnish/blob/main/include/vtree.h
 
 Copyright (c) Carlos Abalde <carlos.abalde@gmail.com>

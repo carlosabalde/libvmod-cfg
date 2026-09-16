@@ -1,4 +1,4 @@
-varnishtest "Test remote files"
+vtest "Test remote files"
 
 server s_origin1 {
     rxreq
@@ -22,7 +22,7 @@ server s_origin2 {
     send "    value2.3\n"
 } -repeat 2 -start
 
-varnish v_origin2 -vcl {
+vcache v_origin2 -vcl {
     backend default {
         .host = "${s_origin2_addr}";
         .port = "${s_origin2_port}";
@@ -33,7 +33,7 @@ varnish v_origin2 -vcl {
     }
 } -start
 
-varnish v1 -vcl {
+vcache v1 -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -78,6 +78,6 @@ client c1 {
     expect resp.http.dump == {{"field1":"value1","section1:field1":"value1","section1:field2":"value2.1;value2.2;value2.3"}}
 } -run
 
-varnish v1 -expect client_req == 1
+vcache v1 -expect client_req == 1
 
-varnish v1 -expect MGT.child_panic == 0
+vcache v1 -expect MGT.child_panic == 0

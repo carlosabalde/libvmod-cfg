@@ -251,7 +251,7 @@ Arguments
 
     max_engines: the VMOD creates one pool of scripting engines per VCL
     object. This option sets the maximum number of engines in each pool. All
-    Varnish worker threads using the same object will share engines in these
+    VCache worker threads using the same object will share engines in these
     pools. Pools are not shared between VCL objects.
 
     max_cycles: discard scripting engines after this number of script

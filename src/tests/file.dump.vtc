@@ -1,4 +1,4 @@
-varnishtest "Test .dump() for files"
+vtest "Test .dump() for files"
 
 server s1 {
    rxreq
@@ -15,7 +15,7 @@ field3: Hello "\o/"! á
 EOF
 }
 
-varnish v1 -vcl+backend {
+vcache v1 -vcl+backend {
     import ${vmod_cfg};
 
     sub vcl_init {
@@ -58,6 +58,6 @@ client c1 {
     expect resp.body == {{"field1":"","field2":"\"\"","field3":"Hello \"\\o/\"! \u00c3\u00a1","var":"what a hell?","variable":"hell"}}
 } -run
 
-varnish v1 -expect client_req == 3
+vcache v1 -expect client_req == 3
 
-varnish v1 -expect MGT.child_panic == 0
+vcache v1 -expect MGT.child_panic == 0

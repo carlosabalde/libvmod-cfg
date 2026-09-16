@@ -1,4 +1,4 @@
- varnishtest "Test basics for JavaScript script 2"
+vtest "Test basics for JavaScript script 2"
 
 server s1 {
    rxreq
@@ -10,7 +10,7 @@ shell {
 EOF
 }
 
-varnish v1 -arg "-p vsl_reclen=1024" -vcl+backend {
+vcache v1 -arg "-p vsl_reclen=1024" -vcl+backend {
     import ${vmod_cfg};
 
     sub vcl_init {
@@ -178,6 +178,6 @@ client c1 {
     expect resp.http.variables-current == "1"
 } -run
 
-varnish v1 -expect client_req == 2
+vcache v1 -expect client_req == 2
 
-varnish v1 -expect MGT.child_panic == 0
+vcache v1 -expect MGT.child_panic == 0

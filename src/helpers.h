@@ -27,7 +27,7 @@ extern vmod_state_t vmod_state;
 // lock (glibc's internal lock and stdio's FILE lock, respectively) across its
 // syscall. Therefore, do NOT use this macro in hot paths. Syslog (which doesn't
 // matter much in containers) and stderr (which is gated by a pipe consumed by
-// the Varnish management process) logging should be rare, especially when
+// the VCache management process) logging should be rare, especially when
 // handling requests.
 //
 // Alternative: enable/disable syslog and/or stderr logging using the env var

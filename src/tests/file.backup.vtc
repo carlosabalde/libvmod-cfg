@@ -1,4 +1,4 @@
-varnishtest "Test backup option for files"
+vtest "Test backup option for files"
 
 server s_origin1 {
     rxreq
@@ -19,7 +19,7 @@ server s_origin_no_backup {
     txresp -body "[broken"
 } -repeat 1 -start
 
-varnish v_origin_no_backup -vcl {
+vcache v_origin_no_backup -vcl {
     backend default {
         .host = "${s_origin_no_backup_addr}";
         .port = "${s_origin_no_backup_port}";
@@ -30,7 +30,7 @@ varnish v_origin_no_backup -vcl {
     }
 } -start
 
-varnish v_no_backup -vcl {
+vcache v_no_backup -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -79,7 +79,7 @@ server s_origin_broken_backup {
     txresp -body "[broken"
 } -repeat 1 -start
 
-varnish v_origin_broken_backup -vcl {
+vcache v_origin_broken_backup -vcl {
     backend default {
         .host = "${s_origin_broken_backup_addr}";
         .port = "${s_origin_broken_backup_port}";
@@ -90,7 +90,7 @@ varnish v_origin_broken_backup -vcl {
     }
 } -start
 
-varnish v_broken_backup -vcl {
+vcache v_broken_backup -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -140,7 +140,7 @@ server s_origin_valid_backup {
     txresp -body "[broken"
 } -repeat 1 -start
 
-varnish v_origin_valid_backup -vcl {
+vcache v_origin_valid_backup -vcl {
     backend default {
         .host = "${s_origin_valid_backup_addr}";
         .port = "${s_origin_valid_backup_port}";
@@ -151,7 +151,7 @@ varnish v_origin_valid_backup -vcl {
     }
 } -start
 
-varnish v_valid_backup -vcl {
+vcache v_valid_backup -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -196,9 +196,9 @@ client c_valid_backup -connect ${v_valid_backup_sock} {
     expect resp.http.dump == {{"field":"foo"}}
 } -run
 
-varnish v_valid_backup -expect client_req == 1
+vcache v_valid_backup -expect client_req == 1
 
-varnish v_valid_backup -expect MGT.child_panic == 0
+vcache v_valid_backup -expect MGT.child_panic == 0
 
 ################################################################################
 ## Remote valid, backup doesn't exist and automated backups disabled
@@ -214,7 +214,7 @@ server s_origin_no_automated_backups {
     txresp -body "field: foo"
 } -repeat 3 -start
 
-varnish v_origin_no_automated_backups -vcl {
+vcache v_origin_no_automated_backups -vcl {
     backend default {
         .host = "${s_origin_no_automated_backups_addr}";
         .port = "${s_origin_no_automated_backups_port}";
@@ -225,7 +225,7 @@ varnish v_origin_no_automated_backups -vcl {
     }
 } -start
 
-varnish v_no_automated_backups -vcl {
+vcache v_no_automated_backups -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -286,7 +286,7 @@ server s_origin_basics {
     txresp -body "[broken"
 } -repeat 1 -start
 
-varnish v_origin_basics -vcl {
+vcache v_origin_basics -vcl {
     backend default {
         .host = "${s_origin_basics_addr}";
         .port = "${s_origin_basics_port}";
@@ -297,7 +297,7 @@ varnish v_origin_basics -vcl {
     }
 } -start
 
-varnish v_basics -vcl {
+vcache v_basics -vcl {
     import ${vmod_cfg};
 
     backend default {
@@ -358,6 +358,6 @@ client c_basics -connect ${v_basics_sock} {
     expect resp.http.dump == {{"field":"bar"}}
 } -run
 
-varnish v_basics -expect client_req == 4
+vcache v_basics -expect client_req == 4
 
-varnish v_basics -expect MGT.child_panic == 0
+vcache v_basics -expect MGT.child_panic == 0
