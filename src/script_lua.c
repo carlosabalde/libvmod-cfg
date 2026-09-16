@@ -364,6 +364,23 @@ done:
  * VARNISH.* COMMANDS.
  *****************************************************************************/
 
+// Beware of error handling inside these lua_CFunction command handlers: many
+// Lua API calls (e.g. 'lua_pushstring()', 'lua_rawset()') allocate Lua memory
+// and raise a Lua error on allocation failure, which longjmp()s back to the
+// innermost 'lua_pcall()', skipping the rest of the handler. Any C resource
+// still owned by the handler at that point is leaked: the child process
+// survives (the failed execution is logged and the engine is reused) but the
+// memory is never reclaimed. The convention here is that explicit error paths
+// free C resources *before* raising with 'lua_error()'; the remaining exposure
+// is on allocating calls made *while* a C resource is still owned (none at the
+// moment). The only owned resource in these handlers is an uncached regexp,
+// freed right after use; workspace allocations are reclaimed with the task. If
+// there were other owned C resources, calls can only trigger on Lua allocation
+// failure (i.e., the engine is already dying of OOM), so the practical risk is
+// bounded; removing it entirely would require protected pushes (an inner
+// 'lua_pcall()' around the allocating calls) or Lua-owned guards (full
+// userdata + '__gc').
+
 // Extract a pointer stored in the Lua registry (see REGISTRY_KEY_CTX, etc.).
 // The light userdata is pushed into the stack and then removed.
 #define GET_REGISTRY_FOO_FIELD(L, key, where, MAGIC) \
