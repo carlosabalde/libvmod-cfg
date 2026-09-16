@@ -50,7 +50,7 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp \
-    && wget --no-check-certificate https://github.com/varnish/varnish/releases/download/varnish-8.0.1/varnish-8.0.1.tar.gz \
+    && wget https://github.com/varnish/varnish/releases/download/varnish-8.0.1/varnish-8.0.1.tar.gz \
     && tar zxvf varnish-*.tar.gz \
     && rm -f varnish-*.tar.gz \
     && cd varnish-* \
