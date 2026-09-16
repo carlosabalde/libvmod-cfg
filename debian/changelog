@@ -1,3 +1,9 @@
+libvmod-cfg (5.15-1) stable; urgency=low
+
+  * Improved performance & robustness of Lua & JavaScript script execution
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Wed, 16 Sep 2026 17:00:00 +0200
+
 libvmod-cfg (5.14-1) stable; urgency=low
 
   * Improved VMOD logging: stderr support & VMOD_CFG_LOG_SINKS env var
