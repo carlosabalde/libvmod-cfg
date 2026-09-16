@@ -408,9 +408,18 @@ done:
  * stored in the Lua registry (see REGISTRY_KEY_REGEXP_CACHE). A hit is a cheap
  * table lookup on memory owned by this engine: no shared state (i.e. the
  * script-wide regexp cache and its rwlock) is touched. The table is keyed with
- * the pattern argument itself: Lua strings are interned, so 'lua_pushvalue()'
- * copies a tagged value already hashed, instead of 'lua_pushstring()'
- * rediscovering the string object (strlen, hash and memcmp over the pattern).
+ * the pattern argument itself, through 'lua_pushvalue()', i.e. a copy of the
+ * tagged value with no bytes of the pattern read, instead of pushing the C
+ * string again. In LuaJIT and Lua 5.1 every string is interned, so
+ * 'lua_pushstring()' would have to rediscover the string object we already
+ * hold (strlen, hash, string table probe and a full memcmp over the pattern).
+ * From Lua 5.2 on only short strings (up to 40 bytes) are interned; long
+ * strings are separate objects, hashed lazily and compared by content when
+ * used as table keys, so 'lua_pushstring()' would instead allocate and copy a
+ * new long string per call, and the lookup costs one memcmp against the
+ * stored key unless the argument is a script constant, whose hash is cached
+ * in the string object after its first use. Either way 'lua_pushvalue()' is
+ * the cheaper key.
  *
  * On a miss the pattern is resolved through the shared cache ('init_regexp()',
  * compiling and registering it if needed) and the resulting pointer is
@@ -682,12 +691,14 @@ varnish_regsub_lua_command(lua_State *L, unsigned all)
     }
 
     // Done! On no match 'VRT_regsub()' returns the subject itself: push a copy
-    // of argument 1 instead of re-interning it with 'lua_pushstring()' (hash,
-    // string table probe and a full memcmp against the very string already
-    // held). Beware argument 1 is guaranteed to be a Lua string at this point:
-    // it either was one, or 'lua_tostring()' converted the number in place.
-    // The match path is unchanged: the result is a new workspace string and
-    // has to be interned anyway.
+    // of argument 1 instead of pushing the C string again. In LuaJIT and Lua
+    // 5.1 that would re-intern it (hash, string table probe and a full memcmp
+    // against the very string already held); from Lua 5.2 on, where only
+    // short strings are interned, it would allocate and copy a new long
+    // string. Beware argument 1 is guaranteed to be a Lua string at this
+    // point: it either was one, or 'lua_tostring()' converted the number in
+    // place. The match path is unchanged: the result is a new workspace string
+    // and has to be turned into a Lua string anyway.
     if (result != NULL && result == string) {
         lua_pushvalue(L, 1);
     } else {
