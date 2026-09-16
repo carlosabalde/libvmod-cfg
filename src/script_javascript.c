@@ -371,7 +371,7 @@ varnish_log_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.log() requires one argument.");
     }
-    const char *message = duk_to_string(D, -1);
+    const char *message = duk_to_string(D, 0);
 
     // Check input arguments.
     if (message != NULL) {
@@ -401,10 +401,10 @@ varnish_get_header_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.get_header() requires one argument.");
     }
-    const char *name = duk_to_string(D, -1 * argc);
+    const char *name = duk_to_string(D, 0);
     const char *where = NULL;
-    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
-        where = duk_to_string(D, -1 * argc + 1);
+    if (argc >= 2 && !duk_is_undefined(D, 1)) {
+        where = duk_to_string(D, 1);
     }
     where = where ? where : "req";
 
@@ -438,11 +438,11 @@ varnish_set_header_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.set_header() requires two arguments.");
     }
-    const char *name = duk_to_string(D, -1 * argc);
-    const char *value = duk_to_string(D, -1 * argc + 1);
+    const char *name = duk_to_string(D, 0);
+    const char *value = duk_to_string(D, 1);
     const char *where = NULL;
-    if (argc >= 3 && !duk_is_undefined(D, -1 * argc + 2)) {
-        where = duk_to_string(D, -1 * argc + 2);
+    if (argc >= 3 && !duk_is_undefined(D, 2)) {
+        where = duk_to_string(D, 2);
     }
     where = where ? where : "req";
 
@@ -479,11 +479,11 @@ varnish_regmatch_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.regmatch() requires two arguments.");
     }
-    const char *string = duk_to_string(D, -1 * argc);
-    const char *regexp = duk_to_string(D, -1 * argc + 1);
+    const char *string = duk_to_string(D, 0);
+    const char *regexp = duk_to_string(D, 1);
     unsigned cache;
     if (argc >= 3) {
-        cache = duk_to_boolean(D, -1 * argc + 2);
+        cache = duk_to_boolean(D, 2);
     } else {
         cache = 1;
     }
@@ -523,12 +523,12 @@ varnish_regsub_javascript_command(duk_context *D, unsigned all)
             DUK_ERR_TYPE_ERROR,
             "varnish.regsub() & varnish.regsuball() require three arguments.");
     }
-    const char *string = duk_to_string(D, -1 * argc);
-    const char *regexp = duk_to_string(D, -1 * argc + 1);
-    const char *sub = duk_to_string(D, -1 * argc + 2);
+    const char *string = duk_to_string(D, 0);
+    const char *regexp = duk_to_string(D, 1);
+    const char *sub = duk_to_string(D, 2);
     unsigned cache;
     if (argc >= 4) {
-        cache = duk_to_boolean(D, -1 * argc + 3);
+        cache = duk_to_boolean(D, 3);
     } else {
         cache = 1;
     }
@@ -610,10 +610,10 @@ varnish_shared_get_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.get() requires one argument.");
     }
-    const char *key = duk_to_string(D, -1 * argc);
+    const char *key = duk_to_string(D, 0);
     const char *scope = NULL;
-    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
-        scope = duk_to_string(D, -1 * argc + 1);
+    if (argc >= 2 && !duk_is_undefined(D, 1)) {
+        scope = duk_to_string(D, 1);
     }
     scope = scope ? scope : "all";
 
@@ -652,11 +652,11 @@ varnish_shared_set_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.set() requires two arguments.");
     }
-    const char *key = duk_to_string(D, -1 * argc);
-    const char *value = duk_to_string(D, -1 * argc + 1);
+    const char *key = duk_to_string(D, 0);
+    const char *value = duk_to_string(D, 1);
     const char *scope = NULL;
-    if (argc >= 3 && !duk_is_undefined(D, -1 * argc + 2)) {
-        scope = duk_to_string(D, -1 * argc + 2);
+    if (argc >= 3 && !duk_is_undefined(D, 2)) {
+        scope = duk_to_string(D, 2);
     }
     scope = scope ? scope : "task";
 
@@ -695,10 +695,10 @@ varnish_shared_unset_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.unset() requires one argument.");
     }
-    const char *key = duk_to_string(D, -1 * argc);
+    const char *key = duk_to_string(D, 0);
     const char *scope = NULL;
-    if (argc >= 2 && !duk_is_undefined(D, -1 * argc + 1)) {
-        scope = duk_to_string(D, -1 * argc + 1);
+    if (argc >= 2 && !duk_is_undefined(D, 1)) {
+        scope = duk_to_string(D, 1);
     }
     scope = scope ? scope : "all";
 
@@ -736,7 +736,7 @@ varnish_shared_eval_javascript_command(duk_context *D)
             DUK_ERR_TYPE_ERROR,
             "varnish.shared.eval() requires one argument.");
     }
-    if (!duk_is_function(D, -1)) {
+    if (!duk_is_function(D, 0)) {
         (void) duk_error(
             D,
             DUK_ERR_TYPE_ERROR,
