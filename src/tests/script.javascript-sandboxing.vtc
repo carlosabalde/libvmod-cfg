@@ -1,0 +1,103 @@
+varnishtest "Test sandboxing for JavaScript script"
+
+server s1 {
+   rxreq
+   txresp
+} -repeat 1 -start
+
+varnish v1 -vcl+backend {
+    import ${vmod_cfg};
+
+    sub vcl_init {
+        new sandboxed = cfg.script(
+            "",
+            period=0,
+            type=javascript);
+
+        new unsandboxed = cfg.script(
+            "",
+            period=0,
+            type=javascript,
+            enable_sandboxing=false);
+    }
+
+    sub vcl_deliver {
+        # The 'varnish' object is frozen: writes throw in strict mode.
+        sandboxed.init({"
+            varnish.log = 1;
+            return true;
+        "});
+        sandboxed.execute();
+        set resp.http.result1-is-error = sandboxed.result_is_error();
+        sandboxed.free_result();
+
+        # So is 'varnish.shared', including the helpers layered on top of it.
+        sandboxed.init({"
+            varnish.shared.get = 1;
+            return true;
+        "});
+        sandboxed.execute();
+        set resp.http.result2-is-error = sandboxed.result_is_error();
+        sandboxed.free_result();
+
+        # New properties cannot be added either.
+        sandboxed.init({"
+            varnish.foo = 1;
+            return true;
+        "});
+        sandboxed.execute();
+        set resp.http.result3-is-error = sandboxed.result_is_error();
+        sandboxed.free_result();
+
+        # The 'varnish.engine' binding is frozen but the object stays writable.
+        sandboxed.init({"
+            varnish.engine.foo = 'bar';
+            return varnish.engine.foo;
+        "});
+        sandboxed.execute();
+        set resp.http.result4 = sandboxed.get_string_result();
+        sandboxed.free_result();
+
+        sandboxed.init({"
+            varnish.engine = {};
+            return true;
+        "});
+        sandboxed.execute();
+        set resp.http.result5-is-error = sandboxed.result_is_error();
+        sandboxed.free_result();
+
+        # The shared helpers keep working after the freeze.
+        sandboxed.init({"
+            return varnish.shared.incr('counter', 1, 'global');
+        "});
+        sandboxed.execute();
+        set resp.http.result6 = sandboxed.get_integer_result();
+        sandboxed.free_result();
+
+        # Without sandboxing the objects are writable.
+        unsandboxed.init({"
+            varnish.log = 1;
+            varnish.shared.get = 1;
+            return true;
+        "});
+        unsandboxed.execute();
+        set resp.http.result7-is-boolean = unsandboxed.result_is_boolean();
+        unsandboxed.free_result();
+    }
+} -start
+
+client c1 {
+    txreq
+    rxresp
+    expect resp.http.result1-is-error == "true"
+    expect resp.http.result2-is-error == "true"
+    expect resp.http.result3-is-error == "true"
+    expect resp.http.result4 == "bar"
+    expect resp.http.result5-is-error == "true"
+    expect resp.http.result6 == "1"
+    expect resp.http.result7-is-boolean == "true"
+} -run
+
+varnish v1 -expect client_req == 1
+
+varnish v1 -expect MGT.child_panic == 0

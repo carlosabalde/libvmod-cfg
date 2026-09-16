@@ -970,6 +970,26 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
         script_javascript_helpers_js_len));
     duk_pop(result);
 
+    // Freeze the 'varnish' & 'varnish.shared' objects: with no internal values
+    // left in them (see the heap stash keys) nothing needs to change after
+    // creation, so make them read-only for scripts, matching the Lua sandbox.
+    // Sandboxed scripts run in strict mode (see 'pre_execute()'), so writes to
+    // frozen properties throw a TypeError instead of failing silently. Beware
+    // 'duk_freeze()' is shallow: 'varnish.engine' stays writable on purpose
+    // (per-engine scratch space for scripts), only its binding is frozen. This
+    // must be the last step of the engine initialization: the script helpers
+    // above still add properties to 'varnish.shared'.
+    if (script->enable_sandboxing) {
+        duk_get_global_string(result, "varnish");
+        AN(duk_is_object(result, -1));
+        duk_get_prop_string(result, -1, "shared");
+        AN(duk_is_object(result, -1));
+        duk_freeze(result, -1);
+        duk_pop(result);
+        duk_freeze(result, -1);
+        duk_pop(result);
+    }
+
     // Done!
     return result;
 }

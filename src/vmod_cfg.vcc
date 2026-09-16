@@ -263,9 +263,13 @@ Arguments
     this number of script executions.
 
     enable_sandboxing: enforce best-effort sandboxing in order  to avoid most
-    common mistakes like creation of implicit globals. Beware this should be
-    disabled for complex scripts if global (i.e. per scripting engine)
-    data-sharing is needed.
+    common mistakes like creation of implicit globals. For Lua, accesses to
+    undefined globals and creation of globals from functions raise errors and
+    the ``varnish`` & ``varnish.shared`` tables are read-only. For JavaScript,
+    scripts run in strict mode and the ``varnish`` & ``varnish.shared`` objects
+    are frozen. In both cases ``varnish.engine`` stays writable. Beware this
+    should be disabled for complex scripts if global (i.e. per scripting
+    engine) data-sharing is needed.
 
     lua_gc_step_size: scripting engines implement incremental garbage
     collection (see ``LUA_GCSTEP`` in ``lua_gc()``). This parameter controls
