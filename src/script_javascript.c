@@ -554,12 +554,27 @@ varnish_regmatch_javascript_command(duk_context *D)
             "varnish.regmatch() requires two arguments.");
     }
     const char *string = duk_to_string(D, 0);
-    const char *regexp = duk_to_string(D, 1);
+    duk_size_t regexp_len;
+    const char *regexp = duk_to_lstring(D, 1, &regexp_len);
     unsigned cache;
     if (argc >= 3) {
         cache = duk_to_boolean(D, 2);
     } else {
         cache = 1;
+    }
+
+    // Reject patterns with embedded NUL bytes. Patterns are compiled as C
+    // strings and the shared regexp cache keys on the same prefix, so such a
+    // pattern would quietly behave as its pre-NUL prefix ('a\0x' and 'a\0y'
+    // would both compile to /a/), while the per-engine cache would key on the
+    // whole JavaScript string. A NUL byte in a pattern is always a script bug:
+    // fail loudly, like a pattern that fails to compile. Beware this runs
+    // before any C resource is acquired, so raising is longjmp-safe.
+    if (regexp != NULL && strlen(regexp) != regexp_len) {
+        (void) duk_error(
+            D,
+            DUK_ERR_TYPE_ERROR,
+            "varnish.regmatch() pattern contains a NUL byte.");
     }
 
     // Check input arguments.
@@ -606,13 +621,28 @@ varnish_regsub_javascript_command(duk_context *D, unsigned all)
             "varnish.regsub() & varnish.regsuball() require three arguments.");
     }
     const char *string = duk_to_string(D, 0);
-    const char *regexp = duk_to_string(D, 1);
+    duk_size_t regexp_len;
+    const char *regexp = duk_to_lstring(D, 1, &regexp_len);
     const char *sub = duk_to_string(D, 2);
     unsigned cache;
     if (argc >= 4) {
         cache = duk_to_boolean(D, 3);
     } else {
         cache = 1;
+    }
+
+    // Reject patterns with embedded NUL bytes. Patterns are compiled as C
+    // strings and the shared regexp cache keys on the same prefix, so such a
+    // pattern would quietly behave as its pre-NUL prefix ('a\0x' and 'a\0y'
+    // would both compile to /a/), while the per-engine cache would key on the
+    // whole JavaScript string. A NUL byte in a pattern is always a script bug:
+    // fail loudly, like a pattern that fails to compile. Beware this runs
+    // before any C resource is acquired, so raising is longjmp-safe.
+    if (regexp != NULL && strlen(regexp) != regexp_len) {
+        (void) duk_error(
+            D,
+            DUK_ERR_TYPE_ERROR,
+            "varnish.regsub() & varnish.regsuball() pattern contains a NUL byte.");
     }
 
     // Check input arguments.
@@ -639,8 +669,18 @@ varnish_regsub_javascript_command(duk_context *D, unsigned all)
         }
     }
 
-    // Done!
-    duk_push_string(D, result);
+    // Done! On no match 'VRT_regsub()' returns the subject itself: push a copy
+    // of argument 0 instead of pushing the C string again, which would
+    // re-intern it (Duktape interns every string: hash, string table probe and
+    // a full memcmp against the very string already held). Beware argument 0
+    // is guaranteed to be a string at this point: it either was one, or
+    // 'duk_to_string()' coerced it in place. The match path is unchanged: the
+    // result is a new workspace string and has to be interned anyway.
+    if (result != NULL && result == string) {
+        duk_dup(D, 0);
+    } else {
+        duk_push_string(D, result);
+    }
     return 1;
 }
 
