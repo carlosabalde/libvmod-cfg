@@ -54,7 +54,7 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp \
-    && wget --no-check-certificate https://github.com/varnish/varnish/releases/download/varnish-9.0.0/varnish-9.0.0.tar.gz \
+    && wget https://github.com/varnish/varnish/releases/download/varnish-9.0.0/varnish-9.0.0.tar.gz \
     && tar zxvf varnish-*.tar.gz \
     && rm -f varnish-*.tar.gz \
     && cd varnish-* \
@@ -65,7 +65,7 @@ RUN cd /tmp \
     && ldconfig
 
 RUN cd /tmp \
-    && wget --no-check-certificate https://vinyl-cache.org/downloads/vinyl-cache-9.0.1.tgz \
+    && wget https://vinyl-cache.org/downloads/vinyl-cache-9.0.1.tgz \
     && tar zxvf vinyl-cache-9.0.1.tgz \
     && rm -f vinyl-cache-9.0.1.tgz \
     && cd vinyl-cache-9.0.1 \
