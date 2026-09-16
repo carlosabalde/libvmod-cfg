@@ -436,30 +436,6 @@ varnish_regmatch_re_command(VRT_CTX, const char *string, vre_t *re)
     return VRT_re_match(ctx, string, re);
 }
 
-unsigned
-varnish_regmatch_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *string,
-    const char *regexp, unsigned cache, const char **error)
-{
-    AN(string);
-    AN(regexp);
-
-    unsigned result = 0;
-    *error = NULL;
-
-    vre_t *re = init_regexp(ctx, script, regexp, cache);
-    if (re != NULL) {
-        result = varnish_regmatch_re_command(ctx, string, re);
-        if (!cache) {
-            VRE_free(&re);
-        }
-    } else {
-        *error = regexp_error(ctx, regexp);
-    }
-
-    return result;
-}
-
 const char *
 varnish_regsub_re_command(
     VRT_CTX, const char *string, vre_t *re, const char *sub, unsigned all)
@@ -469,32 +445,6 @@ varnish_regsub_re_command(
     AN(sub);
 
     return VRT_regsub(ctx, all, string, re, sub);
-}
-
-const char *
-varnish_regsub_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *string,
-    const char *regexp, const char *sub, unsigned cache, unsigned all,
-    const char **error)
-{
-    AN(string);
-    AN(regexp);
-    AN(sub);
-
-    const char *result = NULL;
-    *error = NULL;
-
-    vre_t *re = init_regexp(ctx, script, regexp, cache);
-    if (re != NULL) {
-        result = varnish_regsub_re_command(ctx, string, re, sub, all);
-        if (!cache) {
-            VRE_free(&re);
-        }
-    } else {
-        *error = regexp_error(ctx, regexp);
-    }
-
-    return result;
 }
 
 static enum gethdr_e

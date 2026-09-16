@@ -235,15 +235,8 @@ void varnish_set_header_command(
     VRT_CTX, const char *name, const char *value, const char *where,
     const char **error);
 const char *regexp_error(VRT_CTX, const char *regexp);
-unsigned varnish_regmatch_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *string,
-    const char *regexp, unsigned cache, const char **error);
 unsigned varnish_regmatch_re_command(
     VRT_CTX, const char *string, vre_t *re);
-const char *varnish_regsub_command(
-    VRT_CTX, struct vmod_cfg_script *script, const char *string,
-    const char *regexp, const char *sub, unsigned cache, unsigned all,
-    const char **error);
 const char *varnish_regsub_re_command(
     VRT_CTX, const char *string, vre_t *re, const char *sub, unsigned all);
 
