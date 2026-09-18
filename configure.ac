@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-AC_INIT([libvmod-cfg], [trunk], [], [vmod-cfg])
+AC_INIT([libvmod-cfg], [22.0], [], [vmod-cfg])
 AC_COPYRIGHT([Copyright (c) Carlos Abalde <carlos.abalde@gmail.com>])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/vmod_cfg.vcc)
@@ -95,8 +95,8 @@ fi
 m4_ifndef([VCACHE_REQUIRE], AC_MSG_ERROR([Need varnish.m4 / vinyl.m4 -- see README.rst]))
 
 VCACHE_REQUIRE(
-    [[varnish], [trunk]],
-    [[vinyl], [trunk]])
+    [[varnish], [9.1], [9.2]],
+    [[vinyl], [9.1], [9.2]])
 VCACHE_VMODS([cfg])
 
 VMOD_TESTS="$(cd $srcdir/src && echo tests/*.vtc)"

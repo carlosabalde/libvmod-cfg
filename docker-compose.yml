@@ -12,7 +12,7 @@
 #   $ docker compose down --volumes --remove-orphans
 #
 
-name: libvmod-cfg-main
+name: libvmod-cfg-9_1
 
 services:
   dev:
@@ -20,7 +20,6 @@ services:
     # platform: linux/arm64/v8
     build:
       context: .
-      no_cache: true
     init: true
     privileged: true
     environment:
