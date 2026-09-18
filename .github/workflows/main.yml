@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         platform:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
         vcache:
           - varnish
         cc:
@@ -28,18 +28,18 @@ jobs:
         include:
           # Vinyl: representative smoke coverage on one platform x compiler
           # diagonal, defaults only.
-          - platform: ubuntu-24.04
+          - platform: ubuntu-26.04
             vcache: vinyl
             cc: gcc
             make_target: check
             configure_flags: --enable-luajit
-          - platform: ubuntu-24.04-arm
+          - platform: ubuntu-26.04-arm
             vcache: vinyl
             cc: clang
             make_target: check
             configure_flags: --enable-luajit
           # Code coverage: single job.
-          - platform: ubuntu-24.04
+          - platform: ubuntu-26.04
             vcache: varnish
             cc: gcc
             make_target: lcov
