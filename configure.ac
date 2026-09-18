@@ -95,7 +95,7 @@ fi
 m4_ifndef([VCACHE_REQUIRE], AC_MSG_ERROR([Need varnish.m4 / vinyl.m4 -- see README.rst]))
 
 VCACHE_REQUIRE(
-    [[varnish], [9.1], [9.2]],
+    [[varnish], [trunk]],
     [[vinyl], [9.1], [9.2]])
 VCACHE_VMODS([cfg])
 
