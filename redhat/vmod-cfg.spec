@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 21.2
+Version: 21.3
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Wed Sep 16 2026 Carlos Abalde <carlos.abalde@gmail.com> - 21.3-1.20260916
+- Improved performance & robustness of Lua & JavaScript script execution.
 * Fri Aug 14 2026 Carlos Abalde <carlos.abalde@gmail.com> - 21.2-1.20260814
 - Improved VMOD logging: stderr support & VMOD_CFG_LOG_SINKS env var.
 * Tue Mar 31 2026 Carlos Abalde <carlos.abalde@gmail.com> - 21.1-1.20260331
