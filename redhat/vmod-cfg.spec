@@ -1,6 +1,6 @@
 Summary: Config VMOD for Varnish
 Name: vmod-cfg
-Version: 22.0
+Version: 22.1
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/carlosabalde/libvmod-cfg
@@ -36,6 +36,8 @@ Config VMOD for Varnish
 %{_mandir}/man?/*
 
 %changelog
+* Wed Sep 23 2026 Carlos Abalde <carlos.abalde@gmail.com> - 22.1-1.20260923
+- Fixed ARM64 regression.
 * Fri Sep 18 2026 Carlos Abalde <carlos.abalde@gmail.com> - 22.0-1.20260918
 - Migrated to Varnish Cache 9.1.x.
 - Improved performance & robustness of Lua & JavaScript script execution.
