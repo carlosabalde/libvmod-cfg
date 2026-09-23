@@ -25,17 +25,20 @@ static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
 //     looked up through the 'varnish' global table on every execution. This
 //     also freezes the binding: whatever a script does to 'varnish' afterwards,
 //     the handler defined by the builtin helpers is the one used.
-//   - The 'ctx', 'script' & 'state' pointers (light userdata), set by
-//     'execute()' around each execution and used by the varnish.* commands.
-//     Light userdata is a plain value (no allocation, nothing for the garbage
-//     collector to track) and the registry is a plain table, so setting them
-//     is a raw assignment instead of a '__newindex' metamethod call on the
-//     read-only 'varnish' table. As a bonus, the pointers are no longer
-//     readable (nor overwritable) from scripts.
+//   - The 'ctx', 'script' & 'state' pointers, each one boxed in a single cell
+//     full userdata allocated once by 'new_context()' and updated in place by
+//     'execute()' around each execution, then used by the varnish.* commands.
+//     The registry is a plain table, so setting them is a raw assignment
+//     instead of a '__newindex' metamethod call on the read-only 'varnish'
+//     table, and updating a preallocated box keeps that per-execution cost
+//     (nothing is allocated, nothing is added for the garbage collector to
+//     track). As a bonus, the pointers are no longer readable (nor
+//     overwritable) from scripts. See 'NEW_REGISTRY_PTR()' for why boxes are
+//     used instead of plain light userdata.
 //   - The 'is_locked' flag used by the varnish.shared.* commands, for the
 //     same reasons.
-//   - The per-engine regexp cache table, mapping pattern strings to 'vre_t'
-//     pointers (light userdata) borrowed from the script-wide regexp cache.
+//   - The per-engine regexp cache table, mapping pattern strings to boxed
+//     'vre_t' pointers borrowed from the script-wide regexp cache.
 //     It lets the varnish.reg*() commands resolve compiled regexps without
 //     touching the shared cache (and its rwlock) on every call; see
 //     'get_regexp()'.
@@ -45,6 +48,41 @@ static lua_State *new_context(VRT_CTX, struct vmod_cfg_script *script);
 #define REGISTRY_KEY_STATE "varnish._state"
 #define REGISTRY_KEY_SHARED_IS_LOCKED "varnish.shared._is_locked"
 #define REGISTRY_KEY_REGEXP_CACHE "varnish.regexps"
+
+// Pointers are never stored in Lua as light userdata: LuaJIT packs a light
+// userdata into a NaN-tagged value keeping only the lowest 47 bits of the
+// pointer and 'lua_pushlightuserdata()' raises 'bad light userdata pointer'
+// for anything larger. That limit holds on x86-64, where the user address
+// space ends at 2^47, but not on platforms like ARM64, where the default
+// mapping window reaches 2^48 and therefore thread stacks (i.e. where 'ctx'
+// lives) sit above 2^47. As the error is raised outside any 'lua_pcall()',
+// the result is an unprotected error, i.e. a panic killing the child process
+// (see #34). Instead, every pointer handed over to Lua is boxed in a full
+// userdata holding a single 'void *' cell, which has no such restriction.
+//
+// Boxes stored in the registry are allocated once per engine by
+// 'new_context()' ('NEW_REGISTRY_PTR()'), then updated in place by 'execute()'
+// ('SET_REGISTRY_PTR()') and read by the varnish.* commands
+// ('GET_REGISTRY_CTX()', etc.). A NULL cell means 'not set': it's the state
+// left behind by 'execute()' once the execution is done, and any later access
+// fails loudly instead of silently using a stale pointer.
+#define NEW_REGISTRY_PTR(L, key) \
+    do { \
+        void **box = lua_newuserdata((L), sizeof(void *)); \
+        AN(box); \
+        *box = NULL; \
+        lua_setfield((L), LUA_REGISTRYINDEX, (key)); \
+    } while (0)
+
+#define SET_REGISTRY_PTR(L, key, ptr) \
+    do { \
+        lua_getfield((L), LUA_REGISTRYINDEX, (key)); \
+        AN(lua_isuserdata((L), -1)); \
+        void **box = lua_touserdata((L), -1); \
+        AN(box); \
+        *box = (ptr); \
+        lua_pop((L), 1); \
+    } while (0)
 
 /******************************************************************************
  * BASICS.
@@ -273,12 +311,9 @@ execute_lua(
 
         // Store the 'ctx', 'script' & 'state' pointers in the registry (see
         // REGISTRY_KEY_CTX, etc.). They are used by the varnish.* commands.
-        lua_pushlightuserdata(engine->ctx.L, TRUST_ME(ctx));
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_CTX);
-        lua_pushlightuserdata(engine->ctx.L, script);
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_SCRIPT);
-        lua_pushlightuserdata(engine->ctx.L, state);
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_STATE);
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_CTX, TRUST_ME(ctx));
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_SCRIPT, script);
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_STATE, state);
 
         // Populate 'ARGV' table accordingly to the input arguments.
         lua_newtable(engine->ctx.L);
@@ -314,12 +349,9 @@ execute_lua(
         // be released and they must not outlive this execution (a varnish.*
         // command executed outside an execution must fail loudly instead of
         // silently using stale pointers).
-        lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_CTX);
-        lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_SCRIPT);
-        lua_pushnil(engine->ctx.L);
-        lua_setfield(engine->ctx.L, LUA_REGISTRYINDEX, REGISTRY_KEY_STATE);
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_CTX, NULL);
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_SCRIPT, NULL);
+        SET_REGISTRY_PTR(engine->ctx.L, REGISTRY_KEY_STATE, NULL);
     } else {
         // Everything looks correct. Full execution is not required: simply
         // remove function to be executed & error handler from the stack.
@@ -382,12 +414,14 @@ done:
 // userdata + '__gc').
 
 // Extract a pointer stored in the Lua registry (see REGISTRY_KEY_CTX, etc.).
-// The light userdata is pushed into the stack and then removed.
+// The box holding it is pushed into the stack and then removed.
 #define GET_REGISTRY_FOO_FIELD(L, key, where, MAGIC) \
     do { \
         lua_getfield(L, LUA_REGISTRYINDEX, key); \
-        AN(lua_islightuserdata(L, -1)); \
-        void *data = lua_touserdata(L, -1); \
+        AN(lua_isuserdata(L, -1)); \
+        void **box = lua_touserdata(L, -1); \
+        AN(box); \
+        void *data = *box; \
         AN(data); \
         CAST_OBJ_NOTNULL(where, data, MAGIC); \
         lua_pop(L, 1); \
@@ -446,8 +480,10 @@ get_regexp(
     AN(lua_istable(L, -1));
     lua_pushvalue(L, regexp_idx);
     lua_rawget(L, -2);
-    if (lua_islightuserdata(L, -1)) {
-        result = lua_touserdata(L, -1);
+    if (lua_isuserdata(L, -1)) {
+        void **box = lua_touserdata(L, -1);
+        AN(box);
+        result = *box;
         AN(result);
         lua_pop(L, 2);
         return result;
@@ -457,7 +493,9 @@ get_regexp(
     result = init_regexp(ctx, script, regexp, 1);
     if (result != NULL) {
         lua_pushvalue(L, regexp_idx);
-        lua_pushlightuserdata(L, result);
+        void **box = lua_newuserdata(L, sizeof(void *));
+        AN(box);
+        *box = result;
         lua_rawset(L, -3);
     }
     lua_pop(L, 1);
@@ -1084,6 +1122,13 @@ new_context(VRT_CTX, struct vmod_cfg_script *script)
     lua_pop(result, 1);
     lua_pushboolean(result, 0);
     lua_setfield(result, LUA_REGISTRYINDEX, REGISTRY_KEY_SHARED_IS_LOCKED);
+
+    // Create the boxes used to hand over the 'ctx', 'script' & 'state'
+    // pointers to the varnish.* commands (see REGISTRY_KEY_CTX, etc.). They
+    // are allocated once here and then updated in place by 'execute()'.
+    NEW_REGISTRY_PTR(result, REGISTRY_KEY_CTX);
+    NEW_REGISTRY_PTR(result, REGISTRY_KEY_SCRIPT);
+    NEW_REGISTRY_PTR(result, REGISTRY_KEY_STATE);
 
     // Create the per-engine regexp cache table in the registry (see
     // REGISTRY_KEY_REGEXP_CACHE & 'get_regexp()').
