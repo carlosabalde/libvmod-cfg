@@ -1,3 +1,9 @@
+libvmod-cfg (21.4-1) stable; urgency=low
+
+  * Fixed ARM64 regression
+
+ -- Carlos Abalde <carlos.abalde@gmail.com>  Wed, 23 Sep 2026 16:00:00 +0200
+
 libvmod-cfg (21.3-1) stable; urgency=low
 
   * Improved performance & robustness of Lua & JavaScript script execution
