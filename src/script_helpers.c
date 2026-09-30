@@ -533,7 +533,7 @@ varnish_set_header_command(
                 ctx,
                 &hs,
                 value,
-                vrt_magic_string_end);
+                NULL);
         } else {
             *error = WS_Printf(
                 ctx->ws,

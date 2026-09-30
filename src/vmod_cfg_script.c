@@ -110,7 +110,7 @@ vmod_script__init(
         instance->max_cycles = max_cycles;
         instance->min_gc_cycles = min_gc_cycles;
         instance->enable_sandboxing = enable_sandboxing;
-        if (type == vmod_enum_lua) {
+        if (type == enum_vmod_cfg_lua) {
             instance->type = ENGINE_TYPE_LUA;
             instance->engine_cfg.lua.gc_step_size = lua_gc_step_size;
             instance->engine_cfg.lua.functions.loadfile = !lua_remove_loadfile_function;
@@ -122,7 +122,7 @@ vmod_script__init(
             instance->api.get_engine_used_memory = get_lua_engine_used_memory;
             instance->api.get_engine_stack_size = get_lua_engine_stack_size;
             instance->api.execute = execute_lua;
-        } else if (type == vmod_enum_javascript) {
+        } else if (type == enum_vmod_cfg_javascript) {
             instance->type = ENGINE_TYPE_JAVASCRIPT;
             instance->api.new_engine = new_javascript_engine;
             instance->api.get_engine_used_memory = get_javascript_engine_used_memory;
