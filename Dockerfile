@@ -29,7 +29,7 @@ RUN apt update \
         liblua5.1-0-dev \
         libluajit-5.1-dev \
         libncurses-dev \
-        libpcre3-dev \
+        libpcre2-dev \
         libtool \
         lua5.1 \
         luajit \
