@@ -23,11 +23,20 @@ jobs:
           - --enable-luajit
           - --disable-luajit
           - --disable-luajit --disable-flush-jemalloc-tcache
-        include:
-          - platform: ubuntu-26.04
-            cc: gcc
-            make_target: lcov
-            configure_flags: --enable-code-coverage
+        # Code coverage ('make lcov') is disabled in this branch because
+        # Varnish Enterprise makes the reports useless:
+        #   - When running as root (as here), the varnishd child drops
+        #     privileges (e.g. to 'vcache') and cannot create the .gcda files
+        #     in the build dir.
+        #   - The varnishd child terminates using _exit() instead of exit(),
+        #     so the VMOD's destructors never run and libgcov never dumps the
+        #     counters. Most coverage is silently lost (~32% vs. ~90% when
+        #     using Varnish Cache).
+        # include:
+        #   - platform: ubuntu-26.04
+        #     cc: gcc
+        #     make_target: lcov
+        #     configure_flags: --enable-code-coverage
 
     steps:
       - uses: actions/checkout@v6
@@ -65,12 +74,13 @@ jobs:
               make -j1; \
               make ${{ matrix.make_target }} -j1'
 
-      - name: Push code coverage
-        if: ${{ matrix.make_target == 'lcov' }}
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+      # See above why code coverage is disabled in this branch.
+      # - name: Push code coverage
+      #   if: ${{ matrix.make_target == 'lcov' }}
+      #   uses: codecov/codecov-action@v6
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     fail_ci_if_error: true
 
       - name: Show test report
         if: ${{ failure() }}

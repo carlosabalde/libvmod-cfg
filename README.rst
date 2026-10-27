@@ -2,9 +2,6 @@
 .. image:: https://github.com/carlosabalde/libvmod-cfg/actions/workflows/main.yml/badge.svg?branch=6.0-enterprise
    :alt: GitHub Actions CI badge
    :target: https://github.com/carlosabalde/libvmod-cfg/actions
-.. image:: https://codecov.io/gh/carlosabalde/libvmod-cfg/branch/6.0-enterprise/graph/badge.svg
-   :alt: Codecov badge
-   :target: https://codecov.io/gh/carlosabalde/libvmod-cfg
 
 VMOD useful to access to contents of environment variables and local or remote files from VCL, usually for configuration purposes.
 
